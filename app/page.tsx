@@ -31,7 +31,7 @@ export default function Home() {
     e.preventDefault();
     const subject = encodeURIComponent("TileSPEC tender enquiry — " + (form.project || form.company || form.name));
     const body = encodeURIComponent(["Name: " + form.name, "Company: " + form.company, "Email: " + form.email, "Project: " + form.project, "Location: " + form.location, "", form.message, "", "Please reply with instructions for securely sending tender drawings."].join("\n"));
-    window.location.href = "mailto:enquiries@tilespec.uk?subject=" + subject + "&body=" + body;
+    window.location.href = "mailto:info@resinspec.uk?subject=" + subject + "&body=" + body;
     setSent(true);
   }
   return <main id="top">
