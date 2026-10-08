@@ -17,9 +17,8 @@ const projects = [
 ];
 
 function Logo({ light = false }: { light?: boolean }) {
-  return <a className={"brand" + (light ? " brand-light" : "")} href="#top" aria-label="TileSPEC home">
-    <span className="brand-symbol"><span/><span/><span/></span>
-    <span className="brand-type"><strong>Tile<span>SPEC</span></strong><small>COMMERCIAL TILING CONTRACTORS</small></span>
+  return <a className={"brand brand-svg" + (light ? " brand-light" : "")} href="#top" aria-label="TileSPEC home">
+    <img src="/tilespec-logo-animated.svg" alt="TileSPEC Commercial Tiling" width="280" height="75" />
   </a>;
 }
 
