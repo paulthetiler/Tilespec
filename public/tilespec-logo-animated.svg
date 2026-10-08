@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 300" role="img" aria-labelledby="title desc">
+  <title id="title">TileSPEC Commercial Tiling</title>
+  <desc id="desc">TileSPEC Commercial Tiling logo</desc>
+  <style>
+    .layer { opacity: 0; transform-box: fill-box; transform-origin: center; animation: layer-drop .38s cubic-bezier(.2,.78,.28,1.16) forwards; }
+    .layer-teal { animation-delay: .54s; }
+    .layer-grey { animation-delay: .72s; }
+    .layer-navy { animation-delay: .90s; }
+    .wordmark { opacity: 0; transform: translateX(-18px); animation: wordmark-in .30s ease-out 1.20s forwards; }
+    .flooring-letter { opacity: 0; animation: letter-in .08s ease-out forwards; }
+    .l1{animation-delay:1.44s}.l2{animation-delay:1.49s}.l3{animation-delay:1.54s}.l4{animation-delay:1.59s}
+    .l5{animation-delay:1.64s}.l6{animation-delay:1.69s}.l7{animation-delay:1.74s}.l8{animation-delay:1.79s}
+    .l9{animation-delay:1.84s}
+    .l10{animation-delay:1.89s}
+    .l11{animation-delay:1.94s}
+    .l12{animation-delay:1.99s}
+    .l13{animation-delay:2.04s}
+    .l14{animation-delay:2.09s}
+    .l15{animation-delay:2.14s}
+    .l16{animation-delay:2.19s}
+    @keyframes layer-drop {
+      0% { opacity: 0; transform: translateY(-170px); }
+      70% { opacity: 1; transform: translateY(7px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes wordmark-in {
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes letter-in {
+      to { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .layer,.wordmark,.flooring-letter { animation: none !important; opacity: 1 !important; transform: none !important; }
+    }
+  </style>
+
+  <g transform="translate(10 18) scale(.46)">
+    <g class="layer layer-navy"><polygon points="268,52 496,160 268,268 40,160" fill="#0F2A3A"/></g>
+    <g class="layer layer-grey"><polygon points="40,221 268,329 496,221 496,289 268,397 40,289" fill="#7B8790"/></g>
+    <g class="layer layer-teal"><polygon points="40,350 268,458 496,350 496,418 268,526 40,418" fill="#7FB8B0"/></g>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <g class="wordmark">
+      <text x="275" y="128" font-size="112" font-weight="700" fill="#0F2A3A" letter-spacing="-3">Tile<tspan font-weight="400">SPEC</tspan></text>
+    </g>
+
+    <text x="282" y="205" font-size="32" font-weight="700" fill="#7B8790" letter-spacing="9">
+      <tspan class="flooring-letter l1">C</tspan><tspan class="flooring-letter l2">O</tspan><tspan class="flooring-letter l3">M</tspan><tspan class="flooring-letter l4">M</tspan><tspan class="flooring-letter l5">E</tspan><tspan class="flooring-letter l6">R</tspan><tspan class="flooring-letter l7">C</tspan><tspan class="flooring-letter l8">I</tspan><tspan class="flooring-letter l9">A</tspan><tspan class="flooring-letter l10">L</tspan><tspan class="flooring-letter l11">T</tspan><tspan class="flooring-letter l12">I</tspan><tspan class="flooring-letter l13">L</tspan><tspan class="flooring-letter l14">I</tspan><tspan class="flooring-letter l15">N</tspan><tspan class="flooring-letter l16">G</tspan>
+    </text>
+  </g>
+</svg>
