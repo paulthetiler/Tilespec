@@ -9,3 +9,13 @@
 .brand-svg img{display:block;width:265px;height:auto;max-width:100%}
 .brand-light img{filter:brightness(0) invert(1)}
 @media(max-width:760px){.brand-svg img{width:215px}.brand-svg{max-width:calc(100vw - 100px)}}
+
+/* Short landscape viewports: let the hero grow with its content instead of clipping CTAs. */
+@media (orientation:landscape) and (max-height:800px) and (min-width:761px){
+  .hero{height:auto;min-height:max(610px,calc(100svh - 130px));overflow:hidden;display:flex;flex-direction:column}
+  .hero-content{padding-top:clamp(38px,7vh,72px);padding-bottom:36px;flex:1}
+  .hero h1{font-size:clamp(68px,7.5vw,118px);margin:22px 0 18px}
+  .hero-content>p{line-height:1.6;margin-bottom:0}
+  .hero-actions{margin-top:22px}
+  .hero-bottom{position:relative;left:auto;bottom:auto;transform:none;padding-bottom:24px;flex-shrink:0}
+}
