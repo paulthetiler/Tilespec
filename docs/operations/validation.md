@@ -11,6 +11,7 @@ The architecture and delivery boundaries are in [architecture.md](architecture.m
 | Phone/desktop browser boundary tests | 9 passed; 1 desktop-only skip for the phone menu |
 | Shared mobile form retry/success checks | 2 passed |
 | Independent security review | No remaining material findings |
+| GitHub Actions acceptance workflow | Passed on the foundation commit |
 
 Database coverage includes financial and tenant isolation, expired/revoked
 allocations, original-uploader-only evidence, service-only upload completion,
@@ -28,12 +29,22 @@ preliminaries, variations, notices and quality decisions are subsequent phases.
 
 ## Outstanding hosted acceptance
 
-The owner confirmed new, dedicated Supabase and Vercel staging projects are needed.
-Neither management credential is available in the running environment. Project
+The owner confirmed new staging infrastructure is needed. Draft PR #4 revealed
+an existing GitHub-connected Vercel project, which automatically deployed the
+branch. Its review URL is recorded in [deployment.md](deployment.md); Vercel reports
+it ready, but the cloud proxy rejects requests to that hostname with 403.
+A dedicated Supabase staging project still needs creating. Neither management
+credential is available in the running environment. Backend project
 provisioning, migration against real Supabase Auth/Storage, email invitation
 delivery, authenticated phone journeys, signed file verification against hosted
-Storage, hosted CI and backup restoration remain unverified. Follow the required
+Storage and backup restoration remain unverified. Follow the required
 staging checks in [deployment.md](deployment.md) before operational use.
 
 No production merge, migration or deployment was performed. No inspection,
 approval, signature, certification or demo business data was invented.
+
+The feature branch is published for review in
+[draft PR #4](https://github.com/paulthetiler/Tilespec/pull/4).
+Its [acceptance run](https://github.com/paulthetiler/Tilespec/actions/runs/38058605062)
+completed successfully, including a fresh dependency install, database tests,
+production build and browser/form checks.

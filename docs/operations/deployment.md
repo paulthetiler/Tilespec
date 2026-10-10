@@ -7,20 +7,31 @@ belong to subsequent phases in [architecture.md](architecture.md).
 
 ## Account access and project creation
 
-No TileSPEC backend or Vercel project binding was found in this checkout. The owner
-confirmed that staging projects need creating. Creating a project requires account
-access; the cloud environment currently has neither Supabase nor Vercel credentials.
-Required account-token names and API domains have been saved in environment
-settings for secure entry. Do not paste tokens in chat or commit them.
+No TileSPEC backend or local Vercel project binding was found in this checkout.
+The owner confirmed that new staging infrastructure is needed. Publishing draft
+PR #4 subsequently revealed an existing GitHub-connected Vercel project named
+`tilespec` under `paulthetiler-9580s-projects`; it automatically deployed the feature
+branch. Reuse its preview environment rather than creating a duplicate project.
+A dedicated Supabase staging project still needs creating. The cloud environment
+currently has neither Supabase nor Vercel management credentials. Required token
+names and API domains have been saved in environment settings for secure entry.
+Do not paste tokens in chat or commit them.
 
 - `SUPABASE_ACCESS_TOKEN`: Supabase management API access for project provisioning.
-- `VERCEL_TOKEN`: Vercel account access for a separate review project/deployment.
+- `VERCEL_TOKEN`: Vercel account access for configuring the branch preview environment.
 - API destinations: `api.supabase.com`, `api.vercel.com`, `api.github.com`.
 
 These are provisioning credentials, not application environment variables. Use
 existing free-tier capacity; do not upgrade a service plan automatically. If several
 organisations or teams are available, explicitly select the owner's intended one.
 Use a dedicated TileSPEC staging project, not the live ResinSpec backend.
+
+Vercel reports the branch deployment ready at
+[the review preview](https://tilespec-git-feature-tilespe-592971-paulthetiler-9580s-projects.vercel.app).
+The cloud network proxy currently rejects requests to that hostname with 403,
+so its contents and authentication configuration have not been verified here.
+The exact hostname has been added to the environment's draft allowlist. A ready
+deployment status does not prove hosted backend acceptance.
 
 Once provisioned, configure the app's dedicated project values in secure Vercel
 preview settings and the cloud environment:

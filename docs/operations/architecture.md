@@ -149,9 +149,9 @@ own reviewable PR. No automatic production merge, migration or live data mutatio
   operational release, fabricated approval or automatic green project status.
 - Run type check, production build, real PostgreSQL permission tests, meaningful
   application tests and phone-width browser checks. Preserve estimator pricing.
-- Publish only a review preview with a dedicated staging backend. Repository Git
-  read access works; GitHub API and Vercel/Supabase configuration are not yet
-  available here. Complete independent code/tests while those are supplied.
+- Publish only a review preview with a dedicated staging backend. The feature
+  branch is published and draft PR #4 is open. Vercel/Supabase account credentials
+  are not yet available here; hosted acceptance remains outstanding.
 
 ## Deployment, backup and recovery boundaries
 
