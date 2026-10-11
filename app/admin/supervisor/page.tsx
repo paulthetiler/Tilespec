@@ -1,4 +1,5 @@
 import Link from "next/link";
+import SiteWorkflowPreview from "./site-workflow-preview";
 import { requireActor } from "@/lib/auth";
 import { checkDatabase, contractsFor } from "@/lib/operations/data";
 
@@ -20,6 +21,7 @@ export default async function SupervisorHub() {
     <h1>Supervisor hub</h1>
     <p>One place for the current job pack, drawings and work areas. Information is read-only until the approval and upload workflows are enabled.</p>
     <p><Link href="/admin">← Admin overview</Link></p>
+    <SiteWorkflowPreview areaNames={Array.from(new Set((areas.data ?? []).map(a => a.name)))} />
     {contracts.length === 0 && <section style={{padding:20,border:"1px solid #bbb",borderRadius:10}}>No contracts are assigned yet. An owner or contracts manager must create and assign a contract before the site pack appears.</section>}
     {contracts.map(contract => {
       const contractAreas = (areas.data ?? []).filter(a => a.contract_id === contract.id);
