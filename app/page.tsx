@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, FileUp, HardHat, Layers3, Mail, MapPin, Menu, MoveUpRight, Phone, Ruler, ShieldCheck, X } from "lucide-react";
 
 const services = [
-  { title: "Commercial floor tiling", detail: "Large-format porcelain, high-traffic floors and expansive commercial installations.", icon: Ruler, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000003b8c82108173987758914799.png" },
+  { title: "Commercial floor tiling", detail: "Large-format porcelain, high-traffic floors and expansive commercial installations.", icon: Ruler, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000c0c881f4a960c247e09c631a.png" },
   { title: "Wall tiling & finishes", detail: "Precisely detailed wall finishes for washrooms, circulation areas and public spaces.", icon: Layers3, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000864c81f48bb8e9fdca1728c9.png" },
   { title: "Complete tiling packages", detail: "Scope, preparation, installation and handover coordinated around the site programme.", icon: HardHat, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000b53881f4aad799366bb96d7b.png" },
   { title: "Specialist preparation", detail: "Substrate assessment, levelling and preparation before the first tile is laid.", icon: ShieldCheck, image: "https://images.unsplash.com/photo-1600607687644-c7171b42498f?auto=format&fit=crop&w=900&q=80" },
