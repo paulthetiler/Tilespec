@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
-import { calculateEstimate, type EstimateArea } from "@/lib/estimator";
+import { calculateEstimate, type EstimateArea, type CostArea, type MaterialSettings, type SupervisorSettings } from "@/lib/estimator";
 
-type Area = EstimateArea;
-const initial: Area = { id: 1, description: "Open commercial floor", sqm: 500, sell: 35, sub: 17, output: 70, daysExtra: 0, materials: 7, mode: "metre", gangDay: 600 };
+type Area = CostArea;
+const initial: Area = { id: 1, description: "Open commercial floor", sqm: 500, sell: 35, sub: 17, output: 70, daysExtra: 0, materials: 7, mode: "metre", gangDay: 600, lengthMm:600, widthMm:600, depthMm:10, jointMm:3, backButter:false };
 const gbp = (n:number) => new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n);
 const num = (n:number) => Number.isFinite(n) ? Math.max(0,n) : 0;
 
@@ -16,14 +16,18 @@ export default function CommercialEstimator(){
   const [contingency,setContingency] = useState(5);
   const [target,setTarget] = useState(30);
   const [copied,setCopied] = useState(false);
+  const [materialSettings,setMaterialSettings] = useState<MaterialSettings>({adhesiveBagPrice:25,adhesiveCoverage:4,adhesiveBagKg:20,backButterKgPerSqm:1.5,groutPackPrice:18,groutPackKg:5,groutDensity:1.6,groutWaste:10});
+  const [supervisor,setSupervisor] = useState<SupervisorSettings>({mode:"visiting",dayRate:230,days:2,expenses:0});
+  const setMaterial=(key:keyof MaterialSettings,value:number)=>setMaterialSettings(v=>({...v,[key]:value}));
+  const setSuper=(key:keyof SupervisorSettings,value:string|number)=>setSupervisor(v=>({...v,[key]:value}));
   function edit(id:number,changes:Partial<Area>){setAreas(prev=>prev.map(a=>a.id===id?{...a,...changes}:a));}
   function add(){setAreas(prev=>[...prev,{...initial,id:Math.max(0,...prev.map(a=>a.id))+1,description:"New work area",sqm:50,sell:45,sub:22,output:30}]);}
-  const figures=useMemo(()=>calculateEstimate(areas,other,contingency,target),[areas,other,contingency,target]);
+  const figures=useMemo(()=>calculateEstimate(areas,other,contingency,target,materialSettings,supervisor),[areas,other,contingency,target,materialSettings,supervisor]);
   const summary = [
     "TileSPEC commercial tender estimate — draft only",
     ...figures.lines.map(a=>a.description+": "+a.sqm+"m² @ £"+a.sell+"/m²; subcontract "+(a.mode==="metre"?"£"+a.sub+"/m²":"£"+a.gangDay+"/day")+"; "+a.days+" gang days"),
     "Revenue: "+gbp(figures.revenue),"Subcontract labour: "+gbp(figures.labour),
-    "Fixing materials: "+gbp(figures.materials),"Other costs: "+gbp(other),
+    "Fixing materials: "+gbp(figures.materials),"Supervisor: "+figures.supervisorAttendance+" days, "+gbp(figures.supervisorCost),"Other costs: "+gbp(other),
     "Contingency reserve: "+gbp(figures.reserve),"Estimated profit: "+gbp(figures.profit),
     "Estimated margin: "+figures.margin.toFixed(1)+"%","Excludes VAT. Not a customer quotation."
   ].join("\n");
@@ -48,6 +52,8 @@ export default function CommercialEstimator(){
               <label>Quantity (m²)<input type="number" min="0" step="any" value={a.sqm} onChange={e=>edit(a.id,{sqm:num(Number(e.target.value))})}/></label>
               <label>TileSPEC sell (£/m²)<input type="number" min="0" step="any" value={a.sell} onChange={e=>edit(a.id,{sell:num(Number(e.target.value))})}/></label>
               <label>Fixing materials (£/m²)<input type="number" min="0" step="any" value={a.materials} onChange={e=>edit(a.id,{materials:num(Number(e.target.value))})}/></label>
+              <label>Back-butter large format <input type="checkbox" checked={!!a.backButter} onChange={e=>edit(a.id,{backButter:e.target.checked})}/></label>
+              {(["lengthMm","widthMm","depthMm","jointMm"] as const).map(k=><label key={k}>{({lengthMm:"Tile length mm",widthMm:"Tile width mm",depthMm:"Joint depth mm",jointMm:"Joint width mm"} as const)[k]}<input type="number" min="0" value={a[k]??0} onChange={e=>edit(a.id,{[k]:num(Number(e.target.value))})}/></label>)}
               <label>Gang output (m²/day)<input type="number" min="1" step="any" value={a.output} onChange={e=>edit(a.id,{output:Math.max(1,num(Number(e.target.value)))})}/></label>
             </div>
             <div className={styles.payment}>
@@ -55,18 +61,28 @@ export default function CommercialEstimator(){
               {a.mode==="metre"?<label>Subcontract gang (£/m²)<input type="number" min="0" step="any" value={a.sub} onChange={e=>edit(a.id,{sub:num(Number(e.target.value))})}/></label>:<label>Whole gang (£/day)<input type="number" min="0" step="any" value={a.gangDay} onChange={e=>edit(a.id,{gangDay:num(Number(e.target.value))})}/></label>}
               <label>Extra finishing days<input type="number" min="0" step="1" value={a.daysExtra} onChange={e=>edit(a.id,{daysExtra:Math.floor(num(Number(e.target.value)))})}/></label>
             </div>
-            <div className={styles.areaTotals}><span>Estimated gang days <b>{line.days}</b></span><span>Subcontract labour <b>{gbp(line.labour)}</b></span><span>Area revenue <b>{gbp(line.revenue)}</b></span></div>
+            <div className={styles.areaTotals}><span>Estimated gang days <b>{line.days}</b></span><span>Subcontract labour <b>{gbp(line.labour)}</b></span><span>Adhesive <b>{line.adhesiveBags} bags</b></span><span>Grout <b>{line.groutPacks} packs</b></span><span>Area revenue <b>{gbp(line.revenue)}</b></span></div>
           </article>;
         })}
       </section>
       <section className={styles.section}>
+        <h2>Direct materials and supervision</h2>
+        <p className={styles.note}>Draft assumptions only. Supplier prices and grout geometry must be verified. Existing fixing materials £/m² must exclude adhesive and grout to avoid double counting. Unsurveyed substrates remain provisional.</p>
+        <div className={styles.fields}>
+          {(["adhesiveBagPrice","adhesiveCoverage","adhesiveBagKg","backButterKgPerSqm","groutPackPrice","groutPackKg","groutDensity","groutWaste"] as const).map(k=><label key={k}>{({adhesiveBagPrice:"Adhesive £/bag",adhesiveCoverage:"Standard m²/bag",adhesiveBagKg:"Adhesive kg/bag",backButterKgPerSqm:"Extra back-butter kg/m²",groutPackPrice:"Grout £/pack",groutPackKg:"Grout kg/pack",groutDensity:"Grout density factor",groutWaste:"Grout wastage %"} as const)[k]}<input type="number" min="0" step="any" value={materialSettings[k]} onChange={e=>setMaterial(k,num(Number(e.target.value)))}/></label>)}
+          <label>Supervisor mode<select value={supervisor.mode} onChange={e=>setSuper("mode",e.target.value)}><option value="visiting">Visiting</option><option value="full-time">Full-time</option><option value="manual">Manual</option></select></label>
+          {supervisor.mode==="manual"&&<label>Supervisor days<input type="number" min="0" step="0.5" value={supervisor.days??0} onChange={e=>setSuper("days",num(Number(e.target.value)))}/></label>}
+          <label>Supervisor £/day<input type="number" min="0" value={supervisor.dayRate} onChange={e=>setSuper("dayRate",num(Number(e.target.value)))}/></label>
+          <label>Supervisor expenses £<input type="number" min="0" value={supervisor.expenses} onChange={e=>setSuper("expenses",num(Number(e.target.value)))}/></label>
+        </div>
+        <p className={styles.note}>Project {figures.projectDays} gang-days; supervisor {figures.supervisorAttendance} chargeable days. For projects over 20 days, confirm attendance manually. Pre-start, in-progress and handover QA checks remain mandatory operational gates.</p>
         <h2>Project allowances</h2>
         <div className={styles.fields}>
           <label>Other project costs (£)<input type="number" min="0" step="any" value={other} onChange={e=>setOther(num(Number(e.target.value)))}/></label>
           <label>Contingency (% of revenue)<input type="number" min="0" max="100" step="any" value={contingency} onChange={e=>setContingency(Math.min(100,num(Number(e.target.value))))}/></label>
           <label>Target margin (%)<input type="number" min="0" max="99" step="any" value={target} onChange={e=>setTarget(Math.min(99,num(Number(e.target.value))))}/></label>
         </div>
-        <p className={styles.note}>Other costs should include travel, accommodation, supervision, equipment, insurance, overhead allocation and any separately paid preparation or finishing. Price-work mode assumes the agreed subcontract rate covers the specified measured work.</p>
+        <p className={styles.note}>Other costs should include travel, accommodation, equipment, insurance, overhead allocation and any separately paid preparation or finishing. Price-work mode assumes the agreed subcontract rate covers the specified measured work.</p>
       </section>
       <section className={styles.section}>
         <h2>Commercial viability</h2>
@@ -74,7 +90,7 @@ export default function CommercialEstimator(){
           <div><span>Contract value</span><b>{gbp(figures.revenue)}</b></div>
           <div><span>Subcontract labour</span><b>{gbp(figures.labour)}</b></div>
           <div><span>Fixing materials</span><b>{gbp(figures.materials)}</b></div>
-          <div><span>Other project costs</span><b>{gbp(other)}</b></div>
+          <div><span>Supervisor cost</span><b>{gbp(figures.supervisorCost)}</b></div><div><span>Other project costs</span><b>{gbp(other)}</b></div>
           <div><span>Contingency reserve</span><b>{gbp(figures.reserve)}</b></div>
           <div className={styles.total}><span>Estimated profit</span><b>{gbp(figures.profit)}</b></div>
           <div><span>Break-even contract value</span><b>{Number.isFinite(figures.breakEven)?gbp(figures.breakEven):"Not achievable"}</b></div>
