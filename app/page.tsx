@@ -7,7 +7,7 @@ const services = [
   { title: "Commercial floor tiling", detail: "Large-format porcelain, high-traffic floors and expansive commercial installations.", icon: Ruler, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000c0c881f4a960c247e09c631a.png" },
   { title: "Wall tiling & finishes", detail: "Precisely detailed wall finishes for washrooms, circulation areas and public spaces.", icon: Layers3, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000864c81f48bb8e9fdca1728c9.png" },
   { title: "Complete tiling packages", detail: "Scope, preparation, installation and handover coordinated around the site programme.", icon: HardHat, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000a4ec82468ee6377d39b40b05.png" },
-  { title: "Specialist preparation", detail: "Substrate assessment, levelling and preparation before the first tile is laid.", icon: ShieldCheck, image: "https://images.unsplash.com/photo-1600607687644-c7171b42498f?auto=format&fit=crop&w=900&q=80" },
+  { title: "Specialist preparation", detail: "Substrate assessment, levelling and preparation before the first tile is laid.", icon: ShieldCheck, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000ad5081f4817988f4d69fb73f.png" },
 ];
 const sectors = ["Retail & showrooms", "Commercial developments", "Hospitality & leisure", "Public & communal spaces"];
 const projects = [
