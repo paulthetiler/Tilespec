@@ -4,8 +4,34 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  pull-requests: read
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'app/admin/**'
+              - 'app/api/**'
+              - 'lib/**'
+              - 'supabase/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'playwright.config.*'
+              - 'jest.config.*'
+              - 'tsconfig.json'
+              - '.github/workflows/operations-phase1.yml'
   acceptance:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
