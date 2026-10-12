@@ -1,0 +1,30 @@
+.intro{padding:90px 0}
+.introGrid{display:grid;grid-template-columns:1.12fr 1fr;gap:85px;align-items:center}
+.intro h2{font-size:clamp(54px,5.5vw,88px);margin:25px 0 0}
+.intro p{font-size:16px;line-height:1.9;margin-bottom:20px}
+.intro .audience{font-size:12px;line-height:1.8;color:#3b666b;border-left:2px solid var(--teal);padding-left:20px;margin:0}
+.scope{background:#f0f4f5}
+.scope :global(.section-head h2){font-size:clamp(58px,6vw,96px)}
+.scopeGrid{display:grid;grid-template-columns:1.35fr 1fr;gap:80px;align-items:start}
+.serviceList article{display:grid;grid-template-columns:34px 1fr;gap:22px;border-top:1px solid #becfd3;padding:25px 0 20px;scroll-margin-top:30px}
+.number{font-size:11px;font-weight:800;color:#3b666b;padding-top:6px;letter-spacing:.09em}
+.serviceList h3,.sectorRows h3{font-family:'Barlow Condensed',sans-serif;font-size:32px;text-transform:uppercase;line-height:1.05;margin:0 0 13px}
+.serviceList p{font-size:14px;line-height:1.85;color:#60737c;margin-bottom:0}
+.scopePhoto{margin:0;position:sticky;top:30px}
+.photoFrame{height:660px;position:relative;background:#dce3e6}
+.photoFrame img{object-fit:cover;object-position:47% center}
+.scopePhoto figcaption{font-size:10px;line-height:1.7;color:#63727b;margin-top:14px}
+.delivery article{border-top:2px solid #b5c9cb;padding-top:22px}
+.delivery p{max-width:none;font-size:14px}
+.sectorGrid{display:grid;grid-template-columns:1fr 1.2fr;gap:90px;align-items:start}
+.sectors h2{font-size:clamp(56px,5.8vw,92px)}
+.sectorRows article{padding:25px 0;border-top:1px solid #47616b}
+.sectorRows article:last-child{padding-bottom:0}
+.sectorRows h3{color:#fff;font-size:30px}
+.sectorRows p{font-size:14px;max-width:none;margin-bottom:0}
+.coverage{border-bottom:1px solid var(--line)}
+.coverageGrid{display:grid;grid-template-columns:1fr 1.1fr;gap:85px;align-items:start}
+.coverage h2{font-size:clamp(52px,5.4vw,86px);margin-top:28px}
+.coverage p{font-size:15px;line-height:1.9}
+@media(max-width:1100px){.introGrid,.coverageGrid{gap:45px}.scopeGrid{gap:40px}.sectorGrid{gap:45px}.photoFrame{height:760px}}
+@media(max-width:760px){.intro{padding:65px 0}.introGrid,.scopeGrid,.sectorGrid,.coverageGrid{grid-template-columns:1fr;gap:32px}.intro h2{font-size:clamp(50px,11vw,76px)}.intro p{font-size:15px}.scope :global(.section-head h2){font-size:clamp(50px,11vw,76px)}.scope :global(.section-head){margin-bottom:30px}.serviceList article{gap:13px;grid-template-columns:25px 1fr;padding:23px 0}.serviceList h3{font-size:29px}.serviceList p{font-size:13px}.scopePhoto{position:static}.photoFrame{height:370px}.delivery p{font-size:14px}.sectors h2{font-size:clamp(51px,11.5vw,80px)}.sectorRows h3{font-size:28px}.sectorRows p{font-size:13px}.coverage h2{font-size:clamp(49px,10.9vw,74px);margin-bottom:0}.coverage p{font-size:14px}}

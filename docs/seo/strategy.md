@@ -8,7 +8,7 @@ The commercial objective is enquiries that include a usable scope, project locat
 
 ## Audit of the existing source
 
-The audit covers the repository source supplied for this feature, before the SEO changes. Live indexing is a separate question.
+The audit covers the repository source at `1d47e558a76f453dfd4ef32fbbeb456abf3285ca`, before the SEO changes. Live indexing is a separate question. The connected Vercel fetch verified the homepage returns HTTP 200; `/robots.txt` and `/sitemap.xml` each returned HTTP 404 at the approved production alias during this audit.
 
 | Area | Finding | Implication |
 | --- | --- | --- |
@@ -46,13 +46,13 @@ Technical editorial topics should be checked against current manufacturer instru
 | `/services/commercial-wall-tiling` | Commercial wall tiling; washroom wall finishes | Background suitability, tile weight, junctions, wet-area interfaces, fittings and access panels | Phase 2; unpublished |
 | `/services/floor-preparation` | Floor preparation for commercial tiling; mechanical preparation and levelling | Existing finish/adhesive removal, substrate condition, moisture considerations, repairs and compatible preparation systems | Phase 2; unpublished |
 | `/services/complete-tiling-packages` | Commercial tiling package; preparation-to-handover subcontract | Scope ownership, inclusions/exclusions, material responsibility, programme, inspection and handover | Phase 2; unpublished |
-| `/areas/north-west` | Commercial tiling North West; regional commercial contractor | Warrington base, verified service arrangements, mobilisation and relevant project requirements | Phase 3; unpublished |
-| `/areas/north-west/warrington` | Commercial tiling Warrington | Useful base-specific information and a reason to exist separately from the North West hub | Phase 3 candidate; evidence gate |
-| `/areas/north-west/manchester` | Commercial tiling Manchester | Verified ability to serve relevant projects, local project/access information and distinct buyer need | Phase 3 candidate; evidence gate |
-| `/industries/retail-and-showrooms` | Retail/showroom floor tiling; shopfitting tiling contractor | Trading restrictions, phased access, high-footfall finishes, display/entrance setting out and shopfitter coordination | Phase 4; unpublished |
-| `/industries/hospitality-and-leisure` | Hotel/restaurant/leisure commercial tiling | Operational disruption, washroom/public-area sequencing, cleaning/use requirements and other-trade interfaces | Phase 4; unpublished |
+| `/locations/north-west` | Commercial tiling North West; regional commercial contractor | Warrington base, verified service arrangements, mobilisation and relevant project requirements | Phase 3; unpublished |
+| `/locations/north-west/warrington` | Commercial tiling Warrington | Useful base-specific information and a reason to exist separately from the North West hub | Phase 3 candidate; evidence gate |
+| `/locations/north-west/manchester` | Commercial tiling Manchester | Verified ability to serve relevant projects, local project/access information and distinct buyer need | Phase 3 candidate; evidence gate |
+| `/industries/retail-showrooms` | Retail/showroom floor tiling; shopfitting tiling contractor | Trading restrictions, phased access, high-footfall finishes, display/entrance setting out and shopfitter coordination | Phase 4; unpublished |
+| `/industries/hospitality-leisure` | Hotel/restaurant/leisure commercial tiling | Operational disruption, washroom/public-area sequencing, cleaning/use requirements and other-trade interfaces | Phase 4; unpublished |
 | `/industries/commercial-developments` | Commercial development tiling subcontractor | Specification review, work-area release, repeated details, interfaces, inspection and handover | Phase 4; unpublished |
-| `/industries/public-and-communal-spaces` | Public/communal space tiling | Access continuity, transitions, cleaning/use requirements and coordination with the wider project team | Phase 4; unpublished |
+| `/industries/public-communal-spaces` | Public/communal space tiling | Access continuity, transitions, cleaning/use requirements and coordination with the wider project team | Phase 4; unpublished |
 
 “Commercial tiling company” and “commercial tiling contractor” belong to the same national hub. Large-format, porcelain and washroom topics initially belong within the relevant service page. Add a separate page only after capability, search intent and genuinely additional content justify it. Do not make an unqualified “flooring contractor” promise that implies unrelated flooring services.
 
@@ -67,27 +67,27 @@ Paths use no trailing slash, matching the existing Next.js convention. The hiera
     ├── /services/commercial-wall-tiling       unpublished
     ├── /services/floor-preparation           unpublished
     ├── /services/complete-tiling-packages     unpublished
-    ├── /industries/retail-and-showrooms       unpublished
-    ├── /industries/hospitality-and-leisure    unpublished
+    ├── /industries/retail-showrooms       unpublished
+    ├── /industries/hospitality-leisure    unpublished
     ├── /industries/commercial-developments    unpublished
-    ├── /industries/public-and-communal-spaces unpublished
-    └── /areas/north-west                     unpublished
-        └── /areas/north-west/{city}          evidence-gated candidates
+    ├── /industries/public-communal-spaces unpublished
+    └── /locations/north-west                     unpublished
+        └── /locations/north-west/{city}          evidence-gated candidates
 ```
 
 Industry/service breadcrumbs can use the national hub as their editorial parent without requiring a thin `/services` or `/industries` index. Regional breadcrumbs follow Home → Commercial tiling → North West → city. URL folders need not become indexable pages merely to exist.
 
 | Expansion region | Proposed regional URL | City candidates; all unpublished |
 | --- | --- | --- |
-| North West | `/areas/north-west` | Warrington, Manchester, then Liverpool, Chester and Preston if justified |
-| Yorkshire and the Humber | `/areas/yorkshire-and-the-humber` | Leeds, Sheffield |
-| West Midlands | `/areas/west-midlands` | Birmingham |
-| East Midlands | `/areas/east-midlands` | Nottingham |
-| North East | `/areas/north-east` | Newcastle |
-| South West | `/areas/south-west` | Bristol |
-| South East | `/areas/south-east` | No city selected |
-| Greater London | `/areas/greater-london` | Prefer one substantive London hub; avoid a second interchangeable city page |
-| East of England | `/areas/east-of-england` | No city selected |
+| North West | `/locations/north-west` | Warrington, Manchester, then Liverpool, Chester and Preston if justified |
+| Yorkshire and the Humber | `/locations/yorkshire-and-the-humber` | Leeds, Sheffield |
+| West Midlands | `/locations/west-midlands` | Birmingham |
+| East Midlands | `/locations/east-midlands` | Nottingham |
+| North East | `/locations/north-east` | Newcastle |
+| South West | `/locations/south-west` | Bristol |
+| South East | `/locations/south-east` | No city selected |
+| Greater London | `/locations/greater-london` | Prefer one substantive London hub; avoid a second interchangeable city page |
+| East of England | `/locations/east-of-england` | No city selected |
 
 The brief's initial regional list is England-focused. Scotland, Wales and Northern Ireland remain future coverage discussions; do not imply committed nationwide mobilisation merely by adding them to a map.
 

@@ -1,0 +1,44 @@
+name: TileSPEC SEO foundation
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'components/site/**'
+      - 'lib/seo/**'
+      - 'scripts/check-seo.ts'
+      - 'tests/seo.test.ts'
+      - 'tests/seo-browser/**'
+      - 'playwright.seo.config.ts'
+      - 'next.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/seo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_ENV: preview
+      SEO_PRODUCTION_INDEXING: 'false'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check:seo
+      - run: npm run test:seo
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:seo-browser
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: tilespec-seo-browser
+          path: test-results/seo/
+          if-no-files-found: warn
