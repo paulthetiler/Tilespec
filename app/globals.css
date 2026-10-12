@@ -42,3 +42,22 @@
 .brand-experience-mobile-track{display:none}
 .brand-experience-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
 @media(max-width:760px){.brand-experience{padding:32px 0 36px}.brand-experience-heading h2{margin:12px 0 8px;font-size:clamp(30px,8vw,42px)}.brand-experience-heading p{margin-bottom:18px}.brand-experience-viewport{overflow:hidden;margin-inline:-20px;mask-image:linear-gradient(to right,transparent,#000 7%,#000 93%,transparent)}.brand-experience-grid{display:none}.brand-experience-mobile-track{display:flex;width:max-content;gap:12px;animation:brandTicker 32s linear infinite}.brand-experience-mobile-track .brand-experience-logo{width:128px;min-width:128px;height:66px;padding:9px;background:transparent;border:0}.brand-experience-mobile-track .brand-experience-logo img{max-height:43px;opacity:.8}.brand-experience-mobile-track .brand-experience-wordmark{font-size:16px}.brand-experience-mobile-track:active{animation-play-state:paused}.brand-experience-note{margin-top:12px;font-size:10px}}@keyframes brandTicker{to{transform:translateX(-50%)}}@media(prefers-reduced-motion:reduce){.brand-experience-mobile-track{animation:none}.brand-experience-viewport{overflow-x:auto;mask-image:none}}
+
+/* Mobile-only swipe cards: preserve desktop service grid. */
+.services-swipe-hint{display:none}
+@media(max-width:760px){
+ .services.section-pad{padding-bottom:52px}
+ .services .section-head{margin-bottom:22px}
+ .services-swipe-hint{display:flex;align-items:center;justify-content:space-between;color:#4e7f7b;font-size:12px;font-weight:700;letter-spacing:.04em;margin:0 0 14px}
+ .services-swipe-hint span{font-size:23px;line-height:1}
+ .services .service-grid{
+   display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;
+   scroll-padding-inline:0;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;
+   padding:0 20px 14px 0;scrollbar-width:thin;scrollbar-color:#7fb8b0 transparent;
+ }
+ .services .service-card{flex:0 0 min(82vw,340px);width:min(82vw,340px);min-width:0;scroll-snap-align:start;scroll-snap-stop:always}
+ .services .service-photo{height:190px}
+ .services .service-body{padding:20px 22px 46px}
+ .services .service-card h3{font-size:30px}
+ .services .service-grid:focus-visible{outline:2px solid #4d9a91;outline-offset:4px}
+}
