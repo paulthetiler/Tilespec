@@ -2,7 +2,7 @@ import { checkSeoPages } from "../lib/seo/quality";
 import { seoPages } from "../lib/seo/registry";
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { readSeoConfig, isPageRoutable } from "../lib/seo/config";
+import { canonicalUrl, readSeoConfig, isPageRoutable, isPageIndexable } from "../lib/seo/config";
 import { checkRenderedSeo } from "../lib/seo/rendered-quality";
 
 async function main() {
@@ -21,6 +21,23 @@ async function main() {
       return (await Promise.all(entries.map(entry => entry.isDirectory() ? assets(join(directory, entry.name)) : [`/${relative(publicRoot, join(directory, entry.name))}`]))).flat();
     }
     issues.push(...checkRenderedSeo(seoPages, html, config, new Set(await assets(publicRoot))));
+    // Metadata routes are also inspected from their real prerendered responses.
+    // A noindex deployment must never advertise pages through its sitemap.
+    for (const file of ["sitemap.xml", "robots.txt"]) {
+      try {
+        const response = await readFile(join(process.cwd(), ".next/server/app", `${file}.body`), "utf8");
+        if (file === "sitemap.xml") {
+          const urls = [...response.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1].replaceAll("&amp;", "&")).sort();
+          const expected = seoPages.filter(page => isPageIndexable(page, config)).map(page => canonicalUrl(page.path, config)!).sort();
+          if (JSON.stringify(urls) !== JSON.stringify(expected)) issues.push({ severity: "error", code: "rendered-sitemap", paths: ["/sitemap.xml"], message: "Sitemap must contain exactly the approved, indexable production canonical URLs." });
+        } else {
+          const sitemap = response.split(/\r?\n/).filter(line => /^Sitemap:/i.test(line));
+          if (config.indexingEnabled ? sitemap.length !== 1 || sitemap[0] !== `Sitemap: ${config.canonicalOrigin}/sitemap.xml` : sitemap.length !== 0) issues.push({ severity: "error", code: "rendered-robots", paths: ["/robots.txt"], message: "Robots must advertise the production sitemap only after launch approval." });
+        }
+      } catch {
+        issues.push({ severity: "error", code: "missing-metadata-route", paths: [`/${file}`], message: "Metadata route was not prerendered; inspect its build output." });
+      }
+    }
   }
   for (const issue of issues) {
     console[issue.severity === "error" ? "error" : "warn"](`${issue.severity.toUpperCase()} ${issue.code} ${issue.paths.join(", ")}: ${issue.message}`);

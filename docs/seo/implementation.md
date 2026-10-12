@@ -1,61 +1,35 @@
-# Reviewing and extending the SEO foundation
+# TileSPEC prelaunch implementation
 
-This branch adds one national hub for review. It does not approve the hub for production or publish service, industry or city pages. See [strategy.md](strategy.md) for the audit, keyword intent map and phased sitemap.
+The intended first public launch origin is **https://tilespec.uk**. The owner confirmed **info@tilespec.uk** for tender enquiries. This branch prepares the site; it does not approve indexing, merge the PR or promote a production deployment.
 
-## Design and content
+## Completed pages
 
-`components/site/brand.tsx`, `site-header.tsx` and `site-footer.tsx` reuse the approved logo asset and existing CSS. The homepage is moved verbatim into `home-content.tsx`, with a small server wrapper for metadata and publication-aware navigation. Its enquiry form, body content, photography and global styles remain intact. One footer link reaches the hub in preview; it is hidden in production while the hub is under review.
+The homepage is preserved, alongside the national commercial tiling hub, four specialist services, four industries, North West regional hub and Warrington, Manchester and Liverpool spokes: 14 marketing pages in total. The thirteen new pages remain `review` / `noindex` and are available in previews. Eight future regional entries remain drafts with no public routes or links.
 
-`content-page.tsx` provides a server-rendered hero, visible and structured breadcrumbs, available related-page links and commercial enquiry callout. The national hub combines an editorial introduction, numbered scope rows with supporting photography, programme considerations, contextual sector copy and coverage information. Future services, industries and regions should choose their own composition from these shared elements, not duplicate the entire hub.
+Each category has a considered layout using the existing fonts, colours, photography and shared header/footer. Service variants change image placement and scope/detail compositions; industries foreground operational requirements; regions and cities organise coverage and procurement information differently. The current approved SVG from main is reused byte-for-byte. No local offices, projects, clients, accreditations or testimonials are invented. Photography remains labelled illustrative.
 
-All reused imagery remains explicitly illustrative. The page creates no case studies, offices, client appointments or testimonials. Existing homepage brand experience qualifications remain unchanged.
+## Content and links
 
-## Publication and indexing
+`lib/seo/registry.ts` combines typed service, industry and location content modules. Records define clean paths, metadata, H1, distinct intent, original introduction and sections, image provenance, actual parent and contextual related links. Canonicals are centrally derived from the production origin and path.
 
-The typed registry is `lib/seo/registry.ts`. Each record supplies its clean path, category, distinct intent, metadata, H1, introduction, sections, image provenance, parent and related pages, plus separate publication and indexing statuses. Canonical URLs are derived centrally rather than copied into records.
+The national hub links its specialist services, industries and North West region. The region links its three city spokes; cities link their region and relevant commercial services. Industry and service pages link selected related scopes. Homepage service headings now reach the corresponding pages without changing the card layout or images. No links point to empty future regions.
 
-* `draft`: never routed, linked or included in a sitemap.
-* `review`: available locally and on preview deployments; unavailable in production.
-* `approved`: available in production; indexing still requires the page and environment gates below.
+## Launch controls
 
-Before a production merge, confirm the preferred domain and set the server environment variables:
+`readSeoConfig` defaults to the owner-confirmed `https://tilespec.uk`, never a deployment URL. Unique review pages have self-referencing absolute canonicals and matching Open Graph URLs even while noindex. Query strings do not enter canonicals. Paths omit trailing slashes except `/`; Next.js permanently redirects slash variants.
 
-```
-SEO_CANONICAL_ORIGIN=https://your-confirmed-production-domain
-SEO_PRODUCTION_INDEXING=true
-```
+Indexing requires production, **both** `SEO_PRODUCTION_INDEXING=true` and `SEO_LAUNCH_APPROVED=true`, and an individually approved record with `indexingStatus: index`. Neither environment flag is enabled by this task. Review/draft pages cannot become indexable through an inherited deployment variable. All previews remain noindex regardless of production flags.
 
-Do not copy the example placeholder as a real value. No default canonical domain is assumed. The currently verified Vercel alias is `tilespec.vercel.app`; it has not been confirmed as the permanent domain. Preview environments always stay noindex even if they inherit production configuration. A Vercel deployment with missing/unknown environment information also stays noindex.
+The preview and default prelaunch XML sitemap are intentionally empty: only approved, indexable canonical pages qualify. Robots allows public crawling so noindex can be read, while private auth/operations/API routes remain excluded. Once launch has been approved and production indexing enabled, alternate production hosts redirect to the confirmed canonical origin.
 
-Without domain configuration all pages remain noindex, canonicals are deliberately omitted and the XML sitemap is empty. Enabling indexing without a valid origin fails the build. Before publication, approve the individual record and set its indexing status to `index` after content/design approval. **Do not merge this default noindex configuration into a live indexed site without completing the production configuration.**
+## Verification
 
-Clean canonical paths omit trailing slashes except `/`. Next.js redirects slash variants permanently; confirmed indexable production also redirects alternate hosts to the configured origin. Query parameters never enter metadata or sitemap URLs. They render the same landing page with the same clean canonical. Private operational/authentication routes stay noindex and outside the sitemap; their behaviour is not changed.
+`npm run build` checks the registry, compiles Next.js, then validates the emitted HTML, metadata, canonicals, heading counts, actual link graph, fragments, image references, Organization/Service/breadcrumb JSON, robots and sitemap. Duplicate copy, location substitution, invalid links and orphan pages are blocking issues. Similarity scores are editorial signals rather than claimed search-engine formulas.
 
-Root metadata deliberately has no inherited homepage canonical. Page metadata supplies self-referencing absolute canonicals once the origin is configured. Organization and Service data reflect Warrington and suitable UK project enquiries; no ratings or invented reviews are added. Breadcrumb structured URLs are generated only once the production origin is known.
+The PR workflow runs all unit tests, TypeScript, the complete build and Chromium at desktop, tablet, mobile and 320px widths. It captures homepage, hub, floor service, retail industry, region and Manchester screenshots, verifies menu/CTA/links, checks native form validation and records the actual mailto navigation without sending email. Test artifacts include screenshots, reports and traces. Runtime image and console failures are checked; third-party brand image availability is reported separately where relevant.
 
-## Adding a page
+For exact results and owner-verification requirements, see [launch-verification.md](launch-verification.md) and the PR's latest CI/preview links. [strategy.md](strategy.md) retains the initial audit and qualitative research; its original Phase 1 scope is superseded by this implementation.
 
-1. Establish a distinct commercial purpose and real supporting information. Use a draft registry entry first.
-2. Write and review the metadata, introduction and substantive sections. Add verified evidence where available; specify image provenance.
-3. Choose the actual parent and a small number of contextual relationships. Do not link to drafts.
-4. Build a route using shared components, page metadata and a publication guard. Return a real 404 when the page is unavailable.
-5. Run the checks, inspect desktop/mobile screenshots and review a preview.
-6. Approve that page explicitly before enabling production indexing. There is no automatic generator that turns every registry entry into a route.
+## Approval before launch
 
-## Checks
-
-```
-npm ci
-npm run test:seo
-npm test
-npm run typecheck
-VERCEL_ENV=preview npm run build
-```
-
-`npm run build` runs registry checks before Next.js and audits the emitted HTML after the build. Critical defects fail the command. It checks duplicate paths/metadata/H1/intro/body, location-substituted copy, unavailable/broken/orphan links, publication status, rendered metadata and canonical/indexing policy, heading counts, local assets, fragment targets and structured JSON. Shingle similarities and template repetition are editorial warnings, not ranking formulas. They supplement human review rather than claiming to reproduce Google's systems.
-
-The pull-request workflow runs the SEO tests, type checking and preview-mode build without database credentials. Existing database/operations end-to-end checks remain separate and are not part of the marketing change.
-
-Browser acceptance must cover the actual preview at desktop and mobile widths: original logo, identical header/footer styling, correct fonts, image loading, one H1, no horizontal page overflow, functioning mobile menu (including Escape), valid section links and enquiry navigation. Compare with the approved homepage. Do not describe a remote build or screenshot as passed until the real result has been inspected.
-
-Production remains subject to the user's design/content approval and an explicit domain decision. Merge and promotion are not part of this delivery.
+Review the design/content, validate retained business experience/brand background and actual service/mobilisation suitability, ensure the confirmed email mailbox can receive enquiries, and connect/verify the production domain. Then approve the page records and indexing status and explicitly authorise the launch flags, merge and production release. None of those actions is inferred from a successful preview.

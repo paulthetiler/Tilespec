@@ -1,4 +1,6 @@
-# TileSPEC: SEO foundation and staged expansion
+# TileSPEC: original SEO audit and staged expansion
+
+> Historical Phase 1 planning document. The subsequent owner brief confirms https://tilespec.uk and expands this branch to 14 complete marketing pages. See [implementation.md](implementation.md) for current scope, canonical policy and launch gates.
 
 ## Scope of this delivery
 

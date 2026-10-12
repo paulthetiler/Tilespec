@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUpRight } from "lucide-react";
 import type { SeoPage } from "@/lib/seo/types";
 import { getSeoPage } from "@/lib/seo/registry";
 import { isPageRoutable } from "@/lib/seo/config";
-import { breadcrumbJsonLd, serializeJsonLd } from "@/lib/seo/structured-data";
+import { breadcrumbJsonLd, organisationJsonLd, serializeJsonLd } from "@/lib/seo/structured-data";
 import styles from "./content-page.module.css";
 
 export function Breadcrumbs({ page }: { page: SeoPage }) {
@@ -19,17 +19,18 @@ export function Breadcrumbs({ page }: { page: SeoPage }) {
   </>;
 }
 
-export function PageHero({ page, children }: { page: SeoPage; children: React.ReactNode }) {
+export function PageHero({ page, children, eyebrow = "COMMERCIAL PROJECTS · UK ENQUIRIES", description = "Floor and wall tiling, preparation and complete packages for contractors, developers and commercial clients.", ctaAnchor = "#scope", ctaLabel = "EXPLORE THE SCOPE" }: { page: SeoPage; children: React.ReactNode; eyebrow?: string; description?: string; ctaAnchor?: string; ctaLabel?: string }) {
   const photo = page.images.find(image => image.role === "hero");
   return <section className={`hero ${styles.hero}`}>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(organisationJsonLd()) }} />
     {photo && <Image className={styles.heroImage} src={photo.src} alt={photo.alt} fill priority sizes="100vw" />}
     <div className={styles.heroOverlay} />
     <div className={`shell ${styles.heroContent}`}>
       <Breadcrumbs page={page} />
-      <div className="eyebrow light"><span className="eyebrow-line" /> COMMERCIAL PROJECTS · UK ENQUIRIES</div>
+      <div className="eyebrow light"><span className="eyebrow-line" /> {eyebrow}</div>
       {children}
-      <p>Floor and wall tiling, preparation and complete packages for contractors, developers and commercial clients.</p>
-      <div className="hero-actions"><a className="button button-teal" href="/#tender">DISCUSS YOUR PROJECT <ArrowUpRight size={19} /></a><a className="text-link light-link" href="#scope">EXPLORE THE SCOPE <ArrowDown size={17} /></a></div>
+      <p>{description}</p>
+      <div className="hero-actions"><a className="button button-teal" href="/#tender">DISCUSS YOUR PROJECT <ArrowUpRight size={19} /></a><a className="text-link light-link" href={ctaAnchor}>{ctaLabel} <ArrowDown size={17} /></a></div>
       <div className={styles.heroFoot}><span>WARRINGTON BASED · NORTH WEST & SUITABLE UK PROJECTS</span><span>ILLUSTRATIVE ARCHITECTURAL IMAGERY</span></div>
     </div>
   </section>;

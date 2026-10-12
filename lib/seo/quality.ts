@@ -1,4 +1,4 @@
-import { canonicalUrl, isCanonicalPath, isPageIndexable, readSeoConfig, type SeoConfig } from "./config";
+import { canonicalUrl, isCanonicalPath, readSeoConfig, type SeoConfig } from "./config";
 import type { SeoPage } from "./types";
 
 export interface SeoIssue {
@@ -78,8 +78,8 @@ export function checkSeoPages(pages: readonly SeoPage[], config: SeoConfig = rea
       if (!page[field]?.trim()) report("error", "missing-content", [page.path], `Missing required ${field}.`);
     }
     if (page.path !== "/" && !page.sections.length) report("error", "missing-sections", [page.path], "An internal page needs useful supporting content.");
-    if (isCanonicalPath(page.path) && isPageIndexable(page, config) && !canonicalUrl(page.path, config)) {
-      report("error", "missing-canonical", [page.path], "An indexable page needs a self-referencing absolute canonical.");
+    if (isCanonicalPath(page.path) && !canonicalUrl(page.path, config)) {
+      report("error", "missing-canonical", [page.path], "Every review or approved public page needs a self-referencing absolute canonical.");
     }
     if (page.path !== "/" && !page.parent) report("error", "missing-parent", [page.path], "An internal page needs its actual parent hub.");
     if (page.parent && !activePaths.has(page.parent)) report("error", "unavailable-parent", [page.path, page.parent], "Breadcrumb parent must be available for review/publication.");
@@ -145,6 +145,5 @@ export function checkSeoPages(pages: readonly SeoPage[], config: SeoConfig = rea
   for (const page of active) {
     if (!visited.has(page.path)) report("error", "orphan-page", [page.path], "Page has no ordinary link path from the homepage.");
   }
-  if (!config.canonicalOrigin) report("warning", "canonical-origin-pending", active.map(page => page.path), "Canonical origin is unconfirmed; every page remains noindex and canonicals are omitted until it is configured.");
   return issues;
 }

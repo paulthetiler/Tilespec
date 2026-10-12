@@ -1,4 +1,7 @@
 import type { SeoPage } from "./types";
+import { servicePages } from "./content/services";
+import { industryPages } from "./content/industries";
+import { locationPages } from "./content/locations";
 
 const blob = "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/";
 const relationships = { children: [], relatedServices: [], relatedIndustries: [], relatedLocations: [] };
@@ -6,6 +9,10 @@ const relationships = { children: [], relatedServices: [], relatedIndustries: []
 export const commercialTiling: SeoPage = {
   ...relationships,
   path: "/commercial-tiling", category: "national", parent: "/",
+  children: [...servicePages.map(page => page.path), ...industryPages.map(page => page.path), "/locations/north-west"],
+  relatedServices: servicePages.map(page => page.path),
+  relatedIndustries: industryPages.map(page => page.path),
+  relatedLocations: ["/locations/north-west"],
   title: "Commercial Tiling Contractors | UK Project Enquiries | TileSPEC",
   description: "Commercial floor and wall tiling, preparation and complete packages. Warrington-based TileSPEC welcomes suitable projects across the North West and nationwide.",
   h1: "Commercial tiling contractors.",
@@ -56,16 +63,15 @@ function planned(path: string, category: SeoPage["category"], h1: string, intent
 }
 
 export const seoPages: readonly SeoPage[] = [
-  home, commercialTiling,
-  planned("/services/commercial-floor-tiling", "service", "Commercial floor tiling", "Specify and procure a commercial tiled floor: setting out, levels, movement joints and handover."),
-  planned("/services/commercial-wall-tiling", "service", "Commercial wall tiling", "Procure wall tiling for commercial interiors, junction details, substrate suitability and wet-area responsibilities."),
-  planned("/services/floor-preparation", "service", "Floor preparation for tiling", "Assess uplift, mechanical preparation, repair and levelling as part of a suitable tiling scope."),
-  planned("/services/complete-tiling-packages", "service", "Complete commercial tiling packages", "Coordinate an agreed preparation, tiling and handover package with clear trade interfaces."),
-  planned("/locations/north-west", "region", "Commercial tiling in North West England", "Review project-led commercial coverage from Warrington across the North West without invented local offices."),
-  planned("/industries/retail-showrooms", "industry", "Tiling for retail & showrooms", "Plan retail and showroom tiling around trading restrictions, shopfitting and phased access."),
-  planned("/industries/hospitality-leisure", "industry", "Tiling for hospitality & leisure", "Discuss operational disruption, public areas, washrooms and sequencing on hospitality projects."),
-  planned("/industries/commercial-developments", "industry", "Tiling for commercial developments", "Coordinate circulation-area tiling, floor levels and trade interfaces within commercial developments."),
-  planned("/industries/public-communal-spaces", "industry", "Tiling for public & communal spaces", "Review public-area performance specifications, access continuity, maintenance and handover."),
+  home, commercialTiling, ...servicePages, ...industryPages, ...locationPages,
+  planned("/locations/yorkshire-and-the-humber", "region", "Commercial tiling in Yorkshire and the Humber", "Assess a justified regional commercial delivery plan and verified project coverage for Yorkshire."),
+  planned("/locations/west-midlands", "region", "Commercial tiling in the West Midlands", "Review commercial project suitability and mobilisation arrangements for the West Midlands."),
+  planned("/locations/east-midlands", "region", "Commercial tiling in the East Midlands", "Qualify commercial tiling opportunities with practical regional delivery information for the East Midlands."),
+  planned("/locations/greater-london", "region", "Commercial tiling in Greater London", "Assess suitable London commercial packages with substantive site access and delivery information."),
+  planned("/locations/north-east", "region", "Commercial tiling in North East England", "Prepare verified regional coverage and distinct commercial information for North East project enquiries."),
+  planned("/locations/south-west", "region", "Commercial tiling in South West England", "Consider a useful South West regional hub once actual mobilisation capability and buyer demand are established."),
+  planned("/locations/south-east", "region", "Commercial tiling in South East England", "Develop evidence-led South East project information when service arrangements support publication."),
+  planned("/locations/east-of-england", "region", "Commercial tiling in East of England", "Reserve an East of England commercial hub pending useful original regional information and delivery verification."),
 ];
 
 export function getSeoPage(path: string): SeoPage {

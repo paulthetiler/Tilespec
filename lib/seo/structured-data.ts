@@ -6,6 +6,7 @@ export function organisationJsonLd(config: SeoConfig = readSeoConfig()) {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "TileSPEC",
+    email: "info@tilespec.uk",
     ...(config.canonicalOrigin ? {
       "@id": `${config.canonicalOrigin}/#organisation`,
       url: `${config.canonicalOrigin}/`,
@@ -30,6 +31,7 @@ export function breadcrumbJsonLd(page: SeoPage, ancestors: readonly SeoPage[], c
 }
 
 export function serviceJsonLd(page: SeoPage, config: SeoConfig = readSeoConfig()) {
+  if (page.category !== "national" && page.category !== "service") return null;
   return {
     "@context": "https://schema.org",
     "@type": "Service",

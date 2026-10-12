@@ -15,6 +15,7 @@ export function rootMetadata(config: SeoConfig = readSeoConfig()): Metadata {
 export function pageMetadata(page: SeoPage, config: SeoConfig = readSeoConfig()): Metadata {
   const canonical = canonicalUrl(page.path, config);
   const index = isPageIndexable(page, config);
+  const image = page.images.find(entry => entry.role === "hero") ?? page.images[0];
   return {
     title: page.title,
     description: page.description,
@@ -27,7 +28,10 @@ export function pageMetadata(page: SeoPage, config: SeoConfig = readSeoConfig())
       siteName: "TileSPEC",
       locale: "en_GB",
       ...(canonical ? { url: canonical } : {}),
-      images: [{ url: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000003b8c82108173987758914799.png", alt: "Illustrative commercial tiled interior" }],
+      images: [{
+        url: image?.src ?? "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000003b8c82108173987758914799.png",
+        alt: image?.alt ?? "Illustrative commercial tiled interior",
+      }],
     },
   };
 }

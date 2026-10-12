@@ -6,11 +6,13 @@ export interface SeoConfig {
   indexingEnabled: boolean;
 }
 
-/** An explicitly confirmed HTTPS origin; deployment URLs are never a fallback. */
+/** Owner-confirmed launch origin. A deployment hostname is never a fallback. */
+export const TILESPEC_CANONICAL_ORIGIN = "https://tilespec.uk";
+
 export function readSeoConfig(env: SeoEnvironment = process.env): SeoConfig {
-  const configured = env.SEO_CANONICAL_ORIGIN?.trim();
-  let canonicalOrigin: string | null = null;
-  if (configured) {
+  const configured = env.SEO_CANONICAL_ORIGIN?.trim() || TILESPEC_CANONICAL_ORIGIN;
+  let canonicalOrigin: string;
+  {
     let url: URL;
     try {
       url = new URL(configured);
@@ -20,9 +22,10 @@ export function readSeoConfig(env: SeoEnvironment = process.env): SeoConfig {
     if (
       url.protocol !== "https:" || !url.hostname || url.username || url.password ||
       url.port || url.pathname !== "/" || url.search || url.hash ||
-      /\s/.test(configured) || !/^https:\/\/[^/:?#@]+\/?$/i.test(configured)
+      /\s/.test(configured) || !/^https:\/\/[^/:?#@]+\/?$/i.test(configured) ||
+      url.hostname.endsWith(".vercel.app")
     ) {
-      throw new Error("SEO_CANONICAL_ORIGIN must be an HTTPS origin without credentials, port, path, query or fragment.");
+      throw new Error("SEO_CANONICAL_ORIGIN must be a production HTTPS origin without credentials, port, path, query, fragment or Vercel deployment hostname.");
     }
     canonicalOrigin = url.origin;
   }
@@ -31,10 +34,10 @@ export function readSeoConfig(env: SeoEnvironment = process.env): SeoConfig {
   const production = env.NODE_ENV === "production" &&
     (!onVercel || env.VERCEL_ENV === "production");
   const requested = env.SEO_PRODUCTION_INDEXING === "true";
-  if (requested && !canonicalOrigin) {
-    throw new Error("Confirm and configure SEO_CANONICAL_ORIGIN before enabling SEO_PRODUCTION_INDEXING.");
-  }
-  return { canonicalOrigin, production, indexingEnabled: production && requested && !!canonicalOrigin };
+  // Independent launch approval prevents an inherited indexing flag from
+  // exposing the prelaunch website. Both flags default to false.
+  const launchApproved = env.SEO_LAUNCH_APPROVED === "true";
+  return { canonicalOrigin, production, indexingEnabled: production && requested && launchApproved };
 }
 
 export function isCanonicalPath(path: string): boolean {
