@@ -95,8 +95,8 @@ export default function CommercialEstimator(){
         <h2>Project allowances</h2>
         <div className={styles.fields}>
           <label>Other project costs (£)<EditableNumber min={0} step="any" value={other} onValueChange={value=>setOther(num(Number(value)))}/></label>
-          <label>Contingency (% of revenue)<EditableNumber min={0} max="100" step="any" value={contingency} onValueChange={value=>setContingency(Math.min(100,num(Number(value))))}/></label>
-          <label>Target margin (%)<EditableNumber min={0} max="99" step="any" value={target} onValueChange={value=>setTarget(Math.min(99,num(Number(value))))}/></label>
+          <label>Contingency (% of revenue)<EditableNumber min={0} max={100} step="any" value={contingency} onValueChange={value=>setContingency(Math.min(100,num(Number(value))))}/></label>
+          <label>Target margin (%)<EditableNumber min={0} max={99} step="any" value={target} onValueChange={value=>setTarget(Math.min(99,num(Number(value))))}/></label>
         </div>
         <p className={styles.note}>Other costs should include travel, accommodation, equipment, insurance, overhead allocation and any separately paid preparation or finishing. Price-work mode assumes the agreed subcontract rate covers the specified measured work.</p>
       </section>
