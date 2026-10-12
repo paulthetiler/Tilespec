@@ -19,6 +19,9 @@ async function readyForScreenshot(page: Page, hub: boolean) {
     const image = element as HTMLImageElement;
     return image.complete && image.naturalWidth > 0;
   })), { message: "Approved logo and architectural images must load successfully", timeout: 45_000 }).toBe(true);
+  // The approved external SVG finishes its last letter at 2.27s. Image.complete
+  // only confirms download, so allow that existing entrance animation to settle.
+  await page.waitForTimeout(2500);
   // Brand logos are third-party requests on the unchanged homepage. Wait for
   // completion where possible, but do not make their availability a test gate.
   await page.waitForFunction(() => [...document.images].every(image => image.complete), undefined, { timeout: 10_000 }).catch(() => {});
