@@ -65,17 +65,17 @@ export default function CommercialEstimator(){
           return <article className={styles.area} key={a.id}>
             <div className={styles.areaTop}><label className={styles.grow}>Area / description<input aria-label="Area description" value={a.description} onChange={e=>edit(a.id,{description:e.target.value})}/></label><button className={styles.remove} disabled={areas.length===1} onClick={()=>setAreas(v=>v.filter(x=>x.id!==a.id))}>Remove</button></div>
             <div className={styles.fields}>
-              <label>Quantity (m²)<EditableNumber min="0" step="any" value={a.sqm} onValueChange={value=>edit(a.id,{sqm:num(Number(value))})}/></label>
-              <label>TileSPEC sell (£/m²)<EditableNumber min="0" step="any" value={a.sell} onValueChange={value=>edit(a.id,{sell:num(Number(value))})}/></label>
-              <label>Fixing materials (£/m²)<EditableNumber min="0" step="any" value={a.materials} onValueChange={value=>edit(a.id,{materials:num(Number(value))})}/></label>
+              <label>Quantity (m²)<EditableNumber min={0} step="any" value={a.sqm} onValueChange={value=>edit(a.id,{sqm:num(Number(value))})}/></label>
+              <label>TileSPEC sell (£/m²)<EditableNumber min={0} step="any" value={a.sell} onValueChange={value=>edit(a.id,{sell:num(Number(value))})}/></label>
+              <label>Fixing materials (£/m²)<EditableNumber min={0} step="any" value={a.materials} onValueChange={value=>edit(a.id,{materials:num(Number(value))})}/></label>
               <label>Back-butter large format <input type="checkbox" checked={!!a.backButter} onChange={e=>edit(a.id,{backButter:e.target.checked})}/></label>
-              {(["lengthMm","widthMm","depthMm","jointMm"] as const).map(k=><label key={k}>{({lengthMm:"Tile length mm",widthMm:"Tile width mm",depthMm:"Joint depth mm",jointMm:"Joint width mm"} as const)[k]}<EditableNumber min="0" value={a[k]??0} onValueChange={value=>edit(a.id,{[k]:num(Number(value))})}/></label>)}
-              <label>Gang output (m²/day)<EditableNumber min="1" step="any" value={a.output} onValueChange={value=>edit(a.id,{output:Math.max(1,num(Number(value)))})}/></label>
+              {(["lengthMm","widthMm","depthMm","jointMm"] as const).map(k=><label key={k}>{({lengthMm:"Tile length mm",widthMm:"Tile width mm",depthMm:"Joint depth mm",jointMm:"Joint width mm"} as const)[k]}<EditableNumber min={0} value={a[k]??0} onValueChange={value=>edit(a.id,{[k]:num(Number(value))})}/></label>)}
+              <label>Gang output (m²/day)<EditableNumber min={1} step="any" value={a.output} onValueChange={value=>edit(a.id,{output:Math.max(1,num(Number(value)))})}/></label>
             </div>
             <div className={styles.payment}>
               <label>Subcontractor payment <select value={a.mode} onChange={e=>edit(a.id,{mode:e.target.value as Area["mode"]})}><option value="metre">Price work — per m²</option><option value="day">Gang day rate</option></select></label>
-              {a.mode==="metre"?<label>Subcontract gang (£/m²)<EditableNumber min="0" step="any" value={a.sub} onValueChange={value=>edit(a.id,{sub:num(Number(value))})}/></label>:<label>Whole gang (£/day)<EditableNumber min="0" step="any" value={a.gangDay} onValueChange={value=>edit(a.id,{gangDay:num(Number(value))})}/></label>}
-              <label>Extra finishing days<EditableNumber min="0" step="1" value={a.daysExtra} onValueChange={value=>edit(a.id,{daysExtra:Math.floor(num(Number(value)))})}/></label>
+              {a.mode==="metre"?<label>Subcontract gang (£/m²)<EditableNumber min={0} step="any" value={a.sub} onValueChange={value=>edit(a.id,{sub:num(Number(value))})}/></label>:<label>Whole gang (£/day)<EditableNumber min={0} step="any" value={a.gangDay} onValueChange={value=>edit(a.id,{gangDay:num(Number(value))})}/></label>}
+              <label>Extra finishing days<EditableNumber min={0} step="1" value={a.daysExtra} onValueChange={value=>edit(a.id,{daysExtra:Math.floor(num(Number(value)))})}/></label>
             </div>
             <div className={styles.areaTotals}><span>Estimated gang days <b>{line.days}</b></span><span>Subcontract labour <b>{gbp(line.labour)}</b></span><span>Adhesive <b>{line.adhesiveBags} bags</b></span><span>Grout <b>{line.groutPacks} packs</b></span><span>Area revenue <b>{gbp(line.revenue)}</b></span></div>
           </article>;
@@ -85,18 +85,18 @@ export default function CommercialEstimator(){
         <h2>Direct materials and supervision</h2>
         <p className={styles.note}>Draft assumptions only. Supplier prices and grout geometry must be verified. Existing fixing materials £/m² must exclude adhesive and grout to avoid double counting. Unsurveyed substrates remain provisional.</p>
         <div className={styles.fields}>
-          {(["adhesiveBagPrice","adhesiveCoverage","adhesiveBagKg","backButterKgPerSqm","groutPackPrice","groutPackKg","groutDensity","groutWaste"] as const).map(k=><label key={k}>{({adhesiveBagPrice:"Adhesive £/bag",adhesiveCoverage:"Standard m²/bag",adhesiveBagKg:"Adhesive kg/bag",backButterKgPerSqm:"Extra back-butter kg/m²",groutPackPrice:"Grout £/pack",groutPackKg:"Grout kg/pack",groutDensity:"Grout density factor",groutWaste:"Grout wastage %"} as const)[k]}<EditableNumber min="0" step="any" value={materialSettings[k]} onValueChange={value=>setMaterial(k,num(Number(value)))}/></label>)}
+          {(["adhesiveBagPrice","adhesiveCoverage","adhesiveBagKg","backButterKgPerSqm","groutPackPrice","groutPackKg","groutDensity","groutWaste"] as const).map(k=><label key={k}>{({adhesiveBagPrice:"Adhesive £/bag",adhesiveCoverage:"Standard m²/bag",adhesiveBagKg:"Adhesive kg/bag",backButterKgPerSqm:"Extra back-butter kg/m²",groutPackPrice:"Grout £/pack",groutPackKg:"Grout kg/pack",groutDensity:"Grout density factor",groutWaste:"Grout wastage %"} as const)[k]}<EditableNumber min={0} step="any" value={materialSettings[k]} onValueChange={value=>setMaterial(k,num(Number(value)))}/></label>)}
           <label>Supervisor mode<select value={supervisor.mode} onChange={e=>setSuper("mode",e.target.value)}><option value="visiting">Visiting</option><option value="full-time">Full-time</option><option value="manual">Manual</option></select></label>
-          {supervisor.mode==="manual"&&<label>Supervisor days<EditableNumber min="0" step="0.5" value={supervisor.days??0} onValueChange={value=>setSuper("days",num(Number(value)))}/></label>}
-          <label>Supervisor £/day<EditableNumber min="0" value={supervisor.dayRate} onValueChange={value=>setSuper("dayRate",num(Number(value)))}/></label>
-          <label>Supervisor expenses £<EditableNumber min="0" value={supervisor.expenses} onValueChange={value=>setSuper("expenses",num(Number(value)))}/></label>
+          {supervisor.mode==="manual"&&<label>Supervisor days<EditableNumber min={0} step="0.5" value={supervisor.days??0} onValueChange={value=>setSuper("days",num(Number(value)))}/></label>}
+          <label>Supervisor £/day<EditableNumber min={0} value={supervisor.dayRate} onValueChange={value=>setSuper("dayRate",num(Number(value)))}/></label>
+          <label>Supervisor expenses £<EditableNumber min={0} value={supervisor.expenses} onValueChange={value=>setSuper("expenses",num(Number(value)))}/></label>
         </div>
         <p className={styles.note}>Project {figures.projectDays} gang-days; supervisor {figures.supervisorAttendance} chargeable days. For projects over 20 days, confirm attendance manually. Pre-start, in-progress and handover QA checks remain mandatory operational gates.</p>
         <h2>Project allowances</h2>
         <div className={styles.fields}>
-          <label>Other project costs (£)<EditableNumber min="0" step="any" value={other} onValueChange={value=>setOther(num(Number(value)))}/></label>
-          <label>Contingency (% of revenue)<EditableNumber min="0" max="100" step="any" value={contingency} onValueChange={value=>setContingency(Math.min(100,num(Number(value))))}/></label>
-          <label>Target margin (%)<EditableNumber min="0" max="99" step="any" value={target} onValueChange={value=>setTarget(Math.min(99,num(Number(value))))}/></label>
+          <label>Other project costs (£)<EditableNumber min={0} step="any" value={other} onValueChange={value=>setOther(num(Number(value)))}/></label>
+          <label>Contingency (% of revenue)<EditableNumber min={0} max="100" step="any" value={contingency} onValueChange={value=>setContingency(Math.min(100,num(Number(value))))}/></label>
+          <label>Target margin (%)<EditableNumber min={0} max="99" step="any" value={target} onValueChange={value=>setTarget(Math.min(99,num(Number(value))))}/></label>
         </div>
         <p className={styles.note}>Other costs should include travel, accommodation, equipment, insurance, overhead allocation and any separately paid preparation or finishing. Price-work mode assumes the agreed subcontract rate covers the specified measured work.</p>
       </section>
