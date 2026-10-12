@@ -13,7 +13,7 @@ const sectors = ["Retail & showrooms", "Commercial developments", "Hospitality &
 const projects = [
   { label: "RETAIL & SHOWROOMS", title: "Floors that make an entrance", image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000003b8c82108173987758914799.png", position: "center" },
   { label: "COMMERCIAL INTERIORS", title: "Detail at every scale", image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000864c81f48bb8e9fdca1728c9.png", position: "center" },
-  { label: "HOSPITALITY & LEISURE", title: "Built for heavy use", image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000b53881f4aad799366bb96d7b.png", position: "center" },
+  { label: "HOSPITALITY & LEISURE", title: "Built for heavy use", image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000006d2481f4aad27dd9a1e60776.png", position: "center" },
 ];
 
 function Logo({ light = false }: { light?: boolean }) {
