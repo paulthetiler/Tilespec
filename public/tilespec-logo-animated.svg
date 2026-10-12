@@ -1,23 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 300" role="img" aria-labelledby="title desc">
-  <title id="title">TileSPEC Commercial Tiling</title>
-  <desc id="desc">TileSPEC Commercial Tiling logo</desc>
+  <title id="title">TileSPEC Wall &amp; Floor Tiling Contractors</title>
+  <desc id="desc">TileSPEC Wall &amp; Floor Tiling Contractors logo</desc>
   <style>
     .layer { opacity: 0; transform-box: fill-box; transform-origin: center; animation: layer-drop .38s cubic-bezier(.2,.78,.28,1.16) forwards; }
     .layer-teal { animation-delay: .54s; }
     .layer-grey { animation-delay: .72s; }
     .layer-navy { animation-delay: .90s; }
     .wordmark { opacity: 0; transform: translateX(-18px); animation: wordmark-in .30s ease-out 1.20s forwards; }
-    .flooring-letter { opacity: 0; animation: letter-in .08s ease-out forwards; }
-    .l1{animation-delay:1.44s}.l2{animation-delay:1.49s}.l3{animation-delay:1.54s}.l4{animation-delay:1.59s}
-    .l5{animation-delay:1.64s}.l6{animation-delay:1.69s}.l7{animation-delay:1.74s}.l8{animation-delay:1.79s}
-    .l9{animation-delay:1.84s}
-    .l10{animation-delay:1.89s}
-    .l11{animation-delay:1.94s}
-    .l12{animation-delay:1.99s}
-    .l13{animation-delay:2.04s}
-    .l14{animation-delay:2.09s}
-    .l15{animation-delay:2.14s}
-    .l16{animation-delay:2.19s}
+    .flooring-letter { opacity: 0; animation: letter-in .35s ease-out 1.44s forwards; }
     @keyframes layer-drop {
       0% { opacity: 0; transform: translateY(-170px); }
       70% { opacity: 1; transform: translateY(7px); }
@@ -45,8 +35,6 @@
       <text x="275" y="128" font-size="112" font-weight="700" fill="#0F2A3A" letter-spacing="-3">Tile<tspan font-weight="400">SPEC</tspan></text>
     </g>
 
-    <text x="282" y="205" font-size="32" font-weight="700" fill="#7B8790" letter-spacing="9">
-      <tspan class="flooring-letter l1">C</tspan><tspan class="flooring-letter l2">O</tspan><tspan class="flooring-letter l3">M</tspan><tspan class="flooring-letter l4">M</tspan><tspan class="flooring-letter l5">E</tspan><tspan class="flooring-letter l6">R</tspan><tspan class="flooring-letter l7">C</tspan><tspan class="flooring-letter l8">I</tspan><tspan class="flooring-letter l9">A</tspan><tspan class="flooring-letter l10">L</tspan><tspan class="flooring-letter l11">T</tspan><tspan class="flooring-letter l12">I</tspan><tspan class="flooring-letter l13">L</tspan><tspan class="flooring-letter l14">I</tspan><tspan class="flooring-letter l15">N</tspan><tspan class="flooring-letter l16">G</tspan>
-    </text>
+    <text class="flooring-letter" x="282" y="205" font-size="35" font-weight="700" fill="#596671" letter-spacing="1.2" textLength="810" lengthAdjust="spacingAndGlyphs">WALL &amp; FLOOR TILING CONTRACTORS</text>
   </g>
 </svg>
