@@ -28,6 +28,7 @@ export default function SupervisorWorkspace({contracts,role,displayName}:{contra
   </nav>
   {tab==="dashboard"&&<div style={{display:"grid",gap:12}}>
    <div style={card}><h2>Today's site</h2><p>Start with the morning checks. Record issues against this site before proceeding.</p><button style={button} onClick={()=>setTab("checks")}>Start daily checks →</button></div>
+   <div style={card}><h2>Inspection records</h2><p>Review saved inspections and outstanding issues.</p><a href="/admin/supervisor/inspections">View inspection history & issues →</a></div>
    <div style={card}><h2>Quick access</h2><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{sections.slice(1).map(([key,label])=><button key={key} style={button} onClick={()=>setTab(key)}>{label}</button>)}</div></div>
    <div style={card}><h2>Job information</h2>{[["Client",contract.client],["Site contact",contract.site_contact],["Scope",contract.scope],["Exclusions",contract.exclusions],["Tile specification",contract.tile_specification],["Installation system",contract.installation_system],["Access",contract.access_restrictions],["Working hours",contract.working_hours]].map(([k,v])=><p key={k}><strong>{k}:</strong> {v||"Not provided"}</p>)}</div>
   </div>}
