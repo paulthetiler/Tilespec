@@ -107,3 +107,17 @@ create policy supervisor_photos_read on public.supervisor_issue_photos for selec
 create policy supervisor_photos_insert on public.supervisor_issue_photos for insert to authenticated
  with check(organisation_id=private.current_org() and actor_id=auth.uid() and object_path like organisation_id::text||'/'||issue_id::text||'/%' and exists(select 1 from public.supervisor_issues i where i.id=issue_id and i.organisation_id=private.current_org() and private.can_access_contract(i.contract_id) and private.current_role() in ('owner','contracts_manager','supervisor')));
 grant select,insert on public.supervisor_issue_photos to authenticated;
+
+-- Closure must have photographic evidence and a different reviewer.
+create function private.enforce_issue_closure() returns trigger language plpgsql security definer set search_path='' as $$
+begin
+ if new.state='closed' and old.state is distinct from 'closed' then
+  if new.closed_by=old.rectified_by then raise exception 'Independent reinspection required'; end if;
+  if not exists(select 1 from public.supervisor_issue_photos where issue_id=new.id) then
+   raise exception 'Photographic evidence required before closure';
+  end if;
+ end if;
+ return new;
+end $$;
+create trigger enforce_issue_closure before update on public.supervisor_issues
+ for each row execute function private.enforce_issue_closure();
