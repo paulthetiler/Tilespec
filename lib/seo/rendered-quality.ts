@@ -30,7 +30,7 @@ export function checkRenderedSeo(pages: readonly SeoPage[], htmlByPath: Readonly
     if (descriptions.length !== 1 || descriptions[0].content !== page.description) error("rendered-description", [page.path], "Rendered description must match the reviewed registry description.");
     const canonicals = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => attributes(match[0])).filter(tag => tag.rel === "canonical");
     const expected = canonicalUrl(page.path, config);
-    if (expected ? canonicals.length !== 1 || canonicals[0].href !== expected : canonicals.length !== 0) error("rendered-canonical", [page.path], "Canonical must be unique, absolute and self-referencing when the production origin is confirmed.");
+    if (expected ? canonicals.length !== 1 || canonicals[0].href !== expected : canonicals.length !== 0) error("rendered-canonical", [page.path], `Expected one self-referencing canonical ${expected ?? "(none)"}; received ${JSON.stringify(canonicals.map(tag => tag.href))}.`);
     const robots = meta.filter(tag => tag.name === "robots");
     const hasNoindex = robots.some(tag => /\bnoindex\b/i.test(tag.content ?? ""));
     const hasIndex = robots.some(tag => /(?:^|[,\s])index(?:$|[,\s])/i.test(tag.content ?? ""));
@@ -39,7 +39,7 @@ export function checkRenderedSeo(pages: readonly SeoPage[], htmlByPath: Readonly
     if (googleBot.some(tag => isPageIndexable(page, config) ? /\bnoindex\b/i.test(tag.content ?? "") : !/\bnoindex\b/i.test(tag.content ?? ""))) error("rendered-googlebot-indexing", [page.path], "Googlebot indexing must agree with the page's release gates.");
     for (const [property, content] of [["og:url", expected], ["og:title", page.title], ["og:description", page.description]] as const) {
       const values = meta.filter(tag => tag.property === property);
-      if (content ? values.length !== 1 || values[0].content !== content : values.length !== 0) error("rendered-open-graph", [page.path], `${property} must match the canonical page metadata.`);
+      if (content ? values.length !== 1 || values[0].content !== content : values.length !== 0) error("rendered-open-graph", [page.path], `Expected ${property} ${content ?? "(none)"}; received ${JSON.stringify(values.map(tag => tag.content))}.`);
     }
     let headingLevel = 0;
     for (const heading of html.matchAll(/<h([1-6])(?:\s[^>]*)?>/gi)) {
@@ -61,7 +61,7 @@ export function checkRenderedSeo(pages: readonly SeoPage[], htmlByPath: Readonly
       } catch { error("rendered-schema-json", [page.path], "Structured data contains invalid JSON."); }
     }
     const organisation = schema.filter(entry => entry["@type"] === "Organization");
-    if (organisation.length !== 1 || organisation[0].name !== "TileSPEC" || organisation[0].url !== canonicalUrl("/", config) || organisation[0]["@id"] !== `${config.canonicalOrigin}/#organisation` || organisation[0].logo !== `${config.canonicalOrigin}/tilespec-logo-animated.svg`) error("rendered-organisation-schema", [page.path], "Organization schema must reference the approved TileSPEC identity and production origin.");
+    if (organisation.length !== 1 || organisation[0].name !== "TileSPEC" || organisation[0].url !== `${config.canonicalOrigin}/` || organisation[0]["@id"] !== `${config.canonicalOrigin}/#organisation` || organisation[0].logo !== `${config.canonicalOrigin}/tilespec-logo-animated.svg`) error("rendered-organisation-schema", [page.path], "Organization schema must reference the approved TileSPEC identity and production origin.");
     if (page.parent) {
       const ancestors: SeoPage[] = [];
       const seen = new Set([page.path]);

@@ -5,7 +5,7 @@ The owner has confirmed **https://tilespec.uk** as the intended first-launch dom
 ## Current canonical and indexing policy
 
 - Canonicals use `https://tilespec.uk` by default, including on preview deployments. An explicit `SEO_CANONICAL_ORIGIN` can configure a later approved production domain; Vercel hostnames are rejected.
-- Every available public content page has one absolute, self-referencing canonical. Query strings are excluded. `/` retains its slash; other canonical paths omit trailing slashes.
+- Every available public content page has one absolute, self-referencing canonical. Query strings are excluded. The homepage canonical is the bare origin, as emitted by Next.js with `trailingSlash: false`; other canonical paths omit trailing slashes. Organization website and identifier URLs may use `/` and `/#organisation` respectively.
 - Root metadata has no inherited canonical, so private authentication and operational pages cannot accidentally claim the homepage URL.
 - Next.js permanently redirects trailing-slash variants. Alternate-host redirects apply only to an approved, indexable production build; review previews stay accessible at their own URLs.
 - `SEO_PRODUCTION_INDEXING=true` **and** `SEO_LAUNCH_APPROVED=true` are required before production indexing can turn on. Both default to false. Vercel previews and development stay noindex even when both flags are present.

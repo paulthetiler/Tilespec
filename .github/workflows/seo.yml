@@ -41,9 +41,40 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: tilespec-seo-browser
+          name: tilespec-seo-desktop
           path: |
-            test-results/seo/
+            test-results/seo/desktop-*.png
+            test-results/seo/desktop-*.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: tilespec-seo-tablet
+          path: |
+            test-results/seo/tablet-*.png
+            test-results/seo/tablet-*.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: tilespec-seo-mobile
+          path: |
+            test-results/seo/mobile-*.png
+            test-results/seo/mobile-*.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: tilespec-seo-narrow
+          path: |
+            test-results/seo/narrow-*.png
+            test-results/seo/narrow-*.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure()
+        with:
+          name: tilespec-seo-failure-details
+          path: |
             test-results/seo-traces/
             playwright-report-seo/
           if-no-files-found: warn

@@ -8,7 +8,10 @@ import type { SeoPage } from "../../lib/seo/types";
 const pages = seoPages.filter(entry => entry.publicationStatus !== "draft");
 const pageByPath = new Map(pages.map(entry => [entry.path, entry]));
 const canonicalOrigin = readSeoConfig().canonicalOrigin ?? "https://tilespec.uk";
-const canonical = (path: string) => new URL(path, canonicalOrigin).href;
+// Next's trailingSlash:false metadata emits the root without its optional
+// slash. Assert the public URL policy explicitly rather than importing the
+// implementation being verified.
+const canonical = (path: string) => path === "/" ? canonicalOrigin : new URL(path, canonicalOrigin).href;
 const navLabels = ["Expertise", "Our approach", "Projects", "About"];
 const approvedPhotoHost = "wxxxgqi56ekoi5vz.public.blob.vercel-storage.com";
 const screenshotPages = new Set([
@@ -191,7 +194,7 @@ test("all launch pages retain branding, metadata, accessible links and responsiv
         const service = schemas.find(schema => schema["@type"] === "Service");
         const breadcrumb = schemas.find(schema => schema["@type"] === "BreadcrumbList");
         expect(organisation?.name).toBe("TileSPEC");
-        expect(organisation?.url).toBe(canonical("/"));
+        expect(organisation?.url).toBe(`${canonicalOrigin}/`);
         expect(organisation?.logo).toBe(canonical("/tilespec-logo-animated.svg"));
         if (["national", "service"].includes(entry.category)) {
           expect(service?.url).toBe(canonical(entry.path));

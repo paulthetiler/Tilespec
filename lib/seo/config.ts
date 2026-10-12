@@ -46,7 +46,9 @@ export function isCanonicalPath(path: string): boolean {
 
 export function canonicalUrl(path: string, config: SeoConfig = readSeoConfig()): string | undefined {
   if (!isCanonicalPath(path)) throw new Error(`Invalid canonical path: ${path}`);
-  return config.canonicalOrigin ? `${config.canonicalOrigin}${path}` : undefined;
+  // Next's Metadata API normalizes the root URL to its bare origin when
+  // trailingSlash is false. Match that output across metadata and the registry.
+  return config.canonicalOrigin ? `${config.canonicalOrigin}${path === "/" ? "" : path}` : undefined;
 }
 
 type Publication = { publicationStatus: "draft" | "review" | "approved"; indexingStatus: "noindex" | "index" };

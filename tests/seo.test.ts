@@ -48,7 +48,7 @@ test("reject unsafe and non-origin canonical configuration", () => {
 });
 
 test("canonical paths exclude queries and alternate slash forms", () => {
-  assert.equal(canonicalUrl("/", production), "https://tilespec.uk/");
+  assert.equal(canonicalUrl("/", production), "https://tilespec.uk");
   assert.equal(canonicalUrl("/commercial-tiling", production), "https://tilespec.uk/commercial-tiling");
   for (const path of ["/commercial-tiling/", "/commercial-tiling?utm_source=test", "//example.com", "/../admin", "/a//b", "/a#top", "/UpperCase"]) {
     assert.equal(isCanonicalPath(path), false);
@@ -87,7 +87,7 @@ test("page metadata self-references while root cannot leak a canonical", () => {
   assert.equal(metadata.openGraph?.url, "https://tilespec.uk/commercial-tiling");
   assert.equal(rootMetadata(production).alternates, undefined);
   assert.deepEqual(pageMetadata(page("/"), preview).robots, { index: false, follow: true, googleBot: { index: false, follow: true } });
-  assert.equal(pageMetadata(page("/"), readSeoConfig({})).alternates?.canonical, "https://tilespec.uk/");
+  assert.equal(pageMetadata(page("/"), readSeoConfig({})).alternates?.canonical, "https://tilespec.uk");
 });
 
 test("duplicate slugs, metadata, H1 and intros block publishing", () => {
@@ -170,7 +170,7 @@ test("sitemap eligibility stays empty before launch and requires every page's ap
   assert.deepEqual(eligibleUrls(readSeoConfig({ NODE_ENV: "production", SEO_PRODUCTION_INDEXING: "true" })), []);
   assert.deepEqual(eligibleUrls(preview), []);
   assert.equal(eligibleUrls(production).length, 14);
-  assert.ok(eligibleUrls(production).every(url => url?.startsWith("https://tilespec.uk/") && !url.includes("?")));
+  assert.ok(eligibleUrls(production).every(url => url === "https://tilespec.uk" || (url?.startsWith("https://tilespec.uk/") && !url.includes("?"))));
   assert.equal(eligibleUrls(production, approved.map((entry, index) => index === 1 ? { ...entry, indexingStatus: "noindex" as const } : entry)).length, 13);
 });
 
