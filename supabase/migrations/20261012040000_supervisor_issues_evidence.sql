@@ -105,5 +105,5 @@ alter table public.supervisor_issue_photos enable row level security;
 create policy supervisor_photos_read on public.supervisor_issue_photos for select to authenticated
  using(organisation_id=private.current_org() and exists(select 1 from public.supervisor_issues i where i.id=issue_id and private.can_access_contract(i.contract_id)));
 create policy supervisor_photos_insert on public.supervisor_issue_photos for insert to authenticated
- with check(organisation_id=private.current_org() and actor_id=auth.uid() and object_path like organisation_id::text||'/'||issue_id::text||'/%' and exists(select 1 from public.supervisor_issues i where i.id=issue_id and i.organisation_id=organisation_id and private.can_access_contract(i.contract_id) and private.current_role() in ('owner','contracts_manager','supervisor')));
+ with check(organisation_id=private.current_org() and actor_id=auth.uid() and object_path like organisation_id::text||'/'||issue_id::text||'/%' and exists(select 1 from public.supervisor_issues i where i.id=issue_id and i.organisation_id=private.current_org() and private.can_access_contract(i.contract_id) and private.current_role() in ('owner','contracts_manager','supervisor')));
 grant select,insert on public.supervisor_issue_photos to authenticated;
