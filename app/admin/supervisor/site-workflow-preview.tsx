@@ -27,6 +27,7 @@ const defects = [
 
 export default function SiteWorkflowPreview({ areaNames, contractReference }: { areaNames: string[]; contractReference: string }) {
   const [checks, setChecks] = useState<string[]>([]);
+  const [reviewed,setReviewed]=useState(false);
   const [checkIssues,setCheckIssues]=useState<Record<string,string>>({});
   const [issueFor,setIssueFor]=useState<string|null>(null);
   const [issueText,setIssueText]=useState("");
@@ -62,7 +63,11 @@ export default function SiteWorkflowPreview({ areaNames, contractReference }: { 
         </div>}
       </div>)}
       {Object.keys(checkIssues).length>0&&<p role="alert"><strong>Outstanding issues: {Object.keys(checkIssues).length}.</strong> No work release permitted from this prototype. Site: {contractReference}.</p>}
-      <strong>{ready?"Checklist reviewed — outstanding issues still need resolving.":"Morning checklist incomplete"}</strong>
+      <div style={{marginTop:18,padding:16,background:"#f5f9fa",borderRadius:10}}>
+        <strong>{checks.length+Object.keys(checkIssues).length}/{morning.length} checks reviewed</strong>
+        <button type="button" style={{...btn,display:"block",width:"100%",marginTop:12,background:ready?"#0f2a3a":"#ddd",color:ready?"#fff":"#333"}} disabled={!ready} onClick={()=>setReviewed(true)}>Review daily checklist →</button>
+        {reviewed&&<div role="status"><h3>Checklist reviewed — preview only</h3><p>Not submitted or saved. This prototype cannot notify the office or release work.</p><p><strong>Next action:</strong> Review the area preparation decision below. Escalate any site issue directly to the contracts manager.</p></div>}
+      </div>
     </details>
     <details><summary>2. Area preparation decision</summary>
       <label style={{display:"block",margin:"10px 0"}}>Work area
