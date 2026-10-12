@@ -65,7 +65,7 @@ export function checkRenderedSeo(pages: readonly SeoPage[], htmlByPath: Readonly
     if (page.parent) {
       const ancestors: SeoPage[] = [];
       const seen = new Set([page.path]);
-      let parent = page.parent;
+      let parent: string | undefined = page.parent;
       while (parent && !seen.has(parent)) {
         seen.add(parent);
         const entry = pages.find(candidate => candidate.path === parent);
