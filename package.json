@@ -4,14 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run check:seo && next build && npm run check:seo -- --built",
     "start": "next start",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:db": "bash scripts/test-db.sh",
     "test:browser": "playwright test",
-    "test:forms": "node scripts/test-forms.mjs"
+    "test:forms": "node scripts/test-forms.mjs",
+    "check:seo": "node --import tsx scripts/check-seo.ts",
+    "test:seo": "node --import tsx --test tests/seo.test.ts",
+    "test:seo-browser": "playwright test --config playwright.seo.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -31,3 +34,4 @@
     "typescript": "^5.7.0"
   }
 }
+

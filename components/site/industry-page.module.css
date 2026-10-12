@@ -1,0 +1,42 @@
+.industry{min-width:0}
+.industry .pageTitle{font-size:clamp(70px,7.4vw,120px);max-width:1100px;overflow-wrap:normal}
+.introduction{padding:78px 0 85px;border-bottom:1px solid var(--line)}
+.introGrid{display:grid;grid-template-columns:.8fr 1.5fr;gap:80px;align-items:center}
+.introLabel h2{font-size:clamp(43px,4.5vw,70px);margin:25px 0 0}
+.introGrid>p{max-width:760px;font-size:18px;line-height:1.85;margin:0}
+.considerations{padding:95px 0 105px;background:#f0f4f5;scroll-margin-top:20px}
+.editorialHeading{margin-bottom:45px}
+.editorialHeading h2{font-family:'Barlow Condensed',sans-serif;font-size:clamp(56px,6vw,94px);line-height:.92;font-weight:800;letter-spacing:-.025em;margin:26px 0 0}
+.rows{border-bottom:1px solid #becfd3}
+.row{display:grid;grid-template-columns:1fr 1.35fr;gap:90px;padding:31px 0 34px;border-top:1px solid #becfd3;scroll-margin-top:25px}
+.rowHeading{display:grid;grid-template-columns:38px 1fr;gap:23px;align-items:start}
+.number{color:#3b666b;font-size:11px;font-weight:800;letter-spacing:.12em;padding-top:8px}
+.rowHeading h3{font-family:'Barlow Condensed',sans-serif;font-size:34px;text-transform:uppercase;line-height:1.06;font-weight:700;max-width:370px;margin:0}
+.rowCopy p{font-size:14px;line-height:1.9;color:#60737c;margin:0}
+.rowCopy p+p{margin-top:16px}
+.rowCopy :global(.underlined-link){font-size:10px;line-height:1.7;gap:18px;margin-top:13px;max-width:100%}
+.rowCopy :global(.underlined-link svg){flex-shrink:0}
+.sequence{padding:85px 0}
+.sequenceGrid{display:grid;grid-template-columns:1.1fr 1fr;gap:80px;align-items:center}
+.photo{margin:0;min-width:0}
+.photoFrame{position:relative;aspect-ratio:1.08;background:#1a353f}
+.photoFrame img{object-fit:cover;object-position:center}
+.photo figcaption{font-size:10px;line-height:1.65;color:#a5bcc2;margin-top:14px;max-width:530px}
+.sequenceCopy h2{font-size:clamp(47px,4.8vw,76px);text-transform:uppercase;line-height:.97;margin:25px 0 27px}
+.sequenceCopy p{font-size:14px;line-height:1.9;max-width:none;margin-bottom:18px}
+.sequenceNote{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;border-top:1px solid #47616b;padding-top:21px;margin-top:30px;font-size:9px;line-height:1.65;letter-spacing:.1em;font-weight:800;color:#e4edee}
+.sequenceNote span{color:var(--teal);font-size:17px}
+.procurement{padding:90px 0 65px;border-bottom:1px solid var(--line)}
+.procurementGrid{display:grid;grid-template-columns:1fr 1.3fr;gap:90px;align-items:start}
+.procurement h2{font-size:clamp(46px,4.7vw,76px);text-transform:uppercase;line-height:.97;margin:25px 0 0;max-width:500px}
+.procurementCopy p{font-size:14px;line-height:1.9;margin-bottom:18px}
+.hubLink :global(.underlined-link){font-size:10px;gap:18px;line-height:1.7;max-width:100%;margin-top:4px}
+.hubLink svg{flex-shrink:0}
+.relatedSections{border-top:1px solid var(--line);margin-top:55px;padding-top:10px}
+.relatedSections>div{padding-top:25px}
+.relatedSections h3{font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#3b666b;margin:0 0 0}
+.relatedSections :global(.underlined-link){font-size:10px;gap:18px;line-height:1.6;max-width:100%;margin-top:8px}
+.relatedSections svg{flex-shrink:0}
+@media(max-width:1100px){.introGrid{gap:45px}.row,.procurementGrid{gap:45px}.sequenceGrid{gap:40px}.sequenceCopy h2{font-size:58px}.sequenceCopy p{font-size:13px}}
+@media(max-width:760px){.industry .pageTitle{font-size:clamp(42px,12.7vw,91px)}.introduction{padding:55px 0 60px}.introGrid{grid-template-columns:1fr;gap:26px}.introLabel h2{font-size:clamp(44px,10.2vw,65px);margin-top:22px}.introGrid>p{font-size:15px;line-height:1.9}.considerations{padding:65px 0}.editorialHeading{margin-bottom:30px}.editorialHeading h2{font-size:clamp(43px,10vw,70px);margin-top:22px}.row{grid-template-columns:1fr;gap:19px;padding:25px 0 28px}.rowHeading{grid-template-columns:25px 1fr;gap:16px}.rowHeading h3{font-size:30px;max-width:400px}.rowCopy p{font-size:13px}.sequence{padding:55px 0}.sequenceGrid{grid-template-columns:1fr;gap:32px}.photoFrame{aspect-ratio:1.16}.photo figcaption{font-size:9px}.sequenceCopy h2{font-size:clamp(42px,9.8vw,68px);margin-bottom:22px}.sequenceCopy p{font-size:13px}.sequenceNote{gap:8px 12px;font-size:8px}.procurement{padding:60px 0 50px}.procurementGrid{grid-template-columns:1fr;gap:26px}.procurement h2{font-size:clamp(42px,9.8vw,68px);margin-top:22px}.procurementCopy p{font-size:13px}.relatedSections{margin-top:35px}.relatedSections :global(nav){gap:12px 22px}}
+@media(min-width:761px) and (max-width:1000px){.industry .pageTitle{font-size:82px}.sequenceCopy h2{font-size:47px}.photoFrame{aspect-ratio:.8}.rowHeading h3{font-size:31px}}
