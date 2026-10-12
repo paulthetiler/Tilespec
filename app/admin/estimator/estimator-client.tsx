@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FocusEvent } from "react";
+import { useMemo, useState, useEffect, type FocusEvent } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
 import { calculateEstimate, type EstimateArea, type CostArea, type MaterialSettings, type SupervisorSettings } from "@/lib/estimator";
@@ -12,6 +12,19 @@ const num = (n:number) => Number.isFinite(n) ? Math.max(0,n) : 0;
 // On mobile, selecting the whole existing number lets typing replace it immediately.
 // Blank inputs remain blank while editing, then normalise to zero on blur.
 function selectNumberOnFocus(e:FocusEvent<HTMLInputElement>){e.currentTarget.select();}
+
+
+// Keep the text draft independent of the calculated numeric value.
+// Clearing a field must not immediately reinsert 0 on mobile.
+function EditableNumber({value,onValueChange,min=0,max,step="any"}:{value:number;onValueChange:(value:number)=>void;min?:number;max?:number;step?:number|string}){
+ const [draft,setDraft]=useState(String(value));
+ const [editing,setEditing]=useState(false);
+ useEffect(()=>{if(!editing)setDraft(String(value));},[value,editing]);
+ return <input type="number" inputMode="decimal" min={min} max={max} step={step}
+  value={draft} onFocus={e=>{setEditing(true);selectNumberOnFocus(e);}}
+  onChange={e=>{const raw=e.target.value;setDraft(raw);if(raw.trim()!==""&&Number.isFinite(Number(raw)))onValueChange(Number(raw));}}
+  onBlur={()=>{setEditing(false);const parsed=draft.trim()===""?0:Number(draft);const next=Number.isFinite(parsed)?Math.max(min,max===undefined?parsed:Math.min(max,parsed)):0;onValueChange(next);setDraft(String(next));}}/>;
+}
 
 export default function CommercialEstimator(){
   const [areas,setAreas] = useState<Area[]>([initial]);
