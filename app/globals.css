@@ -139,3 +139,21 @@
   }
   .hero-bottom span{display:block;max-width:100%;overflow-wrap:break-word}
 }
+
+/* Mobile caption lives in normal document flow, not the hero footer's flex layout. */
+.hero-mobile-experience{display:none}
+@media(max-width:760px){
+  .hero-content{margin-top:0;margin-bottom:0;padding-bottom:0}
+  .hero-mobile-experience{
+    display:block;
+    max-width:100%;
+    margin:clamp(55px,12vw,95px) 0 28px;
+    color:#d7e2e3;
+    font-size:9px;
+    font-weight:700;
+    letter-spacing:.12em;
+    line-height:1.7;
+    overflow-wrap:break-word;
+  }
+  .hero-bottom{display:none}
+}
