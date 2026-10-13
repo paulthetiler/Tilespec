@@ -1,10 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-test("public TileSPEC website remains accessible and its enquiry wording is preserved", async ({ page }) => {
+test("public TileSPEC website routes visitors to the new enquiry forms", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("img", { name: "TileSPEC Commercial Tiling" }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "PREPARE EMAIL ENQUIRY" })).toBeVisible();
-  await expect(page.getByText("No information is submitted until you send the email.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("link", { name: /SEND US A TENDER/ })).toHaveAttribute("href", "/contact?type=tender");
+  await expect(page.getByRole("link", { name: /GENERAL ENQUIRY/ })).toHaveAttribute("href", "/contact?type=general");
+  await page.getByRole("link", { name: /SEND US A TENDER/ }).click();
+  await expect(page).toHaveURL(/\/contact\?type=tender/);
+  await expect(page.getByRole("button", { name: "SUBMIT TENDER ENQUIRY" })).toBeVisible();
+  await expect(page.getByText("Drop documents here or browse files")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 test("phone navigation responds to taps", async ({ page, isMobile }) => {
