@@ -41,6 +41,7 @@ export default function Home() {
         <h1>COMMERCIAL<br/>WALL & FLOOR<br/><em>TILING.</em></h1>
         <p>Complete specialist tiling packages for main contractors, developers and commercial clients. From substrate preparation to finished installation.</p>
         <div className="hero-actions"><a className="button button-teal" href="/contact">DISCUSS YOUR PROJECT <ArrowUpRight size={19}/></a><a className="text-link light-link" href="#expertise">EXPLORE OUR EXPERTISE <ArrowDown size={17}/></a></div>
+        <p className="hero-mobile-experience">BUILT ON OVER TWO DECADES OF HANDS-ON TILING EXPERIENCE</p>
       </div>
       <div className="hero-bottom shell"><span>BUILT ON OVER TWO DECADES OF HANDS-ON TILING EXPERIENCE</span></div>
     </section>
