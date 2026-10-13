@@ -23,13 +23,19 @@ export function PlanBoard({ contractId, weekStart, today, basePath, canPlan, new
   const active = plans.filter(plan => planStatus(plan) === "active" && planOverlaps(plan, weekStart, weekEnd));
   const changed = plans.filter(plan => planStatus(plan) !== "active" && planOverlaps(plan, weekStart, weekEnd));
   const teamIds = [...new Set(active.map(plan => plan.team_id))].sort((a, b) => (teams.find(t => t.id === a)?.name ?? "").localeCompare(teams.find(t => t.id === b)?.name ?? "", "en-GB"));
-  const formFields = (plan?: Plan) => <>
-    <input type="hidden" name="contract_id" value={contractId} />
-    <input type="hidden" name="request_key" value={newKey()} />
-    {plan && <input type="hidden" name="supersedes_id" value={plan.id} />}
-    <PlanForm locations={locations} teams={teams} operatives={operatives} memberships={memberships} packages={packages} today={today}
-      plan={plan ? { ...plan, operative_ids: namedFor(plan.id) } : undefined} />
-  </>;
+  // A fresh request key arrives only after a confirmed save, so keying the form
+  // by it clears the choices then (never after an error) and an unchanged
+  // resubmission cannot create a second plan.
+  const formFields = (plan?: Plan) => {
+    const requestKey = newKey();
+    return <>
+      <input type="hidden" name="contract_id" value={contractId} />
+      <input type="hidden" name="request_key" value={requestKey} />
+      {plan && <input type="hidden" name="supersedes_id" value={plan.id} />}
+      <PlanForm key={requestKey} locations={locations} teams={teams} operatives={operatives} memberships={memberships} packages={packages} today={today}
+        plan={plan ? { ...plan, operative_ids: namedFor(plan.id) } : undefined} />
+    </>;
+  };
   const ready = locations.some(location => !location.archived_at) && teams.some(team => team.active);
   return <>
     <nav className={styles.weekNav} aria-label="Choose week">
