@@ -9,7 +9,8 @@ insert into auth.users(id, email) values
   ('d1000000-0000-0000-0000-000000000004', 'sam.smith@example.invalid'),
   ('d1000000-0000-0000-0000-000000000005', 'jo.jones@example.invalid'),
   ('d1000000-0000-0000-0000-000000000006', 'teams-other-owner@example.invalid'),
-  ('d1000000-0000-0000-0000-000000000007', 'no-operative-installer@example.invalid');
+  ('d1000000-0000-0000-0000-000000000007', 'no-operative-installer@example.invalid'),
+  ('d1000000-0000-0000-0000-000000000008', 'dan.price@example.invalid');
 insert into public.organisations(id, name) values
   ('d2000000-0000-0000-0000-000000000001', 'Teams fixture company'),
   ('d2000000-0000-0000-0000-000000000002', 'Unrelated company');
@@ -20,7 +21,8 @@ insert into public.organisation_members(organisation_id, user_id, display_name, 
   ('d2000000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000004', 'Sam Smith', 'lead_installer', false),
   ('d2000000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000005', 'Jo Jones', 'lead_installer', false),
   ('d2000000-0000-0000-0000-000000000002', 'd1000000-0000-0000-0000-000000000006', 'Other Owner', 'owner', true),
-  ('d2000000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000007', 'Unlinked Installer', 'subcontract_installer', false);
+  ('d2000000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000007', 'Unlinked Installer', 'subcontract_installer', false),
+  ('d2000000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000008', 'Dan Price', 'lead_installer', false);
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"d1000000-0000-0000-0000-000000000002"}', true);
@@ -111,6 +113,13 @@ select set_config('request.jwt.claims', '{"sub":"d1000000-0000-0000-0000-0000000
 select test.expect_error(format($q$select public.update_operative(%L, 1, '{"status":"provisional"}')$q$, :'provisional'),
   array['22023'], 'an operative cannot be returned to provisional');
 select test.assert(public.update_operative(:'provisional', 1, '{"status":"active"}') = 2, 'the office confirms a provisional operative');
+select public.update_operative(:'dan', 1, '{"user_id":"d1000000-0000-0000-0000-000000000008","company_name":"TileSPEC direct"}') as dan_version \gset
+select test.assert(:dan_version = 2 and (select user_id = 'd1000000-0000-0000-0000-000000000008' and company_name = 'TileSPEC direct' from public.operatives where id = :'dan'),
+  'the office can link an operative to an existing login');
+select test.expect_error(format($q$select public.add_team_member(gen_random_uuid(), jsonb_build_object('team_id', %L, 'operative_id', %L, 'is_lead', 'yes'))$q$, :'jones', :'ava'),
+  array['22023'], 'a lead flag must be true or false');
+select test.expect_error(format($q$select public.add_team_member(gen_random_uuid(), jsonb_build_object('team_id', %L, 'operative_id', %L, 'valid_from', '2026-02-30'))$q$, :'jones', :'ava'),
+  array['22023'], 'an impossible membership date is rejected');
 select test.expect_error(format($q$select public.update_operative(%L, 1, '{"display_name":"Stale"}')$q$, :'provisional'),
   array['40001'], 'a stale operative edit is rejected');
 

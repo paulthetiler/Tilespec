@@ -111,6 +111,24 @@ be confined to this protocol; ordinary records retain authenticated RLS. Treat u
 attachment downloads, and do not execute uploaded files. The verified hash enables
 later backup/download integrity checks.
 
+## Supervisor V2 migrations
+
+`20261014090000` to `20261014093000` add supervisor record hardening,
+hierarchical locations, teams and operatives, and planned and actual allocations.
+They are additive and transactional. Each checks its prerequisites and refuses to
+run if its objects already exist. Before applying them to any hosted project:
+
+1. Take a database backup.
+2. Run `inspection/supervisor-v2-preflight.sql` (a single read-only SELECT) in the
+   SQL editor and keep the output. Every prerequisite must be "present" and every
+   name collision "absent (ready)".
+3. Apply the four migrations in order, then re-run the report: row counts must
+   be unchanged.
+
+Design, risks and permissions are in
+[supervisor-v2.md](../docs/operations/supervisor-v2.md). Production application
+is a separately approved step.
+
 ## Validation and recovery
 
 `npm run test:db` runs real grants/RLS/RPC/storage-policy assertions on a disposable

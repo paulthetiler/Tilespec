@@ -314,6 +314,35 @@ select test.expect_error(format($q$select public.record_actual_allocation(gen_ra
   'work_area_id', %L, 'stage', 'installation', 'operative_ids', jsonb_build_array('c4000000-0000-0000-0000-000000000006')))$q$, :'room12'),
   array['22023'], 'unplanned work requires a reason');
 
+-- Cancellation, whole-team absence and future plans.
+select set_config('request.jwt.claims', '{"sub":"c1000000-0000-0000-0000-000000000002"}', true);
+select public.plan_allocation(gen_random_uuid(), jsonb_build_object('contract_id', 'c3000000-0000-0000-0000-000000000001', 'work_area_id', :'flat56',
+  'team_id', 'c5000000-0000-0000-0000-000000000003', 'stage', 'grouting', 'planned_start', :'day')) as plan_cancelled \gset
+select public.cancel_planned_allocation(:'plan_cancelled', 'Grout delivery delayed');
+select public.cancel_planned_allocation(:'plan_cancelled', 'Retry of the same cancellation');
+select test.assert((select cancelled_by = auth.uid() and cancel_reason = 'Grout delivery delayed' from public.planned_allocations where id = :'plan_cancelled'),
+  'a cancelled plan keeps who cancelled it and why; repeating the cancellation is a safe retry');
+select public.plan_allocation(gen_random_uuid(), jsonb_build_object('contract_id', 'c3000000-0000-0000-0000-000000000001', 'work_area_id', :'flat56',
+  'team_id', 'c5000000-0000-0000-0000-000000000004', 'stage', 'protection', 'planned_start', :'day')) as plan_no_show \gset
+select public.plan_allocation(gen_random_uuid(), jsonb_build_object('contract_id', 'c3000000-0000-0000-0000-000000000001', 'work_area_id', :'flat56',
+  'team_id', 'c5000000-0000-0000-0000-000000000004', 'stage', 'protection', 'planned_start', (private.site_today() + 7)::text));
+select test.expect_error(format($q$select public.archive_location(%L, (select version from public.work_areas where id = %L), 'Omitted by variation')$q$, :'flat56', :'flat56'),
+  array['23514'], 'a location with future planned work cannot be archived');
+select set_config('request.jwt.claims', '{"sub":"c1000000-0000-0000-0000-000000000003"}', true);
+select test.expect_error(format($q$select public.record_actual_allocation(gen_random_uuid(), jsonb_build_object('contract_id', 'c3000000-0000-0000-0000-000000000001',
+  'planned_allocation_id', %L, 'operative_ids', jsonb_build_array('c4000000-0000-0000-0000-000000000007'), 'reason', 'Turned up anyway'))$q$, :'plan_cancelled'),
+  array['40001'], 'work cannot be confirmed against a cancelled plan');
+select public.record_allocation_absence(gen_random_uuid(), jsonb_build_object('planned_allocation_id', :'plan_no_show', 'work_date', :'day',
+  'reason', 'Team redeployed by their company without notice')) as team_absent \gset
+select test.expect_error(format($q$select public.record_allocation_absence(gen_random_uuid(), jsonb_build_object('planned_allocation_id', %L, 'work_date', %L, 'reason', 'Recorded twice'))$q$,
+  :'plan_no_show', :'day'), array['23505'], 'a team cannot be recorded absent twice for the same day');
+select test.expect_error(format($q$select public.record_allocation_absence(gen_random_uuid(), jsonb_build_object('planned_allocation_id', %L, 'work_date', %L, 'reason', 'Known holiday'))$q$,
+  :'plan_no_show', (private.site_today() + 1)::text), array['22023'], 'absence cannot be recorded for a future day');
+select public.void_allocation_absence(:'team_absent', 'Recorded against the wrong plan');
+select public.void_allocation_absence(:'team_absent', 'Retry of the same void');
+select test.assert((select operative_id is null and voided_by = auth.uid() and void_reason = 'Recorded against the wrong plan' from public.allocation_absences where id = :'team_absent'),
+  'a whole-team absence is recorded and, when wrong, voided with who and why');
+
 -- Permissions, ownership and history protection.
 select set_config('request.jwt.claims', '{"sub":"c1000000-0000-0000-0000-000000000003"}', true);
 select test.expect_error(format($q$select public.plan_allocation(gen_random_uuid(), jsonb_build_object('contract_id', 'c3000000-0000-0000-0000-000000000001',

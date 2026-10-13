@@ -74,6 +74,8 @@ select test.expect_error(format($q$select public.create_locations('f3000000-0000
   array['22023'], 'a single request is bounded to 2,000 locations');
 select test.expect_error($q$select public.create_locations('f3000000-0000-0000-0000-000000000001', gen_random_uuid(), null, '[{"name":"Plant room","colour":"red"}]')$q$,
   array['22023'], 'unknown location fields are rejected rather than ignored');
+select test.expect_error($q$select public.create_locations('f3000000-0000-0000-0000-000000000001', gen_random_uuid(), null, '[{"name":"Plant room","sort_order":1.5}]')$q$,
+  array['22023'], 'sort order must be a whole number');
 select test.expect_error($q$select public.create_locations('f3000000-0000-0000-0000-000000000002', gen_random_uuid(), null, '[{"name":"Ward 4"}]')$q$,
   array['42501'], 'a manager cannot create locations on a contract they are not allocated to');
 
