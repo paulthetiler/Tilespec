@@ -98,6 +98,27 @@ rollback;
 SQL
 }
 
+# The operator's preflight report, run exactly as documented. A read-only
+# transaction proves it cannot change anything.
+preflight() {
+  printf 'begin transaction read only;\n\\i %s\nrollback;\n' "$repository_root/supabase/inspection/supervisor-v2-preflight.sql" \
+    | "${psql[@]}" -F '|'
+}
+report_value() { grep -F "$1" <<<"$2" | head -1 | awk -F'|' '{print $4}'; }
+
+report_before="$(preflight)"
+if grep -qE 'MISSING|ALREADY EXISTS|DISABLED' <<<"$report_before"; then
+  echo "$report_before" >&2
+  echo 'FAIL: preflight reported drift on a correctly migrated pre-V2 database.' >&2
+  exit 1
+fi
+if [[ "$(report_value 'stored object is missing' "$report_before")" != 1 || "$(report_value 'issue count differs' "$report_before")" != 1
+  || "$(report_value 'sharing a name' "$report_before")" != 1 ]]; then
+  echo "$report_before" >&2
+  echo 'FAIL: preflight did not report the known legacy anomalies.' >&2
+  exit 1
+fi
+
 before="$(snapshot)"
 installer_before="$(installer_view)"
 for migration in "$repository_root"/supabase/migrations/*.sql; do
@@ -105,6 +126,13 @@ for migration in "$repository_root"/supabase/migrations/*.sql; do
 done
 after="$(snapshot)"
 installer_after="$(installer_view)"
+report_after="$(preflight)"
+if [[ "$(grep -c 'ALREADY EXISTS' <<<"$report_after")" != 27 ]] \
+  || [[ "$(grep '^row count' <<<"$report_before")" != "$(grep '^row count' <<<"$report_after")" ]]; then
+  diff <(echo "$report_before") <(echo "$report_after") >&2 || true
+  echo 'FAIL: preflight after applying should show every new object and unchanged row counts.' >&2
+  exit 1
+fi
 if [[ "$before" != "$after" ]]; then
   diff <(echo "$before") <(echo "$after") >&2 || true
   echo 'FAIL: Supervisor V2 migrations changed existing operational records.' >&2
@@ -115,7 +143,22 @@ if [[ "$installer_before" != "$installer_after" ]]; then
   exit 1
 fi
 
+# Each V2 migration refuses to run over drifted state, leaving it untouched.
+for migration in "$repository_root"/supabase/migrations/*.sql; do
+  [[ "$(basename "$migration")" < "$first_v2_migration" ]] && continue
+  if "${psql[@]}" -f "$migration" >"$test_socket/reapply.log" 2>&1 || ! grep -q 'Preflight failed' "$test_socket/reapply.log"; then
+    cat "$test_socket/reapply.log" >&2
+    echo "FAIL: $(basename "$migration") did not refuse to run over existing V2 objects." >&2
+    exit 1
+  fi
+done
+if [[ "$(snapshot)" != "$after" ]]; then echo 'FAIL: a refused migration changed data.' >&2; exit 1; fi
+
+# The assertions below are reached only after every shell comparison above passed.
 "${psql[@]}" <<'SQL'
+select test.assert(true, 'read-only preflight report finds no drift before upgrade and flags the known legacy anomalies');
+select test.assert(true, 'after upgrade the preflight report shows every new object and identical row counts');
+select test.assert(true, 'every V2 migration refuses with a clear preflight message when its objects already exist, changing nothing');
 select test.assert(true, 'every pre-existing member, contract, budget, allocation, area, package, document, audit event, inspection, issue and photo record is unchanged');
 select test.assert(true, 'an existing installer reads exactly the same areas and documents after the upgrade');
 select test.assert((select bool_and(parent_id is null and path_ids = array[id] and version = 1 and updated_at = created_at and archived_at is null)
