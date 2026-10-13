@@ -125,3 +125,17 @@
   .brand-experience-grid{gap:10px}
   .brand-experience-logo{padding:10px;min-width:0}
 }
+
+/* Keep the experience line visible on true mobile layouts, including short viewports. */
+@media (max-width:760px){
+  .hero{height:auto;min-height:730px;display:flex;flex-direction:column;overflow:hidden}
+  .hero-content{flex:0 0 auto;padding-bottom:40px}
+  .hero-bottom{
+    position:relative;inset:auto;left:auto;bottom:auto;transform:none;
+    display:block;flex:0 0 auto;margin-top:auto;padding-top:28px;padding-bottom:28px;
+    width:calc(100% - 40px);max-width:100%;
+    font-size:9px;line-height:1.7;letter-spacing:.12em;
+    visibility:visible;opacity:1;
+  }
+  .hero-bottom span{display:block;max-width:100%;overflow-wrap:break-word}
+}
