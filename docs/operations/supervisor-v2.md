@@ -2,8 +2,9 @@
 
 Phase 1 architecture assessment, data foundation and delivery plan.
 Baseline: `main` at `b4f5704` (13 October 2026). Phase 1 is a database and
-permissions foundation only; it adds no screens. Nothing here has been applied
-to a hosted database.
+permissions foundation only; it adds no screens. The four V2 migrations have
+**not** yet been applied to the hosted database; section 2 gives the exact
+order and precautions.
 
 The working rule is that the office plans the work, the supervisor confirms or
 adjusts it on site, and every record stays attributable. Each piece of work should
@@ -58,14 +59,28 @@ database, not by reading code:
 3. Private trigger functions created after the foundation migration kept
    PUBLIC execute. This was hygiene only, because `anon` has no schema access.
 
-**Not verified.** No Supabase or Vercel credentials are available in this
-environment. I could not inspect the live schema, its data, or which migrations
-have been applied. Two signs suggest some migrations may have been applied by
-hand: the supervisor migrations have no transaction wrapper, and the tender
-migration uses `if not exists`. For that reason every V2 migration checks its
-prerequisites first and refuses to run over drift. The read-only report
-`supabase/inspection/supervisor-v2-preflight.sql` lets you see the actual state
-before anything is applied (section 2).
+**Hosted database state.** This environment has no Supabase credentials, so
+the following is the owner's report of work done through a separate Supabase
+connection. It has not been inspected independently from here.
+
+- The project is `odwysybvncdfdrfnnnqt`, described by the owner as the live
+  TileSPEC project. No separate staging rehearsal has been reported.
+- The missing prerequisite `20261012040000_supervisor_issues_evidence` has now
+  been applied. That created `supervisor_issues`, `supervisor_issue_events`,
+  `supervisor_issue_photos`, their creation and closure functions, and the
+  private `supervisor-evidence` bucket.
+- The first version of the preflight report then showed every prerequisite
+  present, no name collisions and no legacy anomalies.
+
+Because the issue register was created only now, it is empty. Two of that
+report's evidence checks therefore had no rows to look at, and its clean result
+proves less than it appears to. The amended report (section 2) adds two checks
+that matter for this history:
+
+- the applying role's access to stored evidence;
+- inspections whose issues were recorded before the register existed.
+
+Every V2 migration still checks its prerequisites and refuses to run over drift.
 
 ## 2. Database changes and migration risks
 
@@ -76,16 +91,34 @@ each existing area gets `path_ids = [id]`.
 
 | Migration | Adds |
 | --- | --- |
-| `20261014090000_supervisor_records_hardening` | Inspections record server time and an issue count worked out from the answers. Photo records require the stored object; so does closure. Revokes PUBLIC execute on the internal functions. |
+| `20261014090000_supervisor_records_hardening` | Inspections record server time and an issue count worked out from the answers. Photo records require the stored object; so does closure. Refuses to run if the applying role cannot read stored objects past RLS. Narrows Supabase's default grants on the four supervisor tables: no `anon` access; signed-in users keep only what the app uses (no `TRUNCATE`). Revokes PUBLIC execute on the internal functions. |
 | `20261014091000_site_locations` | `work_areas` gains: optional `parent_id`; `path_ids` (the ancestry chain, maintained by triggers); office-defined `location_type`/`code`; `sort_order`, `version`, `archived_*`. Adds `create_locations` (nested bulk creation, up to 2,000 per request, idempotent), `update_location` (rename or move, IDs kept) and `archive_location` (cascades, requires a reason, never deletes). Also shared request validation and a London "today". |
 | `20261014092000_teams_operatives` | `operatives` (people, with or without a login; engagement recorded); `teams` (gang, individual, direct, mixed, temporary); `team_memberships` (dated, one lead per period, never rewritten). A shared append-only guard. Office RPCs, plus provisional operatives that supervisors can register. |
 | `20261014093000_site_allocations` | `planned_allocations` (+ planned operatives), `actual_allocations` (+ per-person attendance) and `allocation_absences`. RPCs to plan, revise, cancel, confirm, end, move or split, add or remove people, void and record absence. Adds `location_work_history` for attribution. |
 
 **Risks and how each is handled:**
 
-- **The live schema may differ from the repository.** Run the preflight report on
-  staging and production first. Any "MISSING" or "ALREADY EXISTS" means stop. The
-  migrations refuse to run in that state anyway, and the upgrade test proves it.
+- **The live schema may differ from the repository.** Run the amended preflight
+  report first. Any "MISSING" or "ALREADY EXISTS" means stop. The migrations
+  refuse to run in that state anyway, and so does any file applied before its
+  prerequisite. The upgrade test proves both.
+- **The hosted issue register is exposed until hardening is applied.** It is live
+  now, with Supabase's default grants and the fabricated-evidence gap from
+  section 1. Hardening is first in the order for that reason.
+- **The evidence checks depend on the applying role.** They run as the role that
+  applies the migration and read `storage.objects`. The hardening migration
+  refuses to run unless that role bypasses RLS on `storage.objects`, so a
+  mismatch cannot silently break photo uploads. On Supabase the project's
+  `postgres` role qualifies; it was able to create the storage policies in
+  `20261012040000`.
+- **Inspections recorded before the register existed.** Their issues never
+  reached the register, because its trigger acts only on new inspections. They
+  are preserved and counted by the report, not backfilled. Any backfill is a
+  separate owner decision (section 6).
+- **Migration history.** A tool that records migrations by its own timestamp
+  will not match the repository's filenames. Record each file under its own name.
+  Before anyone later uses the Supabase CLI against this project, reconcile
+  `supabase_migrations.schema_migrations` with `supabase/migrations`.
 - **The `work_areas` change takes a lock.** `ALTER` plus a one-off `UPDATE` hold
   an exclusive lock on `work_areas` for a moment. That is trivial at current
   volumes, but apply in a quiet period.
@@ -111,15 +144,25 @@ each existing area gets `path_ids = [id]`.
   contract-assignment checks use the database's `current_date` (UTC), which
   differs between midnight and 01:00 during BST.
 
-**How to apply (after review, staging first):**
+**How to apply (after the owner's approval):**
 
-1. Take a database backup.
-2. Run the preflight report and attach its output to the PR.
-3. Apply the four migrations in order.
-4. Re-run the report: row counts must match.
-5. Repeat the authenticated checks in `deployment.md`.
-
-Production is a separate approved step.
+1. Confirm a restorable backup of `odwysybvncdfdrfnnnqt` exists, and take a
+   manual export if the plan has no point-in-time recovery. This is the live
+   database, with no staging rehearsal.
+2. Run the amended `supabase/inspection/supervisor-v2-preflight.sql` as the role
+   that will apply the migrations, and keep the full output. Every prerequisite,
+   including the storage-access row, must be "present", and every name collision
+   "absent (ready)".
+3. Apply these files, unmodified, one at a time, in this order, stopping at the
+   first error. Each file is all-or-nothing:
+   1. `supabase/migrations/20261014090000_supervisor_records_hardening.sql`
+   2. `supabase/migrations/20261014091000_site_locations.sql`
+   3. `supabase/migrations/20261014092000_teams_operatives.sql`
+   4. `supabase/migrations/20261014093000_site_allocations.sql`
+4. Re-run the report. Every new object should now show "ALREADY EXISTS" (27
+   rows), and the row counts must match step 2.
+5. Check the live app: submit a morning check, upload an issue photo, and create
+   a work area.
 
 ## 3. Permissions model
 
@@ -235,9 +278,12 @@ the snag was raised.
 
 ## 6. Decisions that need the owner
 
-1. **Which Supabase project is staging and which is production, and what is
-   applied to each?** Please run `supabase/inspection/supervisor-v2-preflight.sql`
-   on both and share the output. *This blocks applying Phase 1.*
+1. ~~Which Supabase project, and what is applied?~~ Answered: `odwysybvncdfdrfnnnqt`,
+   with the missing prerequisite now applied. Please post the full output of the
+   amended report on the PR for the record.
+   - **Still open:** if the report counts inspections whose issues never reached
+     the register, should they be backfilled? That would be a separate, reviewed
+     data change.
 2. **Installer hierarchy visibility** (section 2): may installers read the
    location rows above and below their package areas? This PR assumes yes.
 3. **Subcontract companies with several gangs.** Should the contractor company
@@ -263,7 +309,7 @@ commands match CI.
 | --- | --- |
 | `npm run typecheck` | Passed |
 | `npm test` (application, invitation, estimator, location helper, stage/deviation sync) | 27 passed |
-| `npm run test:db` (real PostgreSQL grants, RLS, RPCs, triggers, concurrency, upgrade) | 321 checks passed (148 existing + 173 new) |
+| `npm run test:db` (real PostgreSQL grants, RLS, RPCs, triggers, concurrency, upgrade) | 332 checks passed (148 existing + 184 new) |
 | `npm run build` | Passed |
 | `npm run test:browser` | 9 passed, 1 desktop-only skip (phone menu), unchanged |
 | `npm run test:forms` | 2 passed |
@@ -281,10 +327,22 @@ commands match CI.
   plan revision) and C (hospital: overlapping teams by stage, an operative on two
   sites).
 - Two-connection races.
-- An upgrade over legacy data. It proves:
+- An upgrade over legacy data that replays the hosted history: inspections
+  recorded before the issue register migration, then the register, then V2. It
+  proves:
   - every existing record and an installer's view are unchanged;
-  - the preflight report flags the seeded anomalies and no drift;
+  - the preflight report flags the seeded anomalies (including issues that never
+    reached the register) and no drift;
+  - hardening refuses a role that cannot read stored evidence;
+  - the teams and allocations migrations refuse to run before their
+    prerequisites;
   - every V2 migration refuses to run a second time.
+- Supabase default grants mirrored in the test platform. They prove:
+  - no application table or function is open to `anon`;
+  - no signed-in user can `TRUNCATE` any table;
+  - V2 and issue-register tables are read-only to signed-in users;
+  - every security-definer function pins its `search_path`;
+  - RLS is on for every public table.
 
 **Not covered in Phase 1:**
 
@@ -293,4 +351,5 @@ commands match CI.
   duplicate refusal and safe repeats. The client queue is Phase 5.
 - QA holds are Phase 3.
 - No authenticated hosted journey, Supabase Storage behaviour or deployment was
-  exercised. No production merge, migration or deployment was performed.
+  exercised from here. No production merge, migration or deployment was
+  performed by this work.
