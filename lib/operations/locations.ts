@@ -38,19 +38,27 @@ export function orderLocations(locations: Location[]): Location[] {
   return ordered;
 }
 
+const tokens = (text: string) => text.toLocaleLowerCase("en-GB").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
 // Every word must appear in the location's path or code, so "52 bath" finds
-// Flat 52 › Bathroom. Archived locations are excluded unless requested.
+// Flat 52 › Bathroom. Best matches come first: words starting the location's
+// own name ("level 5" finds Level 5 itself), then words starting anywhere in
+// its path, then any substring; shallower locations first within each group.
+// Archived locations are excluded unless requested.
 export function searchLocations(index: LocationIndex, query: string, options: { limit?: number; includeArchived?: boolean } = {}): Location[] {
-  const words = query.toLocaleLowerCase("en-GB").split(/\s+/).filter(Boolean);
+  const words = tokens(query);
   if (words.length === 0) return [];
-  const matches: Location[] = [];
-  for (const location of orderLocations([...index.values()])) {
-    if (location.archived_at && !options.includeArchived) continue;
-    const haystack = `${locationPath(index, location.id, " ")} ${location.code}`.toLocaleLowerCase("en-GB");
-    if (words.every(word => haystack.includes(word))) matches.push(location);
-    if (matches.length >= (options.limit ?? 50)) break;
-  }
-  return matches;
+  const startsAll = (list: string[]) => words.every(word => list.some(token => token.startsWith(word)));
+  const ranked: { location: Location; tier: number; order: number }[] = [];
+  orderLocations([...index.values()]).forEach((location, order) => {
+    if (location.archived_at && !options.includeArchived) return;
+    const own = tokens(`${location.name} ${location.code}`);
+    const path = [...tokens(locationPath(index, location.id, " ")), ...own];
+    const tier = startsAll(own) ? 0 : startsAll(path) ? 1 : words.every(word => path.join(" ").includes(word)) ? 2 : -1;
+    if (tier >= 0) ranked.push({ location, tier, order });
+  });
+  return ranked.sort((a, b) => a.tier - b.tier || a.location.path_ids.length - b.location.path_ids.length || a.order - b.order)
+    .slice(0, options.limit ?? 50).map(item => item.location);
 }
 
 export type LocationItem = { name: string; location_type?: string; children?: LocationItem[] };

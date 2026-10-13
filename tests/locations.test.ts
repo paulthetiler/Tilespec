@@ -47,6 +47,15 @@ test("search finds a particular flat's room from a few typed characters", () => 
   assert.equal(searchLocations(index, "ensuite", { limit: 5 }).length, 5);
 });
 
+test("search puts the location you named first, not things that merely contain the number", () => {
+  const level5 = searchLocations(index, "level 5", { limit: 3 }).map(item => locationPath(index, item.id));
+  assert.equal(level5[0], "Block B › Level 5");
+  const five = searchLocations(index, "5", { limit: 12 }).map(item => item.name);
+  assert.equal(five[0], "Level 5");
+  assert.ok(five.indexOf("Flat 501") >= 0 && !five.includes("Flat 105"), "Flat 105 only matches inside a word, so it ranks below whole-number matches");
+  assert.deepEqual(searchLocations(index, "room").map(item => item.name).slice(0, 1), ["Bathroom"]);
+});
+
 test("archived locations are excluded from search unless requested", () => {
   // Archiving cascades to the subtree in the database, so the rooms are archived too.
   const flat601 = find("Block B › Level 6 › Flat 601");
