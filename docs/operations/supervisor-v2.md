@@ -267,7 +267,7 @@ the snag was raised.
 | PR | Scope | Status |
 | --- | --- | --- |
 | **1 (this)** | Phase 1: hardening, locations, teams, allocations, attribution, preflight report, tests. Each migration is its own commit | Draft. Stop for review before any hosted migration |
-| 2a | Office setup: location builder (bulk flats/rooms), teams and operatives, planning board | Phase 2 |
+| 2a | Office setup: location builder (bulk flats/rooms), teams and operatives, planning board | In review (section 8) |
 | 2b | Supervisor dashboard: auto-open a single site, next action from saved records, morning checks with severities and holds, allocation confirmation (confirm, amend, move, split, absent), office planned-vs-actual view | Phase 2 |
 | 3a | Inspection requirements: specification revisions, conditional checklists (wet areas only where specified), mandatory hold points, authorised exceptions | Phase 3 |
 | 3b | Location-first inspection UI; retire prototype sections 2–4 | Phase 3 |
@@ -353,3 +353,51 @@ commands match CI.
 - No authenticated hosted journey, Supabase Storage behaviour or deployment was
   exercised from here. No production merge, migration or deployment was
   performed by this work.
+
+## 8. Phase 2A: office management
+
+The four Phase 1 migrations are applied to the hosted project (owner's
+report). Phase 2A adds screens only: **no schema change and no migration.**
+Every write is a Phase 1 database function called with the user's own session.
+
+| Screen | Where | What the office does there |
+| --- | --- | --- |
+| Workforce | `/admin/workforce` (owner, contracts manager) | Add teams (gang, individual, direct, mixed, temporary) with a company and lead. Add and end memberships; history is kept. Add operatives with an optional login. Confirm people supervisors added on site. Filter everything by company. |
+| Locations | Contract › Locations | Create a numbered series ("Flat 51 to 58") or a list, with rooms inside each, in one step, with a preview. Find a location by typing ("52 bath"). Rename, move or archive. |
+| Plan work | Contract › Plan work | Plan a team at a location, with a stage, days, optional named people, a package and instructions. See the week grouped by team. Change (creates a new version) or cancel; history stays visible. |
+| Site setup | Contract page | Three steps (locations, teams, plan), with the next one highlighted. |
+
+**Design decisions:**
+
+- **Subcontract companies.** Companies are the existing `contractor_name` and
+  `company_name` fields, with suggestions to keep spelling consistent and
+  company chips that filter the Workforce screen. A first-class company record
+  (contacts, insurance, competence expiry) would need a small additive migration.
+  It is left for a reviewed decision, so the PR 2A preview works against the
+  database as it is.
+- **One way to add locations.** The contract page's old flat "add work area"
+  form is replaced by the builder. Its substrate and system notes move to the
+  location editor.
+- **Plain-English errors.** Errors written for people by the database (for
+  example *Another active location here is already called "Flat 52"*) are shown
+  as written. Raw PostgreSQL text never is.
+- **Naming.** The owner's "Team" navigation link is now "User access", so it
+  isn't confused with Workforce.
+
+**Preview caution.** The Vercel preview uses the hosted Supabase project.
+Anything created while reviewing is real and, by design, cannot be deleted:
+locations archive, memberships end or void, plans cancel. Review against a
+clearly labelled test contract.
+
+**Validation.** `npm run test:ui` renders the real screens with fictional
+fixture data at iPad portrait (768px), iPad landscape (1180px) and phone
+(390px). It fails on any of:
+
+- sideways scrolling;
+- a control under 44px;
+- a browser console error;
+- a failure in any main flow.
+
+The stub actions run the real server parsers, so each flow proves the screen
+submits a request the server accepts. Authenticated journeys against hosted
+Supabase still need checking on the preview.
