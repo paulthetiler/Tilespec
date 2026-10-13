@@ -24,3 +24,4 @@ export default async function TenderInbox(){
   <strong>{e.reference} · {e.project||"General enquiry"}</strong><p>{e.company||e.name} · {e.email}</p><p>Submitted: {e.received_at?new Date(e.received_at).toLocaleString("en-GB"):"Not confirmed"}{e.deadline?" · Return date: "+e.deadline:""}</p>{e.message&&<p style={{whiteSpace:"pre-wrap"}}>{e.message}</p>}
   {e.documents.length>0&&<div><strong>Documents</strong><ul>{e.documents.map((f,i)=><li key={i}>{f.url?<a href={f.url} target="_blank" rel="noopener noreferrer">{f.name}</a>:f.name+" (temporarily unavailable)"}</li>)}</ul></div>}
  </article>)}</section></>;
+}
