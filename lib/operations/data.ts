@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuditEvent, Commercial, Contract, DocumentRevision, Member, WorkArea, WorkPackage } from "./types";
+import { rpcErrorMessage } from "./errors";
 
 export function checkDatabase(error: { code?: string } | null) {
   if (error) {
@@ -9,6 +10,10 @@ export function checkDatabase(error: { code?: string } | null) {
     if (error.code === "42501") throw new Error("You do not have permission for this operation.");
     throw new Error("The record could not be read or saved. Check the backend connection and try again.");
   }
+}
+// For Supervisor V2 functions, whose errors are written for the user.
+export function checkRpc(error: { code?: string; message?: string } | null) {
+  if (error) throw new Error(rpcErrorMessage(error));
 }
 export async function contractsFor(supabase: SupabaseClient) {
   const { data, error } = await supabase.from("contracts").select("*").order("created_at", { ascending: false });

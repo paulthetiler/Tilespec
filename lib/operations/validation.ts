@@ -1,4 +1,5 @@
-import { roles } from "./types";
+import { installationStages, roles } from "./types";
+import type { LocationBuilderInput } from "./locations";
 
 export class ValidationError extends Error {}
 export function text(form: FormData, key: string, max = 2000, required = false) {
@@ -79,4 +80,79 @@ export function fileType(bytes: Uint8Array, claimedType: string) {
   if (png && claimedType === "image/png") return { mime: claimedType, extension: "png" };
   if (jpg && claimedType === "image/jpeg") return { mime: claimedType, extension: "jpg" };
   throw new ValidationError("Only PDF, JPEG and PNG files with a matching file signature are accepted.");
+}
+
+// Supervisor V2 office forms. Each returns exactly the payload its database
+// function accepts; the database validates again and is the authority.
+export const engagements = ["direct_employee", "subcontractor", "agency"] as const;
+export const teamKinds = ["subcontract_gang", "individual_subcontractor", "direct_team", "mixed", "temporary"] as const;
+function choice<T extends string>(form: FormData, key: string, choices: readonly T[], message: string): T {
+  const value = text(form, key, 40, true);
+  if (!choices.some(item => item === value)) throw new ValidationError(message);
+  return value as T;
+}
+function optionalUuid(form: FormData, key: string) {
+  return text(form, key, 36) ? uuid(form, key) : null;
+}
+export function requiredDate(form: FormData, key: string, label: string) {
+  const value = date(form, key);
+  if (!value) throw new ValidationError(`Enter the ${label}.`);
+  return value;
+}
+export function operativeInput(form: FormData, canLinkLogin: boolean) {
+  const userId = canLinkLogin ? optionalUuid(form, "user_id") : null;
+  return {
+    display_name: text(form, "display_name", 160, true),
+    engagement: choice(form, "engagement", engagements, "Choose how this person is engaged."),
+    company_name: text(form, "company_name", 160),
+    ...(userId ? { user_id: userId } : {}),
+  };
+}
+export function operativeUpdateInput(form: FormData) {
+  const status = text(form, "status", 20, true);
+  if (status !== "active" && status !== "inactive") throw new ValidationError("Choose active or inactive.");
+  return { ...operativeInput(form, false), user_id: optionalUuid(form, "user_id"), status };
+}
+export function teamInput(form: FormData) {
+  return {
+    name: text(form, "name", 160, true),
+    kind: choice(form, "kind", teamKinds, "Choose what kind of team this is."),
+    contractor_name: text(form, "contractor_name", 160),
+  };
+}
+export function membershipInput(form: FormData) {
+  return {
+    team_id: uuid(form, "team_id"), operative_id: uuid(form, "operative_id"),
+    valid_from: requiredDate(form, "valid_from", "start date"), is_lead: form.get("is_lead") === "on",
+  };
+}
+export function planInput(form: FormData) {
+  const planned_start = requiredDate(form, "planned_start", "first planned day");
+  const planned_end = date(form, "planned_end") || planned_start;
+  if (planned_end < planned_start) throw new ValidationError("The last planned day must be on or after the first.");
+  const stage = text(form, "stage", 30, true);
+  if (!installationStages.some(item => item === stage)) throw new ValidationError("Choose the installation stage.");
+  const operativeIds = form.getAll("operative_ids");
+  if (operativeIds.some(value => typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))) {
+    throw new ValidationError("A selected operative is invalid. Refresh and try again.");
+  }
+  const packageId = optionalUuid(form, "work_package_id"), supersedesId = optionalUuid(form, "supersedes_id");
+  if (!text(form, "work_area_id", 36)) throw new ValidationError("Choose where the work is planned.");
+  return {
+    contract_id: uuid(form, "contract_id"), work_area_id: uuid(form, "work_area_id"), team_id: uuid(form, "team_id"),
+    stage, planned_start, planned_end, instructions: text(form, "instructions", 4000),
+    operative_ids: [...new Set(operativeIds as string[])],
+    ...(packageId ? { work_package_id: packageId } : {}), ...(supersedesId ? { supersedes_id: supersedesId } : {}),
+  };
+}
+export function locationBuilderInput(form: FormData): LocationBuilderInput {
+  const mode = text(form, "mode", 10, true);
+  if (mode !== "series" && mode !== "names") throw new ValidationError("Choose a numbered series or a list of names.");
+  return { mode, label: text(form, "label", 60), from: text(form, "from", 6), to: text(form, "to", 6), names: text(form, "names", 40000), rooms: text(form, "rooms", 4000) };
+}
+export function locationUpdateInput(form: FormData) {
+  return {
+    name: text(form, "name", 160, true), location_type: text(form, "location_type", 60), code: text(form, "code", 40),
+    description: text(form, "description", 500), parent_id: optionalUuid(form, "parent_id"),
+  };
 }
