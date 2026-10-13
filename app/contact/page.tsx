@@ -1,5 +1,5 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import "./contact.css";
 import { ArrowUpRight, FileUp, Mail, ShieldCheck, X } from "lucide-react";
@@ -11,6 +11,7 @@ type Stage = "idle"|"sending"|"done"|"error";
 
 export default function ContactPage(){
  const [type,setType]=useState<"tender"|"general">("tender");
+ useEffect(()=>{if(new URLSearchParams(window.location.search).get("type")==="general")setType("general");},[]);
  const [files,setFiles]=useState<File[]>([]);
  const [stage,setStage]=useState<Stage>("idle");
  const [feedback,setFeedback]=useState("");
