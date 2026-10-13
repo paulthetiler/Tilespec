@@ -1,23 +1,32 @@
 #!/usr/bin/env bash
 # Applies the Supervisor V2 migrations over a database that already holds
 # operational records at the pre-V2 schema, and proves every existing row is
-# preserved exactly. Uses a separate scratch database in the disposable cluster.
+# preserved exactly. It replays the hosted history: morning inspections were
+# recorded before the issue register migration was applied. Uses a separate
+# scratch database in the disposable cluster.
 set -euo pipefail
 psql_binary="$1"
 test_socket="$2"
 test_port="$3"
 repository_root="$(cd "$(dirname "$0")/../.." && pwd)"
+issue_register_migration=20261012040000
 first_v2_migration=20261014090000
 base=("$psql_binary" -X -q -A -t -w -h "$test_socket" -p "$test_port" -U postgres -v ON_ERROR_STOP=1)
 "${base[@]}" -d postgres -c 'create database upgrade_check' >/dev/null
-trap '"${base[@]}" -d postgres -c "drop database if exists upgrade_check" >/dev/null 2>&1 || true' EXIT
+trap '"${base[@]}" -d postgres -c "drop database if exists upgrade_check" >/dev/null 2>&1 || true
+  "${base[@]}" -d postgres -c "drop role if exists limited_migrator" >/dev/null 2>&1 || true' EXIT
 psql=("${base[@]}" -d upgrade_check)
 
 # Roles are cluster-wide and already exist; the rest of the platform surface is per database.
 grep -v '^create role' "$repository_root/tests/db/platform.sql" | "${psql[@]}" >/dev/null
-for migration in "$repository_root"/supabase/migrations/*.sql; do
-  [[ "$(basename "$migration")" < "$first_v2_migration" ]] && "${psql[@]}" -f "$migration" >/dev/null
-done
+apply_range() { # apply migrations whose names sort in [$1, $2)
+  for migration in "$repository_root"/supabase/migrations/*.sql; do
+    name="$(basename "$migration")"
+    [[ ! "$name" < "$1" && "$name" < "$2" ]] && "${psql[@]}" -f "$migration" >/dev/null
+  done
+  return 0
+}
+apply_range 0 "$issue_register_migration"
 
 # Legacy records as they exist before V2, including data V2 would not itself allow.
 "${psql[@]}" >/dev/null <<'SQL'
@@ -55,6 +64,17 @@ select '82000000-0000-0000-0000-000000000051', organisation_id, contract_id, id,
   organisation_id || '/' || contract_id || '/operational/' || id || '/82000000-0000-0000-0000-000000000051.pdf', repeat('a', 64), 'application/pdf', 1024,
   '82000000-0000-0000-0000-000000000001'
 from public.work_areas where id = '82000000-0000-0000-0000-000000000031';
+-- Recorded before the issue register existed, so its issue never reached the register.
+insert into public.supervisor_inspections(id, organisation_id, contract_id, actor_id, request_key, answers, issues_count, created_at)
+select '82000000-0000-0000-0000-000000000063', organisation_id, id, '82000000-0000-0000-0000-000000000002', '82000000-0000-0000-0000-000000000064',
+  (select jsonb_agg(jsonb_build_object('item', 'Check ' || g, 'status', case when g = 2 then 'issue' else 'pass' end, 'note', 'Adhesive delivery short')) from generate_series(1, 10) g),
+  1, now() - interval '25 days'
+from public.contracts;
+commit;
+SQL
+apply_range "$issue_register_migration" "$first_v2_migration"
+"${psql[@]}" >/dev/null <<'SQL'
+begin;
 -- A backdated inspection with an understated count, and a photo record without
 -- a stored object: both possible before the hardening migration.
 insert into public.supervisor_inspections(id, organisation_id, contract_id, actor_id, request_key, answers, issues_count, created_at)
@@ -106,6 +126,27 @@ preflight() {
 }
 report_value() { grep -F "$1" <<<"$2" | head -1 | awk -F'|' '{print $4}'; }
 
+# A role that cannot read stored objects past RLS is refused before anything changes.
+"${base[@]}" -d postgres -c 'create role limited_migrator nologin in role authenticated' >/dev/null
+unchanged="$(snapshot)"
+hardening="$(ls "$repository_root"/supabase/migrations/${first_v2_migration}_*.sql)"
+if printf 'set role limited_migrator;\n\\i %s\n' "$hardening" | "${psql[@]}" >"$test_socket/limited.log" 2>&1 \
+  || ! grep -q 'cannot read storage.objects past row-level security' "$test_socket/limited.log" || [[ "$(snapshot)" != "$unchanged" ]]; then
+  cat "$test_socket/limited.log" >&2
+  echo 'FAIL: hardening did not refuse a role that cannot read stored evidence.' >&2
+  exit 1
+fi
+
+# Applying the dependent migrations before their prerequisites is refused, changing nothing.
+for out_of_order in 20261014093000 20261014092000; do
+  file="$(ls "$repository_root"/supabase/migrations/${out_of_order}_*.sql)"
+  if "${psql[@]}" -f "$file" >"$test_socket/order.log" 2>&1 || ! grep -q 'Preflight failed' "$test_socket/order.log" || [[ "$(snapshot)" != "$unchanged" ]]; then
+    cat "$test_socket/order.log" >&2
+    echo "FAIL: $(basename "$file") did not refuse to run before its prerequisites." >&2
+    exit 1
+  fi
+done
+
 report_before="$(preflight)"
 if grep -qE 'MISSING|ALREADY EXISTS|DISABLED' <<<"$report_before"; then
   echo "$report_before" >&2
@@ -113,7 +154,8 @@ if grep -qE 'MISSING|ALREADY EXISTS|DISABLED' <<<"$report_before"; then
   exit 1
 fi
 if [[ "$(report_value 'stored object is missing' "$report_before")" != 1 || "$(report_value 'issue count differs' "$report_before")" != 1
-  || "$(report_value 'sharing a name' "$report_before")" != 1 ]]; then
+  || "$(report_value 'sharing a name' "$report_before")" != 1 || "$(report_value 'no issue register entry' "$report_before")" != 1
+  || "$(grep -F 'can read storage.objects past row-level security' <<<"$report_before" | awk -F'|' '{print $3}')" != present ]]; then
   echo "$report_before" >&2
   echo 'FAIL: preflight did not report the known legacy anomalies.' >&2
   exit 1
@@ -156,7 +198,9 @@ if [[ "$(snapshot)" != "$after" ]]; then echo 'FAIL: a refused migration changed
 
 # The assertions below are reached only after every shell comparison above passed.
 "${psql[@]}" <<'SQL'
-select test.assert(true, 'read-only preflight report finds no drift before upgrade and flags the known legacy anomalies');
+select test.assert(true, 'hardening refuses, changing nothing, when the applying role cannot read stored evidence past RLS');
+select test.assert(true, 'the teams and allocations migrations refuse to run before their prerequisites, changing nothing');
+select test.assert(true, 'read-only preflight report finds no drift before upgrade and flags the known legacy anomalies, including issues recorded before the register existed');
 select test.assert(true, 'after upgrade the preflight report shows every new object and identical row counts');
 select test.assert(true, 'every V2 migration refuses with a clear preflight message when its objects already exist, changing nothing');
 select test.assert(true, 'every pre-existing member, contract, budget, allocation, area, package, document, audit event, inspection, issue and photo record is unchanged');
@@ -164,7 +208,9 @@ select test.assert(true, 'an existing installer reads exactly the same areas and
 select test.assert((select bool_and(parent_id is null and path_ids = array[id] and version = 1 and updated_at = created_at and archived_at is null)
   and count(*) = 3 from public.work_areas), 'existing areas become top-level locations with unchanged IDs');
 select test.assert((select count(*) = 2 from public.work_areas where name = 'Corridor'), 'legacy duplicate area names neither block the upgrade nor get renamed');
-select test.assert((select issues_count = 0 and created_at < now() - interval '19 days' from public.supervisor_inspections),
+select test.assert((select issues_count = 0 and created_at < now() - interval '19 days' from public.supervisor_inspections where id = '82000000-0000-0000-0000-000000000061'),
   'the hardening migration does not rewrite historical inspections');
+select test.assert((select count(*) = 0 from public.supervisor_issues where inspection_id = '82000000-0000-0000-0000-000000000063'),
+  'issues recorded before the register existed are reported for review, not silently backfilled');
 select test.assert((select count(*) = 1 from public.supervisor_issue_photos), 'legacy photo records are preserved, not deleted');
 SQL

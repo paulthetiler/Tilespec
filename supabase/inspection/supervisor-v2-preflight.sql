@@ -10,6 +10,9 @@
 --   data review       legacy records the migrations deliberately leave as they
 --                     are; review them, nothing is changed automatically
 --
+-- Run it as the role that will apply the migrations (the SQL editor uses the
+-- project's postgres role): one prerequisite checks that role's own access.
+--
 -- Any "MISSING" or "ALREADY EXISTS" before applying means the live schema has
 -- drifted from the repository. Stop and review; the migrations will refuse to
 -- run in that state.
@@ -47,6 +50,8 @@ with prerequisites(kind, name) as (values
     'select count(*) as n from public.supervisor_issues i where i.state = ''closed'' and not exists (select 1 from public.supervisor_issue_photos p join storage.objects o on o.bucket_id = ''supervisor-evidence'' and o.name = p.object_path where p.issue_id = i.id)'),
   ('inspections whose recorded issue count differs from their answers', 'public.supervisor_inspections',
     'select count(*) as n from public.supervisor_inspections i where i.issues_count <> (select count(*) from jsonb_array_elements(i.answers) a where a->>''status'' = ''issue'')'),
+  ('inspections with issue answers but no issue register entry (recorded before the register existed; not backfilled)', 'public.supervisor_issues',
+    'select count(*) as n from public.supervisor_inspections i where exists (select 1 from jsonb_array_elements(i.answers) a where a->>''status'' = ''issue'') and not exists (select 1 from public.supervisor_issues s where s.inspection_id = i.id)'),
   ('inspections timestamped in the future', 'public.supervisor_inspections',
     'select count(*) as n from public.supervisor_inspections where created_at > now() + interval ''5 minutes'''),
   ('groups of work areas sharing a name on one contract (kept; new duplicates under one parent are refused)', 'public.work_areas',
@@ -65,6 +70,14 @@ select 'prerequisite', kind || ' ' || name,
         else (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from storage.buckets where id = %L', name), false, true, '')))[1]::text <> '0' end end
   then 'present' else 'MISSING - stop and review' end, null
 from prerequisites
+union all
+select 'prerequisite', 'role ' || current_user || ' can read storage.objects past row-level security (run as the role that will apply the migrations)',
+  case when has_table_privilege(current_user, 'storage.objects', 'SELECT')
+    and (exists (select 1 from pg_roles r where r.rolname = current_user and (r.rolsuper or r.rolbypassrls))
+      or exists (select 1 from pg_class c where c.oid = 'storage.objects'::regclass
+        and pg_has_role(current_user, c.relowner, 'USAGE') and not c.relforcerowsecurity))
+  then 'present' else 'MISSING - stop and review' end, null
+where to_regclass('storage.objects') is not null
 union all
 select 'name collision', kind || ' ' || name,
   case when (kind = 'table' and to_regclass(name) is not null) or (kind = 'function' and to_regprocedure(name) is not null)

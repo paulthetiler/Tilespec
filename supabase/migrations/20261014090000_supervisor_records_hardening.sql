@@ -15,6 +15,15 @@ begin
   if to_regprocedure('private.guard_supervisor_inspection()') is not null or to_regprocedure('private.guard_issue_photo()') is not null then
     raise exception 'Preflight failed: hardening functions already exist (schema drift). Review before applying.';
   end if;
+  -- The evidence checks below run as the role applying this migration. If that
+  -- role could not see storage.objects past row-level security, every genuine
+  -- photograph would be rejected. Refuse rather than break uploads.
+  if not has_table_privilege(current_user, 'storage.objects', 'SELECT')
+    or not (exists (select 1 from pg_roles r where r.rolname = current_user and (r.rolsuper or r.rolbypassrls))
+      or exists (select 1 from pg_class c where c.oid = 'storage.objects'::regclass
+        and pg_has_role(current_user, c.relowner, 'USAGE') and not c.relforcerowsecurity)) then
+    raise exception 'Preflight failed: role % cannot read storage.objects past row-level security, so the evidence checks would reject genuine photographs. Apply as the project''s postgres role.', current_user;
+  end if;
 end $$;
 
 -- Raw table inserts could previously backdate an inspection or understate its
@@ -72,6 +81,14 @@ begin
   end if;
   return new;
 end $$;
+
+-- Supabase grants every new public table to anon and authenticated by default,
+-- and these tables never narrowed that. Keep exactly what the application uses;
+-- writes otherwise go through checked functions. TRUNCATE ignores RLS.
+revoke all on public.supervisor_inspections, public.supervisor_issues, public.supervisor_issue_events,
+  public.supervisor_issue_photos from anon;
+revoke insert, update, delete, truncate, references, trigger on public.supervisor_issues, public.supervisor_issue_events from authenticated;
+revoke update, delete, truncate, references, trigger on public.supervisor_inspections, public.supervisor_issue_photos from authenticated;
 
 -- Functions created after the foundation's blanket revoke kept PUBLIC execute.
 revoke all on function private.inspection_issues(), private.enforce_issue_closure(),
