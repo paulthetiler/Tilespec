@@ -34,6 +34,7 @@ export default function Home() {
         <a className="mobile-cta" href="/contact" onClick={() => setMenu(false)}>Discuss a project <ArrowUpRight size={16}/></a>
       </nav><a className="nav-cta" href="/contact">SEND AN ENQUIRY <ArrowUpRight size={17}/></a><button className="menu-button" aria-label={menu ? "Close menu" : "Open menu"} aria-expanded={menu} onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button></div>
     </header>
+    <link rel="preload" as="image" href="https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000009748824390831e6b533c9672.png" fetchPriority="high" />
     <section className="hero">
       <div className="hero-image" role="img" aria-label="Architectural interior with large-format tiled floor"/><div className="hero-grain"/>
       <div className="shell hero-content"><div className="eyebrow light"><span className="eyebrow-line"/> SPECIALIST COMMERCIAL TILING</div>
