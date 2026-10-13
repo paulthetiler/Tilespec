@@ -7,6 +7,11 @@ create role service_role nologin bypassrls;
 create schema auth;
 create schema storage;
 grant usage on schema public, auth, storage to anon, authenticated, service_role;
+-- Supabase grants new public tables, functions and sequences to these roles by
+-- default. Mirror that so tests prove each migration's own explicit revokes.
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 
 create table auth.users (
   id uuid primary key,

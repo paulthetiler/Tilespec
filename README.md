@@ -17,6 +17,9 @@ Supabase backend; missing configuration fails closed. Contracts remain drafts
 without installation release. Quality gates and later commercial/site workflows
 are planned subsequent phases.
 
+The Supervisor Operations System V2 (locations, teams, planned and actual
+allocations, attribution) is planned in [supervisor-v2.md](docs/operations/supervisor-v2.md).
+
 Read the [architecture, permissions and phased plan](docs/operations/architecture.md),
 [staging deployment instructions](docs/operations/deployment.md), and
 [database/bootstrap instructions](supabase/README.md). Copy `.env.example` to a
