@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireActor, canManageContracts, canReadFinancial } from "@/lib/auth";
 import { createStorageVerifier } from "@/lib/supabase/storage-admin";
 import { checkDatabase } from "@/lib/operations/data";
-import { areaInput, commercialInput, contractInput, integer, MAX_FILE_BYTES, memberRole, packageInput, text, uuid, ValidationError } from "@/lib/operations/validation";
+import { commercialInput, contractInput, integer, MAX_FILE_BYTES, memberRole, packageInput, text, uuid, ValidationError } from "@/lib/operations/validation";
 import { inspectEvidence, verifyStoredEvidence } from "@/lib/operations/evidence";
 import type { ActionState, DocumentRevision } from "@/lib/operations/types";
 
@@ -50,17 +50,6 @@ export async function saveCommercialAction(_: ActionState, form: FormData): Prom
     revalidatePath(`/admin/contracts/${id}`);
     revalidatePath("/admin");
     return { success: "Original budget saved. This is not commercial acceptance or payment certification." };
-  } catch (error) { return failure(error); }
-}
-export async function createAreaAction(_: ActionState, form: FormData): Promise<ActionState> {
-  const { supabase, member } = await requireActor();
-  try {
-    manage(member);
-    const id = uuid(form, "contract_id");
-    const result = await supabase.rpc("create_work_area", { p_contract: id, p_request_key: uuid(form, "request_key"), p_data: areaInput(form) });
-    checkDatabase(result.error);
-    revalidatePath(`/admin/contracts/${id}`);
-    return { success: "Work area recorded. No installation approval has been issued." };
   } catch (error) { return failure(error); }
 }
 export async function createPackageAction(_: ActionState, form: FormData): Promise<ActionState> {

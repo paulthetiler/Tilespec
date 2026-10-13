@@ -42,7 +42,9 @@ export type Team = {
 };
 export type TeamMembership = {
   id: string; team_id: string; operative_id: string; is_lead: boolean; valid_from: string; valid_until: string | null; voided_at: string | null;
+  end_reason?: string | null; void_reason?: string | null;
 };
+export type PlannedOperative = { planned_allocation_id: string; operative_id: string };
 export type PlannedAllocation = {
   id: string; contract_id: string; work_area_id: string; work_package_id: string | null; team_id: string; stage: InstallationStage;
   planned_start: string; planned_end: string; instructions: string; supersedes_id: string | null; superseded_by: string | null;
@@ -73,4 +75,11 @@ export type ActionState = { error?: string; success?: string };
 export const roleLabels: Record<Role, string> = {
   owner: "Owner / Director", contracts_manager: "Contracts manager", supervisor: "QA / Site supervisor",
   lead_installer: "Lead installer", subcontract_installer: "Subcontract installer",
+};
+export const teamKindLabels: Record<Team["kind"], string> = {
+  subcontract_gang: "Subcontract gang", individual_subcontractor: "Individual subcontractor", direct_team: "Direct team (employed)",
+  mixed: "Mixed team", temporary: "Temporary team",
+};
+export const engagementLabels: Record<Operative["engagement"], string> = {
+  direct_employee: "Directly employed", subcontractor: "Subcontractor", agency: "Agency",
 };

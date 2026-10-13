@@ -82,7 +82,7 @@ test("office forms produce exactly the payload the database functions accept", (
   assert.deepEqual(membershipInput(form({ team_id: id(2), operative_id: id(3), valid_from: "2026-10-14", is_lead: "on" })),
     { team_id: id(2), operative_id: id(3), valid_from: "2026-10-14", is_lead: true });
   assert.deepEqual(locationUpdateInput(form({ name: "Flat 52", location_type: "Flat", code: "52", description: "", parent_id: "" })),
-    { name: "Flat 52", location_type: "Flat", code: "52", description: "", parent_id: null });
+    { name: "Flat 52", location_type: "Flat", code: "52", description: "", substrate_notes: "", system_notes: "", parent_id: null });
   assert.equal(locationBuilderInput(form({ mode: "series", label: "Flat", from: "51", to: "58", rooms: "Bathroom" })).mode, "series");
   assert.throws(() => locationBuilderInput(form({ mode: "grid" })), ValidationError);
 });

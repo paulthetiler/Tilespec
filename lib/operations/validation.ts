@@ -61,9 +61,6 @@ export function memberRole(form: FormData) {
   if (!roles.some(r => r === role)) throw new ValidationError("Select a recognised staff role.");
   return role;
 }
-export function areaInput(form: FormData) {
-  return { name: text(form, "name", 160, true), location: text(form, "location", 500, true), substrate_notes: text(form, "substrate_notes", 4000), system_notes: text(form, "system_notes", 4000) };
-}
 export function packageInput(form: FormData) {
   const unit = text(form, "unit", 10, true);
   if (!["m2", "lm", "item"].includes(unit)) throw new ValidationError("Select m², linear metres or items.");
@@ -153,6 +150,7 @@ export function locationBuilderInput(form: FormData): LocationBuilderInput {
 export function locationUpdateInput(form: FormData) {
   return {
     name: text(form, "name", 160, true), location_type: text(form, "location_type", 60), code: text(form, "code", 40),
-    description: text(form, "description", 500), parent_id: optionalUuid(form, "parent_id"),
+    description: text(form, "description", 500), substrate_notes: text(form, "substrate_notes", 4000),
+    system_notes: text(form, "system_notes", 4000), parent_id: optionalUuid(form, "parent_id"),
   };
 }
