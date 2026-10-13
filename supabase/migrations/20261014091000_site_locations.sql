@@ -172,12 +172,12 @@ create trigger location_path_guard before insert or update of parent_id on publi
 create function private.cascade_location_path() returns trigger language plpgsql security definer set search_path='' as $$
 begin
   if new.path_ids is distinct from old.path_ids then
-    if exists (select 1 from public.work_areas d where old.id = any(d.path_ids) and d.id <> old.id
+    if exists (select 1 from public.work_areas d where d.path_ids @> array[old.id] and d.id <> old.id
       and cardinality(new.path_ids) + cardinality(d.path_ids) - array_position(d.path_ids, old.id) > 8) then
       raise exception 'Moving this location would exceed 8 hierarchy levels' using errcode='23514';
     end if;
     update public.work_areas d set path_ids = new.path_ids || d.path_ids[array_position(d.path_ids, old.id) + 1:]
-      where old.id = any(d.path_ids) and d.id <> old.id;
+      where d.path_ids @> array[old.id] and d.id <> old.id;
   end if;
   return null;
 end $$;
@@ -316,7 +316,7 @@ begin
   end if;
   update public.work_areas set archived_at = now(), archived_by = auth.uid(), archive_reason = trim(p_reason),
     version = version + 1, updated_at = now()
-  where p_area = any(path_ids) and contract_id = a.contract_id and archived_at is null;
+  where path_ids @> array[p_area] and contract_id = a.contract_id and archived_at is null;
   get diagnostics archived = row_count;
   return archived;
 end $$;
