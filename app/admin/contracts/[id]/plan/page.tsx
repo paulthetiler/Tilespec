@@ -34,6 +34,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
       <div className={styles.inline}>
         <Link className={styles.secondaryButton} href={`/admin/contracts/${id}`}>Contract</Link>
         <Link className={styles.secondaryButton} href={`/admin/contracts/${id}/locations`}>Locations</Link>
+        {!installer && <Link className={styles.secondaryButton} href={`/admin/contracts/${id}/actual`}>Planned vs actual</Link>}
       </div>
     </div>
     {installer ? <p className={styles.empty}>Work plans are shared with the office and site supervisors. Your allocated work packages are on the contract page.</p>
