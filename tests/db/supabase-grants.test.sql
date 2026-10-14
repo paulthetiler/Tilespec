@@ -22,7 +22,7 @@ select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.
     and p.proname not in ('current_org', 'current_role', 'is_owner', 'can_manage_contract', 'can_access_contract',
       'can_allocate_contract_user', 'can_view_financials', 'can_access_package', 'can_access_area', 'can_upload_document',
       'can_read_document', 'can_upload_path', 'can_read_path', 'can_view_location_hierarchy', 'site_today', 'is_office',
-      'is_site_staff', 'my_team_ids', 'is_current_teammate', 'can_supervise_contract', 'installation_stages')),
+      'is_site_staff', 'my_team_ids', 'is_current_teammate', 'can_supervise_contract', 'installation_stages', 'is_snag_party', 'can_read_snag', 'can_upload_snag_photo', 'can_insert_issue_object', 'can_read_issue_object')),
   'signed-in users can execute only the read-only permission helpers that row-level security policies call');
 select test.assert((select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity),
