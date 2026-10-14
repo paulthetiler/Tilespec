@@ -97,11 +97,19 @@ export default async function SnagDetail({params}:{params:Promise<{id:string}>})
      {photo.purpose&&photo.repair_cycle!==snag.repair_cycle&&<p>Earlier cycle — preserved for review.</p>}
     </figcaption></figure>)}</div>{!photos.length&&<p>No saved photographs.</p>}
   </section>
-  <section className={styles.panel}><h2>Permanent snag history</h2><ol className={css.history}>{events.map(event=><li key={event.id}>
+  <section className={styles.panel}><h2>Permanent snag history</h2><ol className={css.history}>{events.map(event=>{
+   const presence=event.snapshot?.work_presence as {work_date:string;started_at:string;ended_at:string|null}|undefined;
+   const attendance=Array.isArray(event.snapshot?.attendance)?event.snapshot.attendance as {display_name:string}[]:[];
+   return <li key={event.id}>
    <strong>{event.action.replaceAll("_"," ")}</strong> · {new Date(event.created_at).toLocaleString("en-GB",{timeZone:"Europe/London"})} · {event.actor_name||"Recorded actor"}
    {event.previous_status&&<p>{statusLabels[event.previous_status]} → {statusLabels[event.new_status||""]}</p>}<p>{event.note}</p>
    {event.snapshot&&<p>{Boolean(event.snapshot.assigned_party)&&`Repair: ${String(event.snapshot.assigned_party)} · `}{Boolean(event.snapshot.completed_on)&&`Completed: ${String(event.snapshot.completed_on)} · `}{Boolean(event.snapshot.team_name)&&`Proposed gang: ${String(event.snapshot.team_name)} · `}{Boolean(event.snapshot.responsibility_state)&&`Responsibility: ${responsibilityLabels[String(event.snapshot.responsibility_state)]||String(event.snapshot.responsibility_state)}`}</p>}
+   {event.action==="assign"&&Boolean(event.snapshot?.assigned_action)&&<p>Repair instructions recorded at this event: {String(event.snapshot!.assigned_action)} · target {String(event.snapshot!.target_date)}</p>}
+   {presence&&<details className={styles.details}><summary>Recorded workforce evidence for this proposal</summary>
+    <p>{presence.work_date} · {londonClock(presence.started_at)}–{presence.ended_at?londonClock(presence.ended_at):"open at time of proposal"}</p>
+    <p>{attendance.map(person=>person.display_name).join(", ")||"No named operatives recorded"}</p>
+   </details>}
    {photos.some(photo=>photo.event_id===event.id)&&<p>{photos.filter(photo=>photo.event_id===event.id).length} verified photographs linked to this event.</p>}
-  </li>)}</ol>{!events.length&&<p>No lifecycle events recorded yet.</p>}</section>
+  </li>;})}</ol>{!events.length&&<p>No lifecycle events recorded yet.</p>}</section>
  </>;
 }

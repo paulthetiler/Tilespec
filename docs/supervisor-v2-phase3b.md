@@ -133,3 +133,20 @@ provider limits, email delivery, HTTPS cookies or preview deployment configurati
 work. Run separate authorised staging acceptance with real roles and images,
 including cross-organisation denial, upload failure, lost responses, multiple
 repair cycles, independent closure and phone/tablet portrait/landscape use.
+
+The local Storage fixture models the non-upsert permission path in official
+Supabase Storage [v1.83.1](https://github.com/supabase/storage/releases/tag/v1.83.1),
+pinned at `23f25e74de05119b8171fe704afb7422f5f106e8`.
+[Upload authorisation](https://github.com/supabase/storage/blob/23f25e74de05119b8171fe704afb7422f5f106e8/src/storage/uploader.ts#L84-L99)
+runs a caller-scoped create-object permission probe; the
+[database implementation](https://github.com/supabase/storage/blob/23f25e74de05119b8171fe704afb7422f5f106e8/src/storage/database/pg.ts#L1561-L1601)
+uses plain `INSERT` without `RETURNING`, and the probe transaction is rolled back.
+[Final persistence](https://github.com/supabase/storage/blob/23f25e74de05119b8171fe704afb7422f5f106e8/src/storage/uploader.ts#L239-L305)
+uses a superuser transaction after a caller-policy recheck. An authenticated
+PostgREST `INSERT ... RETURNING *` fixture would demand additional SELECT access
+and would not represent this upload path. The current policies therefore keep
+pending new evidence hidden without adding uploader SELECT access. Legacy photo
+uploads also use `upsert:false`: their scoped legacy INSERT policy permits the
+object before the photo metadata is recorded, after which normal authorised
+viewing is available. This source comparison does not replace checking the
+Storage version and behaviour of the selected hosted project.

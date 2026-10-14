@@ -118,6 +118,31 @@ select set_config('request.jwt.claims','{"sub":"ac100000-0000-4000-8000-00000000
 select test.assert(not private.can_read_snag(:'snag'),'an inactive proposed gang no longer grants installer snag access');
 reset role;
 update public.teams set active=true where id=:'gang';
+-- Mixed authority must stay separate: an individually assigned repair
+-- operative keeps that permission even when their former proposed gang is
+-- inactive, but cannot use repair access to respond on the gang's behalf.
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"ac100000-0000-4000-8000-000000000001"}',true);
+select public.transition_snag(:'snag',gen_random_uuid(),7,'assign',jsonb_build_object('note','Assign repair individually without granting gang decision authority',
+ 'operative_id',:'original_person','required_action','Realign the affected tiles as an individual repair assignment','target_date',private.site_today()::text));
+reset role;
+update public.teams set active=false where id=:'gang';
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"ac100000-0000-4000-8000-000000000004"}',true);
+select test.assert(private.can_read_snag(:'snag') and private.is_snag_party(:'snag',true),
+ 'individual repair access survives deactivation of a separately proposed gang');
+select test.assert((public.snag_context(:'snag')->'permissions'->>'repair')::boolean
+ and not (public.snag_context(:'snag')->'permissions'->>'proposed_party')::boolean,
+ 'mixed repair and inactive-gang context grants repair permission without proposed-party response permission');
+select test.expect_error(format('select public.transition_snag(%L,gen_random_uuid(),8,''accept_responsibility'',''{"note":"Try accepting for an inactive former gang through individual repair access"}'')',:'snag'),array['42501'],
+ 'an individually assigned repair operative cannot accept responsibility for an inactive proposed gang');
+select test.expect_error(format('select public.transition_snag(%L,gen_random_uuid(),8,''dispute_responsibility'',''{"note":"Try disputing for an inactive former gang through individual repair access"}'')',:'snag'),array['42501'],
+ 'an individually assigned repair operative cannot dispute responsibility for an inactive proposed gang');
+select test.assert((select responsibility_state='proposed' and version=8 from public.supervisor_issues where id=:'snag')
+ and not exists(select 1 from jsonb_array_elements(public.snag_events(:'snag')) e where e->>'action' in ('accept_responsibility','dispute_responsibility')),
+ 'refused inactive-gang responses change neither responsibility, version nor permanent history');
+reset role;
+update public.teams set active=true where id=:'gang';
 update public.organisation_members set active=false where user_id='ac100000-0000-4000-8000-000000000004';
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"ac100000-0000-4000-8000-000000000004"}',true);

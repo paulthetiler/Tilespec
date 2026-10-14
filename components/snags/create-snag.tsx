@@ -74,7 +74,7 @@ export function CreateSnag({contractId,locations,packages,requestKey,submitKey,p
     const decision=await transitionSnagAction({},restoreSnagForm(proposalForm.current));if(decision.error||!decision.success) throw new Error(decision.error||"The snag is submitted, but the responsibility proposal has not been confirmed. Retry the same proposal.");
    }
    setDirty(false);router.push(`/admin/snags/${id}`);router.refresh();
-  } catch(error){setError(error instanceof Error?error.message:CONNECTION_FAILED);}finally{setBusy(false);}
+  } catch(error){setError(error instanceof Error&&!(error instanceof TypeError)?error.message:CONNECTION_FAILED);}finally{setBusy(false);}
  }}>
   <input type="hidden" name="contract_id" value={contractId}/><input type="hidden" name="request_key" value={requestKey}/>
   {inspection&&<input type="hidden" name="inspection_id" value={inspection.id}/>}

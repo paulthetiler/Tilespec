@@ -19,13 +19,14 @@ export default async function SupervisorHub() {
   return <>
     <div className={styles.pageHeader}><div><p className={styles.eyebrow}>Site operations</p><h1 className={styles.title}>Choose your site</h1>
       <p className={styles.description}>Welcome, {member.display_name}. Open the site you are working on today.</p></div>
-      <Link className={styles.secondaryButton} href="/admin/supervisor/inspections">Issues and inspections</Link></div>
+      <Link className={styles.secondaryButton} href="/admin/snags">Open snag register</Link></div>
     {contracts.length === 0 ? <p className={styles.empty}>No sites are assigned to you. Ask the office to assign you to a contract.</p>
       : <div className={styles.cardList}>{contracts.map(contract => <article key={contract.id} className={styles.card}>
         <h2>{contract.name}</h2><p className={styles.small}>{[contract.reference, contract.address].filter(Boolean).join(" · ")}</p>
         <div className={`${styles.rowActions} ${styles.cardActions}`}>
           <Link className={styles.button} href={`/admin/supervisor/sites/${contract.id}`}>Open site dashboard</Link>
           <Link className={styles.secondaryButton} href={`/admin/supervisor/sites/${contract.id}/workforce`}>Today&apos;s workforce</Link>
+          <Link className={styles.secondaryButton} href={`/admin/snags/new?contract=${contract.id}`}>Raise snag</Link>
         </div>
       </article>)}</div>}
   </>;

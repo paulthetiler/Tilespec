@@ -272,7 +272,8 @@ begin
   i.responsibility_state:='unable_to_determine'; i.responsibility_team_id:=null; i.responsibility_allocation_id:=null;
  when 'accept_responsibility', 'dispute_responsibility' then
   if i.responsibility_state not in ('proposed','accepted') or i.responsibility_team_id is null
-   or not (i.responsibility_team_id=any(private.my_team_ids())) then raise exception 'Only the proposed team may respond' using errcode='42501'; end if;
+   or not exists(select 1 from public.teams t where t.id=i.responsibility_team_id and t.active and t.id=any(private.my_team_ids())) then
+    raise exception 'Only the active proposed team may respond' using errcode='42501'; end if;
   i.responsibility_state:=case when p_action='accept_responsibility' then 'accepted' else 'disputed' end;
   if p_action='dispute_responsibility' then i.escalated:=true; i.escalation_reason:=note; end if;
  when 'review_responsibility' then
@@ -501,7 +502,7 @@ begin
   'repair_operative',(select display_name from public.operatives where id=i.assigned_operative_id)),
   'permissions',jsonb_build_object('supervise',private.can_supervise_contract(i.contract_id),'office',private.can_manage_contract(i.contract_id),
    'repair',private.can_supervise_contract(i.contract_id) or private.is_snag_party(i.id,true),
-   'proposed_party',private.is_snag_party(i.id,false) and i.responsibility_team_id=any(private.my_team_ids())),
+   'proposed_party',private.is_snag_party(i.id,false) and exists(select 1 from public.teams t where t.id=i.responsibility_team_id and t.active and t.id=any(private.my_team_ids()))),
   'events',public.snag_events(p_issue));
 end $$;
 revoke all on function public.snag_context(uuid) from public,anon;
