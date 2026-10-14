@@ -721,3 +721,29 @@ requires separate approval.
 
 All database suites use disposable local PostgreSQL and test-only Auth/Storage
 stubs. Hosted Auth and Storage require separately approved staging validation.
+
+### Phase 3A validation results
+
+Validated in this cloud instance on 14 October 2026, using Node 24,
+PostgreSQL 17, PostgREST 12.2.3 and Chromium 151:
+
+| Check | Result |
+| --- | --- |
+| Type check and build | Passed |
+| Application tests | 48 passed |
+| Disposable database acceptance and upgrade checks | 503 passed |
+| Browser boundary tests | 9 passed, 1 expected desktop-only skip |
+| Shared form checks | 3 passed |
+| Office UI checks | 18 passed |
+| Authenticated local E2E, including Phase 3A and layout checks | 23 passed |
+
+Initial browser runs failed on the cloud proxy's certificate trust. Verified
+Chromium now uses the environment's public CA certificates in a task-scoped NSS
+store through an isolated browser wrapper; TLS checks stay enabled and the
+persistent user trust store is unchanged. The existing development runner can
+emit a first-compile warm-up warning; the final measured journeys completed
+with no browser console errors. No assertion was disabled.
+
+These results verify local development and the saved startup workflow. They do
+not verify hosted Supabase Auth/Storage, a hosted migration, publication of the
+cloud environment snapshot or restoration into a new cloud task.

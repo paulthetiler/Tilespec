@@ -47,7 +47,11 @@ export async function inspect({ manager, page, site, sql, pass }) {
   assert.equal(sql("select workforce_snapshot->'attendance'->0->>'display_name' is not null from public.location_inspection_allocations"), 't');
   await page.reload();
   await page.getByText('Saved inspection history', { exact: true }).waitFor();
-  await page.locator('summary').filter({ hasText: 'Grout quality' }).first().click();
+  const openObservation = async () => {
+    const record = page.locator('details').filter({ has: page.getByText('Grout joints filled: issue — Joint beside doorway incomplete', { exact: true }) }).first();
+    if (!await record.evaluate(element => element.open)) await record.locator('summary').first().click();
+  };
+  await openObservation();
   await page.getByText('Grout joints filled: issue — Joint beside doorway incomplete', { exact: true }).waitFor();
   assert.equal(sql("select actor_name from public.location_inspections"), 'Sid Supervisor');
   // Add later observations only to the disposable database; verify the original
@@ -59,7 +63,7 @@ export async function inspect({ manager, page, site, sql, pass }) {
       'allocation_ids','[]'::jsonb)) from generate_series(1,50); commit;`);
   await page.reload();
   await page.getByRole('link', { name: 'Earlier inspections', exact: true }).click();
-  await page.locator('summary').filter({ hasText: 'Grout quality' }).first().click();
+  await openObservation();
   await page.getByText('Grout joints filled: issue — Joint beside doorway incomplete', { exact: true }).waitFor();
   pass('Phase 3A: location history pagination retains access to original records beyond the first 50');
   pass('Phase 3A: conditional checklist, reason validation, actual workforce link, lost-response retry and reloaded history are verified against the database');

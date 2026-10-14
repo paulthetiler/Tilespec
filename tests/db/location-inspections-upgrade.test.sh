@@ -82,8 +82,8 @@ fi
 [[ "$before" == "$(snapshot)" ]] || { echo 'FAIL: Phase 3A changed earlier rows, policies or grants' >&2; exit 1; }
 echo 'NOTICE:  ok - Phase 3A preserves every existing public/private record, grant and policy'
 "${psql[@]}" -f "$repository_root/supabase/inspection/location-inspections-preflight.sql" >"$test_socket/inspections-after.log"
-[[ "$(rg -c 'ALREADY EXISTS' "$test_socket/inspections-after.log")" == 5 ]] || { cat "$test_socket/inspections-after.log" >&2; exit 1; }
-if "${psql[@]}" -f "$migration_file" >"$test_socket/inspections-reapply.log" 2>&1 || ! rg -q 'Preflight failed' "$test_socket/inspections-reapply.log"; then
+[[ "$(grep -c 'ALREADY EXISTS' "$test_socket/inspections-after.log")" == 5 ]] || { cat "$test_socket/inspections-after.log" >&2; exit 1; }
+if "${psql[@]}" -f "$migration_file" >"$test_socket/inspections-reapply.log" 2>&1 || ! grep -q 'Preflight failed' "$test_socket/inspections-reapply.log"; then
   cat "$test_socket/inspections-reapply.log" >&2
   exit 1
 fi
