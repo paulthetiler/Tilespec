@@ -164,11 +164,16 @@ function overlaps(a: ActualAllocation, b: ActualAllocation, now: string) {
   return time(a.started_at) < time(b.ended_at ?? now) && time(b.started_at) < time(a.ended_at ?? now);
 }
 
-export type NextActionKey = "checks" | "earlier" | "confirm" | "review" | "issues" | "monitor";
+export type NextActionKey = "checks" | "earlier" | "confirm" | "review" | "issues" | "monitor" | "critical" | "reinspection" | "disputed" | "overdue";
 export type NextAction = { key: NextActionKey; label: string; detail: string; href: string };
 // The one thing the supervisor should do next, from saved records only.
-export function nextAction(input: { siteHref: string; issuesHref: string; checksDone: boolean; staleOpen: number; openIssues: number; day: SiteDay }): NextAction {
+export function nextAction(input: { siteHref: string; issuesHref: string; checksDone: boolean; staleOpen: number; openIssues: number; day: SiteDay; snags?: { critical: number; awaiting_reinspection: number; disputed: number; overdue: number } }): NextAction {
   const { summary } = input.day;
+  const filtered = (filter: string) => `${input.issuesHref}${input.issuesHref.includes("?") ? "&" : "?"}${filter}`;
+  if (input.snags?.critical) return { key: "critical", label: "Review critical defects", detail: `${input.snags.critical} critical findings require immediate office review. This does not grant a stop-work hold.`, href: filtered("severity=critical") };
+  if (input.snags?.awaiting_reinspection) return { key: "reinspection", label: "Reinspect repairs", detail: `${input.snags.awaiting_reinspection} repairs await independent reinspection. Submission is not acceptance.`, href: filtered("awaiting_reinspection=true") };
+  if (input.snags?.disputed) return { key: "disputed", label: "Review disputed responsibility", detail: `${input.snags.disputed} responsibility decisions require office review.`, href: filtered("disputed=true") };
+  if (input.snags?.overdue) return { key: "overdue", label: "Review overdue rectification", detail: `${input.snags.overdue} repairs have passed their target date.`, href: filtered("overdue=true") };
   if (!input.checksDone) return { key: "checks", label: "Start morning checks", detail: "No morning readiness check has been recorded for this site today.", href: `${input.siteHref}/checks` };
   if (input.staleOpen > 0) {
     return { key: "earlier", label: "Finish earlier work", detail: `${input.staleOpen} ${input.staleOpen === 1 ? "period of work from an earlier day was" : "periods of work from earlier days were"} never finished. Finish them before confirming today.`,

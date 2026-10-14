@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { emptySnagCounts, type SnagRegister } from "@/lib/operations/snags";
+import css from "@/components/snags/snags.module.css";
 import { insuranceSummary } from "@/lib/operations/companies";
 import { checkDatabase, companyRecordsFor, siteDayFor, siteStatusFor } from "@/lib/operations/data";
 import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
@@ -18,16 +20,20 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   if (!contract) return null;
   const day = londonDate();
   const base = `/admin/supervisor/sites/${id}`;
-  const issuesHref = `/admin/supervisor/inspections?contract=${id}`;
-  const [{ records, stale }, status, cover, details, documents] = await Promise.all([
+  const issuesHref = `/admin/snags?contract_id=${id}`;
+  const [{ records, stale }, status, cover, details, documents, snagResult] = await Promise.all([
     siteDayFor(supabase, id, day), siteStatusFor(supabase, id, day), companyRecordsFor(supabase),
     supabase.from("contracts").select("client,site_contact,scope,exclusions,tile_specification,installation_system,access_restrictions,working_hours").eq("id", id).maybeSingle(),
     supabase.from("document_revisions").select("id,title,document_reference,revision,classification").eq("contract_id", id).eq("classification", "operational").not("uploaded_at", "is", null),
+    supabase.rpc("snag_register", { p_filters: { contract_id: id }, p_page: 0 }),
   ]);
   checkDatabase(details.error);
   checkDatabase(documents.error);
+  const snagUnavailable = !!snagResult.error && ["PGRST202", "42883"].includes(snagResult.error.code);
+  if (!snagUnavailable) checkDatabase(snagResult.error);
+  const snagCounts = snagUnavailable ? emptySnagCounts : (snagResult.data as SnagRegister).counts;
   const site = buildSiteDay(records);
-  const next = nextAction({ siteHref: base, issuesHref, checksDone: status.lastCheck !== null, staleOpen: stale.length, openIssues: status.openIssues, day: site });
+  const next = nextAction({ siteHref: base, issuesHref, checksDone: status.lastCheck !== null, staleOpen: stale.length, openIssues: snagUnavailable ? status.openIssues : snagCounts.open, day: site, snags: snagCounts });
 
   // Warnings worth acting on today, most urgent first.
   const companiesOnSite = new Set([...site.cards.flatMap(card => card.periods), ...site.unplanned].filter(period => period.open && period.company).map(period => period.company!.id));
@@ -47,9 +53,16 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     { title: "Morning readiness checks", done: status.lastCheck !== null, status: status.lastCheck ? `Recorded at ${londonClock(status.lastCheck.created_at)}` : "Not recorded today", href: `${base}/checks`, label: "Morning checks" },
     { title: "Today's workforce", done: site.summary.unconfirmed === 0 && stale.length === 0,
       status: site.summary.plannedTeams ? `${site.summary.confirmedTeams + site.summary.notOnSite} of ${site.summary.plannedTeams} planned teams confirmed` : "Nothing planned today", href: `${base}/workforce`, label: "Today's workforce" },
-    { title: "Outstanding issues", done: status.openIssues === 0, status: status.openIssues ? `${status.openIssues} open` : "None open", href: issuesHref, label: "Issues" },
+    { title: "Outstanding snags", done: snagCounts.open === 0, status: `${snagCounts.open} open · ${snagCounts.awaiting_reinspection} awaiting reinspection`, href: issuesHref, label: "Open snag register" },
   ];
   return <>
+    <section className={styles.panel} aria-label="Snag actions">
+      <div className={styles.rowActions}><Link className={styles.bigButton} href={`/admin/snags/new?contract=${id}`}>Raise snag</Link><Link className={styles.secondaryButton} href={issuesHref}>Open snag register</Link><Link className={styles.secondaryButton} href={`${issuesHref}&awaiting_reinspection=true`}>Reinspect repairs</Link></div>
+      <p>Report urgent findings immediately; morning checks never block snag reporting.</p>
+      {snagUnavailable && <p>The snag workflow needs the reviewed Phase 3B migration before it can be used. Existing morning checks and workforce records remain available.</p>}
+      {!!snagCounts.critical && <div className={css.critical}><strong>{snagCounts.critical} critical defects require immediate office review.</strong><p>Escalation does not authorise a formal hold or release.</p></div>}
+      <div className={styles.metrics}>{[["Outstanding snags",snagCounts.open],["Critical defects",snagCounts.critical],["Awaiting reinspection",snagCounts.awaiting_reinspection],["Disputed responsibility",snagCounts.disputed],["Overdue repairs",snagCounts.overdue]].map(([label,count])=><div className={styles.metric} key={label}><span className={styles.metricLabel}>{label}</span><strong className={styles.metricValue}>{count}</strong></div>)}</div>
+    </section>
     <section className={styles.nextAction} aria-labelledby="next-heading">
       <h2 id="next-heading">Next: {dayLabel(day, "long")}</h2>
       <Link className={styles.bigButton} href={next.href}>{next.label}</Link>

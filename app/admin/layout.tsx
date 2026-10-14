@@ -48,6 +48,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <Link href="/admin/contracts">Contracts</Link>
         {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
         <Link href="/admin/supervisor">Supervisor Hub</Link>
+        <Link href="/admin/snags">Snag register</Link>
         {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
         {member.role === "owner" && <Link href="/admin/team">User access</Link>}
         {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}

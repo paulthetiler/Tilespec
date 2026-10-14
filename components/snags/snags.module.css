@@ -1,0 +1,16 @@
+.photoGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 16px; margin: 16px 0; }
+.photoGrid figure { margin: 0; min-width: 0; padding: 12px; border: 1px solid #c5d4d8; border-radius: 8px; }
+.photoGrid img { display: block; width: 100%; height: 180px; object-fit: contain; background: #eef2f3; }
+.photoGrid figcaption { font-size: 14px; margin-top: 8px; overflow-wrap: anywhere; }
+.photoGrid a { display: block; min-height: 44px; padding-top: 10px; font-weight: 700; }
+.fileChoice { display: block; margin: 16px 0; min-height: 48px; font-weight: 700; }
+.fileChoice input[type="file"]::file-selector-button { min-height: 44px; }
+.critical { padding: 18px; border: 3px solid #a12822; border-radius: 8px; background: #fff2ed; color: #801b15; margin-bottom: 20px; }
+.card { padding: 18px; border: 1px solid #bbcbd3; border-radius: 10px; background: #fff; margin: 12px 0; overflow-wrap: anywhere; }
+.card h3 { margin-bottom: 8px; }
+.badges { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+.badges span { padding: 6px 10px; background: #edf3f5; border-radius: 5px; font-weight: 700; }
+.history { list-style: none; padding: 0; }
+.history > li { border-left: 3px solid #7fa29f; padding: 16px; margin: 12px 0; overflow-wrap: anywhere; }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; }
+.filters > label { min-width: 0; }

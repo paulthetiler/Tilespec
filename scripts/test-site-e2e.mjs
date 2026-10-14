@@ -1,8 +1,8 @@
-// End-to-end test of the supervisor's daily workforce with nothing mocked but
-// sign-in: the real Next.js app, its real pages and server actions, talking
-// through PostgREST to a disposable PostgreSQL cluster with every migration and
-// row-level security policy applied. A small stand-in answers the Supabase Auth
-// endpoints with signed tokens that PostgREST verifies.
+// End-to-end workforce, inspection and snag journeys: real Next.js pages and
+// actions talk through PostgREST to disposable PostgreSQL with every migration
+// and RLS policy applied. Local stand-ins supply Auth and the Storage HTTP/byte
+// transport; Storage metadata and permissions still use the real migrated
+// database under caller JWTs. No business mutation or lifecycle is mocked.
 // Needs PostgreSQL server binaries and a PostgREST binary (POSTGREST_BIN).
 // Set SCREENSHOT_DIR to keep tablet and phone screenshots.
 import { execFileSync, spawn } from 'node:child_process';
@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { chromium } from '@playwright/test';
+import { storageFixture } from './snags-storage-fixture.mjs';
 
 const repository = fileURLToPath(new URL('..', import.meta.url));
 const screenshots = process.env.SCREENSHOT_DIR;
@@ -25,6 +26,9 @@ const users = {
   'sid.supervisor@e2e.invalid': 'e2e00000-0000-4000-8000-000000000001',
   'mia.manager@e2e.invalid': 'e2e00000-0000-4000-8000-000000000002',
   'oscar.other@e2e.invalid': 'e2e00000-0000-4000-8000-000000000003',
+  'sam.installer@e2e.invalid': 'e2e00000-0000-4000-8000-000000000004',
+  'jo.installer@e2e.invalid': 'e2e00000-0000-4000-8000-000000000005',
+  'fred.unassigned@e2e.invalid': 'e2e00000-0000-4000-8000-000000000006',
 };
 const contractId = 'e2e00000-0000-4000-8000-0000000000c1';
 const children = [];
@@ -58,6 +62,7 @@ async function startDatabase() {
   sql(await readFile(join(repository, 'tests/db/platform.sql'), 'utf8'));
   for (const migration of readdirSync(join(repository, 'supabase/migrations')).sort()) sql(await readFile(join(repository, 'supabase/migrations', migration), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/seed.sql'), 'utf8'));
+  sql(await readFile(join(repository, 'tests/e2e/snags-seed.sql'), 'utf8'));
 }
 
 // --- Tokens and the Supabase stand-in ------------------------------------------
@@ -74,6 +79,9 @@ function verify(token) {
   return claims.exp > Date.now() / 1000 ? claims : null;
 }
 const anonKey = sign({ role: 'anon', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 86400 });
+// Synthetic key is valid only for this disposable PostgreSQL fixture. Never
+// inherit the developer's real service key or pass this key to the browser.
+const serviceKey = sign({ role: 'service_role', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 86400 });
 const userFor = (id, email) => ({ id, aud: 'authenticated', role: 'authenticated', email, app_metadata: { provider: 'email' }, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' });
 function session(id, email) {
   const expires = Math.floor(Date.now() / 1000) + 3600;
@@ -82,6 +90,7 @@ function session(id, email) {
 }
 async function startGateway(restPort) {
   const port = await freePort();
+  const storage = storageFixture({ restPort, verify });
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, 'http://localhost');
     const body = await new Promise(resolve => { const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => resolve(Buffer.concat(chunks))); });
@@ -101,6 +110,7 @@ async function startGateway(restPort) {
       return claims?.sub ? json(200, userFor(claims.sub, claims.email)) : json(401, { message: 'invalid JWT' });
     }
     if (url.pathname === '/auth/v1/logout') { response.writeHead(204); return response.end(); }
+    if (await storage.handle(request, response, url, body)) return;
     if (url.pathname.startsWith('/rest/v1/')) {
       const headers = { ...request.headers, host: `127.0.0.1:${restPort}` };
       delete headers['content-length'];
@@ -116,12 +126,12 @@ async function startGateway(restPort) {
   });
   await new Promise(resolve => server.listen(port, '127.0.0.1', resolve));
   children.push({ kill: () => server.close() });
-  return port;
+  return { port, storage };
 }
 async function startPostgrest() {
   const port = await freePort();
   const child = spawn(postgrestBinary, [], { env: { ...process.env,
-    PGRST_DB_URI: `postgresql:///postgres?host=${encodeURIComponent(work)}&port=${pgPort}&user=postgres`, PGRST_DB_SCHEMAS: 'public',
+    PGRST_DB_URI: `postgresql:///postgres?host=${encodeURIComponent(work)}&port=${pgPort}&user=postgres`, PGRST_DB_SCHEMAS: 'public,storage',
     PGRST_DB_ANON_ROLE: 'anon', PGRST_JWT_SECRET: secret, PGRST_SERVER_HOST: '127.0.0.1', PGRST_SERVER_PORT: String(port), PGRST_LOG_LEVEL: 'error' } });
   let log = '';
   child.stderr.on('data', bytes => { log = (log + bytes).slice(-4000); });
@@ -138,7 +148,7 @@ async function startNext(gatewayPort) {
   const child = spawn(process.execPath, [join(repository, 'node_modules/next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], {
     cwd: repository, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${gatewayPort}`, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: anonKey,
-      NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: '' } });
+      NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: serviceKey } });
   for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { log = (log + bytes).slice(-8000); });
   children.push({ kill: () => { try { process.kill(-child.pid, 'SIGTERM'); } catch {} } });
   const origin = `http://127.0.0.1:${port}`;
@@ -185,14 +195,22 @@ async function main() {
   if (londonNow >= '23:45') { console.log('Waiting until after midnight in London so the test stays within one site day.'); while (new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', hourCycle: 'h23' }).format(new Date()) !== '00') await wait(30000); }
   await startDatabase();
   const restPort = await startPostgrest();
-  const gatewayPort = await startGateway(restPort);
-  const next = await startNext(gatewayPort);
+  const gateway = await startGateway(restPort);
+  const next = await startNext(gateway.port);
   browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, headless: true });
-  await warm(next.origin);
-  const { run } = await import('./site-e2e-flows.mjs');
-  const { consoleErrors } = await run({ browser, origin: next.origin, sql, signIn, contractId, screenshots, pass, log: next.log });
-  assert.deepEqual(consoleErrors, [], 'browser console errors');
-  pass('no browser console errors on any screen');
+  // Optional developer focus while diagnosing a snag journey. The normal npm
+  // test:e2e command always executes the complete existing regression suite.
+  if (process.env.E2E_SNAGS_ONLY !== '1') {
+    await warm(next.origin);
+    const { run } = await import('./site-e2e-flows.mjs');
+    const { consoleErrors } = await run({ browser, origin: next.origin, sql, signIn, contractId, screenshots, pass, log: next.log });
+    assert.deepEqual(consoleErrors, [], 'browser console errors');
+    pass('no browser console errors on any screen');
+  }
+  const { runSnags } = await import('./snags-e2e-flows.mjs');
+  await runSnags({ browser, origin: next.origin, sql, signIn, contractId, screenshots, pass,
+    storage: gateway.storage, gatewayOrigin: `http://127.0.0.1:${gateway.port}`,
+    tokenFor: email => session(users[email], email).access_token, log: next.log });
 }
 
 try {

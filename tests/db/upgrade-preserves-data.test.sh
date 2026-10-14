@@ -102,8 +102,8 @@ select string_agg(t || ':' || h, E'\n' order by t) from (
   union all select 'document_revisions', md5(coalesce(string_agg(to_jsonb(x)::text, '|' order by id), '')) from public.document_revisions x
   union all select 'audit_events', md5(coalesce(string_agg(to_jsonb(x)::text, '|' order by id), '')) from public.audit_events x
   union all select 'supervisor_inspections', md5(coalesce(string_agg(to_jsonb(x)::text, '|' order by id), '')) from public.supervisor_inspections x
-  union all select 'supervisor_issues', md5(coalesce(string_agg(to_jsonb(x)::text, '|' order by id), '')) from public.supervisor_issues x
-  union all select 'supervisor_issue_photos', md5(coalesce(string_agg(to_jsonb(x)::text, '|' order by id), '')) from public.supervisor_issue_photos x
+  union all select 'supervisor_issues', md5(coalesce(string_agg((to_jsonb(x)-array['work_area_id','work_package_id','location_inspection_id','stage','category','severity','required_rectification','inspector_id','inspector_name','location_path','snag_status','version','responsibility_state','responsibility_team_id','responsibility_allocation_id','assigned_team_id','assigned_operative_id','assigned_by','assigned_at','assigned_action','target_date','repair_cycle','repair_event_id','escalated','escalation_reason'])::text, '|' order by id), '')) from public.supervisor_issues x
+  union all select 'supervisor_issue_photos', md5(coalesce(string_agg((to_jsonb(x)-array['contract_id','purpose','repair_cycle','event_id','sha256','bytes','mime_type','uploaded_at'])::text, '|' order by id), '')) from public.supervisor_issue_photos x
 ) s;
 SQL
 }
