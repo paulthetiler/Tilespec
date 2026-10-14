@@ -138,7 +138,7 @@ if printf 'set role limited_migrator;\n\\i %s\n' "$hardening" | "${psql[@]}" >"$
 fi
 
 # Applying the dependent migrations before their prerequisites is refused, changing nothing.
-for out_of_order in 20261014093000 20261014092000; do
+for out_of_order in 20261014100000 20261014093000 20261014092000; do
   file="$(ls "$repository_root"/supabase/migrations/${out_of_order}_*.sql)"
   if "${psql[@]}" -f "$file" >"$test_socket/order.log" 2>&1 || ! grep -q 'Preflight failed' "$test_socket/order.log" || [[ "$(snapshot)" != "$unchanged" ]]; then
     cat "$test_socket/order.log" >&2
@@ -199,7 +199,7 @@ if [[ "$(snapshot)" != "$after" ]]; then echo 'FAIL: a refused migration changed
 # The assertions below are reached only after every shell comparison above passed.
 "${psql[@]}" <<'SQL'
 select test.assert(true, 'hardening refuses, changing nothing, when the applying role cannot read stored evidence past RLS');
-select test.assert(true, 'the teams and allocations migrations refuse to run before their prerequisites, changing nothing');
+select test.assert(true, 'the teams, allocations and companies migrations refuse to run before their prerequisites, changing nothing');
 select test.assert(true, 'read-only preflight report finds no drift before upgrade and flags the known legacy anomalies, including issues recorded before the register existed');
 select test.assert(true, 'after upgrade the preflight report shows every new object and identical row counts');
 select test.assert(true, 'every V2 migration refuses with a clear preflight message when its objects already exist, changing nothing');

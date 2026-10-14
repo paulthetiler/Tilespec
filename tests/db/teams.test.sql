@@ -26,13 +26,16 @@ insert into public.organisation_members(organisation_id, user_id, display_name, 
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"d1000000-0000-0000-0000-000000000002"}', true);
-select public.create_operative('d3000000-0000-0000-0000-000000000001', '{"display_name":"Sam Smith","engagement":"subcontractor","company_name":"Smith Tiling Ltd","user_id":"d1000000-0000-0000-0000-000000000004"}') as sam \gset
-select public.create_operative('d3000000-0000-0000-0000-000000000002', '{"display_name":"Tom Baker","engagement":"subcontractor","company_name":"Smith Tiling Ltd"}') as tom \gset
-select public.create_operative('d3000000-0000-0000-0000-000000000003', '{"display_name":"Lee Hart","engagement":"subcontractor","company_name":"Smith Tiling Ltd"}') as lee \gset
+select public.create_company('d5000000-0000-0000-0000-000000000001', '{"name":"Smith Tiling Ltd"}') as smith_co \gset
+select public.create_company('d5000000-0000-0000-0000-000000000002', '{"name":"Jones Installations"}') as jones_co \gset
+select public.create_company('d5000000-0000-0000-0000-000000000003', '{"name":"Site Labour Agency"}') as agency_co \gset
+select public.create_operative('d3000000-0000-0000-0000-000000000001', jsonb_build_object('display_name', 'Sam Smith', 'engagement', 'subcontractor', 'company_id', :'smith_co', 'user_id', 'd1000000-0000-0000-0000-000000000004')) as sam \gset
+select public.create_operative('d3000000-0000-0000-0000-000000000002', jsonb_build_object('display_name', 'Tom Baker', 'engagement', 'subcontractor', 'company_id', :'smith_co')) as tom \gset
+select public.create_operative('d3000000-0000-0000-0000-000000000003', jsonb_build_object('display_name', 'Lee Hart', 'engagement', 'subcontractor', 'company_id', :'smith_co')) as lee \gset
 select public.create_operative('d3000000-0000-0000-0000-000000000004', '{"display_name":"Dan Price","engagement":"direct_employee"}') as dan \gset
-select public.create_operative('d3000000-0000-0000-0000-000000000005', '{"display_name":"Jo Jones","engagement":"subcontractor","company_name":"Jones Installations","user_id":"d1000000-0000-0000-0000-000000000005"}') as jo \gset
-select public.create_operative('d3000000-0000-0000-0000-000000000006', '{"display_name":"Ava Kerr","engagement":"agency","company_name":"Site Labour Agency"}') as ava \gset
-select test.assert(public.create_operative('d3000000-0000-0000-0000-000000000002', '{"display_name":"Tom Baker","engagement":"subcontractor","company_name":"Smith Tiling Ltd"}') = :'tom'
+select public.create_operative('d3000000-0000-0000-0000-000000000005', jsonb_build_object('display_name', 'Jo Jones', 'engagement', 'subcontractor', 'company_id', :'jones_co', 'user_id', 'd1000000-0000-0000-0000-000000000005')) as jo \gset
+select public.create_operative('d3000000-0000-0000-0000-000000000006', jsonb_build_object('display_name', 'Ava Kerr', 'engagement', 'agency', 'company_id', :'agency_co')) as ava \gset
+select test.assert(public.create_operative('d3000000-0000-0000-0000-000000000002', jsonb_build_object('display_name', 'Tom Baker', 'engagement', 'subcontractor', 'company_id', :'smith_co')) = :'tom'
   and (select count(*) = 1 from public.operatives where display_name = 'Tom Baker'), 'retrying operative registration creates one record');
 select test.assert((select count(*) = 6 from public.operatives where status = 'active'), 'office-registered operatives are active');
 select test.expect_error($q$select public.create_operative(gen_random_uuid(), '{"display_name":"Bad","engagement":"freelance"}')$q$,
@@ -40,8 +43,8 @@ select test.expect_error($q$select public.create_operative(gen_random_uuid(), '{
 select test.expect_error($q$select public.create_operative(gen_random_uuid(), '{"display_name":"Duplicate login","engagement":"subcontractor","user_id":"d1000000-0000-0000-0000-000000000004"}')$q$,
   array['23505'], 'one login links to at most one operative');
 
-select public.create_team('d4000000-0000-0000-0000-000000000001', '{"name":"Smith Tiling","kind":"subcontract_gang","contractor_name":"Smith Tiling Ltd"}') as smith \gset
-select public.create_team('d4000000-0000-0000-0000-000000000002', '{"name":"Jones Installations","kind":"subcontract_gang","contractor_name":"Jones Installations"}') as jones \gset
+select public.create_team('d4000000-0000-0000-0000-000000000001', jsonb_build_object('name', 'Smith Tiling', 'kind', 'subcontract_gang', 'company_id', :'smith_co')) as smith \gset
+select public.create_team('d4000000-0000-0000-0000-000000000002', jsonb_build_object('name', 'Jones Installations', 'kind', 'subcontract_gang', 'company_id', :'jones_co')) as jones \gset
 select public.create_team('d4000000-0000-0000-0000-000000000003', '{"name":"Direct Team A","kind":"direct_team"}') as direct \gset
 select public.create_team('d4000000-0000-0000-0000-000000000004', '{"name":"Ward 4 Mixed Team","kind":"mixed"}') as mixed \gset
 select test.expect_error($q$select public.create_team(gen_random_uuid(), '{"name":" smith tiling ","kind":"subcontract_gang"}')$q$,
@@ -97,7 +100,7 @@ select test.expect_error(format($q$delete from public.team_memberships where id 
 -- Supervisors register unexpected operatives provisionally; the office confirms.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"d1000000-0000-0000-0000-000000000003"}', true);
-select public.create_operative(gen_random_uuid(), '{"display_name":"Replacement Labourer","engagement":"agency","company_name":"Site Labour Agency"}') as provisional \gset
+select public.create_operative(gen_random_uuid(), jsonb_build_object('display_name', 'Replacement Labourer', 'engagement', 'agency', 'company_id', :'agency_co')) as provisional \gset
 select test.assert((select status = 'provisional' and created_by = auth.uid() from public.operatives where id = :'provisional'),
   'an operative registered by a supervisor is provisional and attributed');
 select test.expect_error($q$select public.create_operative(gen_random_uuid(), '{"display_name":"Linked","engagement":"subcontractor","user_id":"d1000000-0000-0000-0000-000000000007"}')$q$,
@@ -113,8 +116,8 @@ select set_config('request.jwt.claims', '{"sub":"d1000000-0000-0000-0000-0000000
 select test.expect_error(format($q$select public.update_operative(%L, 1, '{"status":"provisional"}')$q$, :'provisional'),
   array['22023'], 'an operative cannot be returned to provisional');
 select test.assert(public.update_operative(:'provisional', 1, '{"status":"active"}') = 2, 'the office confirms a provisional operative');
-select public.update_operative(:'dan', 1, '{"user_id":"d1000000-0000-0000-0000-000000000008","company_name":"TileSPEC direct"}') as dan_version \gset
-select test.assert(:dan_version = 2 and (select user_id = 'd1000000-0000-0000-0000-000000000008' and company_name = 'TileSPEC direct' from public.operatives where id = :'dan'),
+select public.update_operative(:'dan', 1, '{"user_id":"d1000000-0000-0000-0000-000000000008"}') as dan_version \gset
+select test.assert(:dan_version = 2 and (select user_id = 'd1000000-0000-0000-0000-000000000008' and company_id is null from public.operatives where id = :'dan'),
   'the office can link an operative to an existing login');
 select test.expect_error(format($q$select public.add_team_member(gen_random_uuid(), jsonb_build_object('team_id', %L, 'operative_id', %L, 'is_lead', 'yes'))$q$, :'jones', :'ava'),
   array['22023'], 'a lead flag must be true or false');
