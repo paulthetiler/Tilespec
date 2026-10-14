@@ -78,7 +78,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
           <div><span className={styles.stepTitle}>{index + 1}. {step.title}{step.done ? " ✓" : ""}</span><p>{step.status}</p></div>
           <Link className={styles.secondaryButton} href={step.href}>{step.label}</Link>
         </li>)}
-        <li className={`${styles.step} ${styles.comingLater}`}><div><span className={styles.stepTitle}>4. Location inspections</span><p>Not available yet. Record problems as issues in the morning checks.</p></div></li>
+        <li className={styles.step}><div><span className={styles.stepTitle}>4. Location inspections</span><p>Record checks against a location and its actual workforce history.</p></div><Link className={styles.secondaryButton} href={`${base}/inspections`}>Location inspections</Link></li>
         <li className={`${styles.step} ${styles.comingLater}`}><div><span className={styles.stepTitle}>5. Daily handover</span><p>Not available yet.</p></div></li>
       </ol>
       <div className={`${styles.rowActions} ${styles.cardActions}`}>

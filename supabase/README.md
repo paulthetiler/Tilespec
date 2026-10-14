@@ -190,3 +190,18 @@ Database-only backups do not restore Storage bytes. Export an object manifest wi
 content hashes, rehearse restoration into an isolated backend, rerun the role
 checks, and preserve all audit/document revision history. Confirm these controls
 with the owner before real operational adoption.
+
+### Location inspections (Phase 3A)
+
+`20261014140000_location_inspections.sql` creates immutable location templates,
+inspection records and actual-allocation links with attendance snapshots.
+Existing morning checks, issues, evidence, allocations and permissions stay
+unchanged. No work-release or specification approval is granted by this phase.
+
+Before any hosted application, obtain approval, back up the selected project,
+rehearse on separate staging and run `inspection/location-inspections-preflight.sql`
+as the intended applying role. Every prerequisite must be present and all five
+name collisions absent. Apply the migration unmodified under its own filename
+only after approval. Rerun the report and compare preserved row counts. A second
+application is refused. Local `npm run test:db` applies it only to a disposable
+cluster and checks RLS, RPCs and preservation of every earlier row/grant/policy.
