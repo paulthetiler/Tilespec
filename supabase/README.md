@@ -130,6 +130,30 @@ run if its objects already exist. Before applying them to any hosted project:
    the migration history.
 4. Re-run the report: row counts must be unchanged.
 
+### Subcontractor companies (Phase 2A)
+
+`20261014100000_subcontractor_companies.sql` makes subcontractor companies
+proper records. It adds companies, insurance and accreditation entries, and a
+`company_id` link on teams and operatives. It is additive and transactional,
+and refuses to run before `20261014093000` or a second time.
+
+The migration links the company names already typed against gangs and
+operatives. Names that differ only in case or spacing become one company, and
+the most common spelling is kept. Direct teams, directly employed people and
+blank names stay unlinked. No existing value is changed: the typed names stay
+in their columns, and each link is audited.
+
+1. Take a database backup.
+2. Run `inspection/subcontractor-companies-preflight.sql` (a single read-only
+   SELECT) and keep the output. Every prerequisite must be "present" and every
+   name collision "absent (ready)". Review the "backfill name" rows. They list
+   each company that will be created, how many gangs and operatives it links,
+   and every spelling found.
+3. Apply `20261014100000_subcontractor_companies.sql`, unmodified. Record it under
+   its own filename in the migration history.
+4. Re-run the report. Every new object should now show, and row counts should
+   be unchanged.
+
 Design, risks and permissions are in
 [supervisor-v2.md](../docs/operations/supervisor-v2.md). Production application
 is a separately approved step.

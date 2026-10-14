@@ -267,7 +267,7 @@ the snag was raised.
 | PR | Scope | Status |
 | --- | --- | --- |
 | **1 (this)** | Phase 1: hardening, locations, teams, allocations, attribution, preflight report, tests. Each migration is its own commit | Draft. Stop for review before any hosted migration |
-| 2a | Office setup: location builder (bulk flats/rooms), teams and operatives, planning board | In review (section 8) |
+| 2a | Office setup: subcontractor companies (with insurance and accreditations), location builder (bulk flats/rooms), teams and operatives, planning board | In review (section 8) |
 | 2b | Supervisor dashboard: auto-open a single site, next action from saved records, morning checks with severities and holds, allocation confirmation (confirm, amend, move, split, absent), office planned-vs-actual view | Phase 2 |
 | 3a | Inspection requirements: specification revisions, conditional checklists (wet areas only where specified), mandatory hold points, authorised exceptions | Phase 3 |
 | 3b | Location-first inspection UI; retire prototype sections 2–4 | Phase 3 |
@@ -288,8 +288,9 @@ the snag was raised.
    location rows above and below their package areas? This PR assumes yes.
 3. **Subcontract companies with several gangs.** Should the contractor company
    be its own record, for confidentiality between contractors and for future
-   commercial referrals? This PR keeps a `contractor_name` on each team, and
-   installers see only their own current gang.
+   commercial referrals? Decided: yes. PR 2A adds company records linked to
+   gangs and operatives by ID (section 8). Installers still see only their own
+   current gang.
 4. **Who closes defects.** The brief lets supervisors close snags within their QA
    authority. The current issue register lets only the owner or a manager close.
    The proposal for Phase 4: a supervisor may close a snag they did not record
@@ -357,24 +358,79 @@ commands match CI.
 ## 8. Phase 2A: office management
 
 The four Phase 1 migrations are applied to the hosted project (owner's
-report). Phase 2A adds screens only: **no schema change and no migration.**
-Every write is a Phase 1 database function called with the user's own session.
+report). Phase 2A adds the office screens and one additive migration,
+`20261014100000_subcontractor_companies.sql`, which makes subcontractor
+companies proper records. Every write is a Supervisor V2 database function
+called with the user's own session.
 
 | Screen | Where | What the office does there |
 | --- | --- | --- |
-| Workforce | `/admin/workforce` (owner, contracts manager) | Add teams (gang, individual, direct, mixed, temporary) with a company and lead. Add and end memberships; history is kept. Add operatives with an optional login. Confirm people supervisors added on site. Filter everything by company. |
+| Workforce | `/admin/workforce` (owner, contracts manager) | Add each subcontractor or labour agency once, with contact details, insurance and accreditations, and see at a glance whether its insurance is valid, expiring or expired. Add teams (gang, individual, direct, mixed, temporary) linked to a company, with a lead. Add and end memberships; history is kept. Add operatives linked to a company, with an optional login. Confirm people supervisors added on site. Filter everything by company. |
 | Locations | Contract › Locations | Create a numbered series ("Flat 51 to 58") or a list, with rooms inside each, in one step, with a preview. Find a location by typing ("52 bath"). Rename, move or archive. |
-| Plan work | Contract › Plan work | Plan a team at a location, with a stage, days, optional named people, a package and instructions. See the week grouped by team. Change (creates a new version) or cancel; history stays visible. |
+| Plan work | Contract › Plan work | Plan a team at a location, with a stage, days, optional named people, a package and instructions. See the week grouped by team, with each team's company. Change (creates a new version) or cancel; history stays visible. |
 | Site setup | Contract page | Three steps (locations, teams, plan), with the next one highlighted. |
 
-**Design decisions:**
+### Subcontractor companies
 
-- **Subcontract companies.** Companies are the existing `contractor_name` and
-  `company_name` fields, with suggestions to keep spelling consistent and
-  company chips that filter the Workforce screen. A first-class company record
-  (contacts, insurance, competence expiry) would need a small additive migration.
-  It is left for a reviewed decision, so the PR 2A preview works against the
-  database as it is.
+A company (subcontractor or labour agency) is one record with a stable ID.
+Gangs and operatives link to it by that ID, so one company can run several
+gangs, each with its own operatives. A misspelt or retyped name can no longer
+split a company in two.
+
+| Record | Holds | Changes |
+| --- | --- | --- |
+| `subcontractor_companies` | Name (unique per organisation, ignoring case and spacing), company number, contact name, phone, email, address, notes, active/inactive | Edited by the office, with a version check. |
+| `company_insurances` | Type (public liability, employer's liability, professional indemnity, contract works, other), insurer, policy number, cover, start date, **expiry date (required)** | Permanent. A renewal is a new entry. An entry made in error is voided with a reason. |
+| `company_accreditations` | Scheme or competence (for example CHAS, Constructionline), reference, optional expiry date | Permanent, voided with a reason like insurance. |
+| `teams.company_id`, `operatives.company_id` | The company, by ID (optional) | Set from the team and operative forms. |
+
+**Rules the database enforces:**
+
+- A company can be linked only while it is active.
+- A company cannot be deactivated while any of its gangs or operatives is still
+  active. The office is told how many remain.
+- Direct teams and directly employed people are never linked to a subcontractor
+  company.
+- Companies, insurance and accreditations are written only by the office
+  (owner, contracts manager), through checked functions.
+
+**Who can read company records:**
+
+| Who | Can read |
+| --- | --- |
+| Office and supervisors | All companies, insurance and accreditations, so a supervisor can check a gang's cover on site. |
+| Installers | No company records. Company notes and other contractors' details are not theirs to see. Their own gang still shows its company name. |
+
+**Status.** Each company shows one insurance status. For each type of cover,
+the latest entry counts, so a renewal clears an expiry warning. The company's
+status is the worst of these:
+
+- **expired:** the expiry date has passed;
+- **expiring:** it expires within 30 days;
+- **valid:** otherwise;
+- **none recorded:** no insurance entered.
+
+Accreditations show the same way. The status informs the office only. Nothing
+here blocks planning or site work. A compliance workflow (required cover per
+contract, document uploads, reminders) can be built on these records later.
+
+**Existing data.** The migration creates one company per distinct name already
+typed against gangs and operatives, and links them by ID:
+
+- Spellings that differ only in case or spacing ("Smith Tiling Ltd",
+  " smith  tiling ltd ") become one company.
+- The most common spelling becomes the company's name.
+- Direct teams, directly employed people and blank names stay unlinked.
+
+No existing value is rewritten. The typed `contractor_name` and `company_name`
+stay as they were, and each link is audited. From now on those columns only
+mirror the linked company's name at the time it is linked. That mirror is how
+an installer's own gang shows its company. `company_id` is the source of truth.
+Run `supabase/inspection/subcontractor-companies-preflight.sql` first to
+preview exactly which companies will be created.
+
+### Other design decisions
+
 - **One way to add locations.** The contract page's old flat "add work area"
   form is replaced by the builder. Its substrate and system notes move to the
   location editor.
@@ -386,12 +442,26 @@ Every write is a Phase 1 database function called with the user's own session.
 
 **Preview caution.** The Vercel preview uses the hosted Supabase project.
 Anything created while reviewing is real and, by design, cannot be deleted:
-locations archive, memberships end or void, plans cancel. Review against a
-clearly labelled test contract.
+locations archive, memberships end or void, plans cancel, insurance entries
+void. Review against a clearly labelled test contract and test company. The
+company screens need `20261014100000_subcontractor_companies.sql` applied
+first.
 
-**Validation.** `npm run test:ui` renders the real screens with fictional
-fixture data at iPad portrait (768px), iPad landscape (1180px) and phone
-(390px). It fails on any of:
+### Validation
+
+`npm run test:db` includes:
+
+- `companies.test.sql`: company rules, permissions for each role, insurance
+  and accreditation history.
+- `companies-upgrade.test.sh`: the backfill over typed names, with every
+  existing value unchanged and a second run refused.
+- `office-actions.test.sh`: checks every database call and column list in the
+  application against the migrated schema. It then runs all the real office
+  server actions, in screen order, against a database with every migration
+  applied, as the signed-in member through row-level security.
+
+`npm run test:ui` renders the real screens with fictional fixture data at iPad
+portrait (768px), iPad landscape (1180px) and phone (390px). It fails on any of:
 
 - sideways scrolling;
 - a control under 44px;
