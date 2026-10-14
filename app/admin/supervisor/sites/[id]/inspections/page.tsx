@@ -45,7 +45,7 @@ export default async function LocationInspections({ params, searchParams }: {
   const base = `/admin/supervisor/sites/${id}/inspections`;
   return <>
     <h2>Location inspections</h2>
-    <p>Choose the location and the office&apos;s specification checklist. Saved answers and work-period links are permanent observations. They do not grant work release or establish responsibility for a defect. Issue answers remain in this history; snag creation and hold-point enforcement are later phases.</p>
+    <p>Choose the location and the office&apos;s specification checklist. Saved answers and work-period links are permanent observations. They do not grant work release or establish responsibility for a defect. Issue answers remain in this history. Choose Create linked snag to record a defect explicitly; formal QA holds are Phase 3C.</p>
     <form className={styles.form} method="get"><label>Location<select name="location" defaultValue={location?.id || ""} required>
       <option value="">Choose location</option>{orderLocations(locations).map(item => <option key={item.id} value={item.id}>{locationPath(index, item.id)}{item.archived_at ? " (archived — history only)" : ""}</option>)}
     </select></label><button className={styles.button}>Open location</button></form>
@@ -94,7 +94,8 @@ export default async function LocationInspections({ params, searchParams }: {
               <p>Attendance known when this inspection was saved. Review workforce history for later departures or corrections.</p>
             </details>;
           })}
-          <Link href={`/admin/supervisor/sites/${id}/history`}>Review workforce history</Link>{" · "}<Link href={`/admin/supervisor/inspections?contract=${id}`}>Review site issues and evidence</Link>
+          {record.issues_count>0&&<p><Link className={styles.button} href={`/admin/snags/new?contract=${id}&inspection=${record.id}`}>Create linked snag</Link></p>}
+          <Link href={`/admin/supervisor/sites/${id}/history`}>Review workforce history</Link>{" · "}<Link href={`/admin/snags?contract_id=${id}`}>Review site snags and evidence</Link>
         </details>;
       })}
       <div className={styles.rowActions}>
