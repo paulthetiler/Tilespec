@@ -274,6 +274,16 @@ select test.assert((select array_agg(location_relation order by started_at, loca
   from public.location_work_history(:'flat52')), 'a defect raised at flat level considers everything recorded within the flat');
 select test.assert((select count(*) = 1 from public.location_work_history(:'bath52', :'t1100', :'t1300')),
   'a narrower time window narrows the candidates');
+-- Once the gang is linked to a company record, attribution takes the
+-- contractor name from that record rather than the text typed on the team.
+reset role;
+insert into public.subcontractor_companies(id, organisation_id, name) values
+  ('c9000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', 'Smith Tiling Group Ltd');
+update public.teams set company_id = 'c9000000-0000-0000-0000-000000000001' where id = 'c5000000-0000-0000-0000-000000000001';
+set local role authenticated;
+select test.assert((select contractor_name = 'Smith Tiling Group Ltd' and team_name = 'Smith Tiling'
+  from public.location_work_history(:'bath52', :'t0800', :'t1600') where actual_allocation_id = :'s2'),
+  'attribution names the contractor from the linked company record');
 
 -- Office revises the Smith plan; history keeps the original.
 select set_config('request.jwt.claims', '{"sub":"c1000000-0000-0000-0000-000000000002"}', true);

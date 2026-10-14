@@ -32,17 +32,37 @@ export const installationStageLabels: Record<InstallationStage, string> = {
 };
 export const allocationDeviations = ["unplanned", "outside_planned_dates", "location_changed", "team_changed", "package_changed", "stage_changed", "operatives_changed"] as const;
 export type AllocationDeviation = typeof allocationDeviations[number];
+// A subcontractor or labour agency. Gangs and operatives link to it by ID.
+export type Company = {
+  id: string; organisation_id: string; name: string; company_number: string; contact_name: string; contact_phone: string;
+  contact_email: string; address: string; notes: string; active: boolean; version: number;
+};
+// Keep in step with the company_insurances check in
+// supabase/migrations/20261014100000_subcontractor_companies.sql.
+export const insuranceTypes = ["public_liability", "employers_liability", "professional_indemnity", "contract_works", "other"] as const;
+export type InsuranceType = typeof insuranceTypes[number];
+export const insuranceTypeLabels: Record<InsuranceType, string> = {
+  public_liability: "Public liability", employers_liability: "Employer's liability", professional_indemnity: "Professional indemnity",
+  contract_works: "Contract works", other: "Other insurance",
+};
+export type CompanyInsurance = {
+  id: string; company_id: string; insurance_type: InsuranceType; insurer: string; policy_number: string; cover_amount: number | null;
+  starts_on: string | null; expires_on: string; notes: string; recorded_at: string;
+};
+export type CompanyAccreditation = { id: string; company_id: string; scheme: string; reference: string; expires_on: string | null; notes: string; recorded_at: string };
 export type Operative = {
   id: string; organisation_id: string; display_name: string; engagement: "direct_employee" | "subcontractor" | "agency";
-  company_name: string; user_id: string | null; status: "provisional" | "active" | "inactive"; version: number;
+  company_id: string | null; user_id: string | null; status: "provisional" | "active" | "inactive"; version: number;
 };
 export type Team = {
-  id: string; organisation_id: string; name: string; contractor_name: string; active: boolean; version: number;
+  id: string; organisation_id: string; name: string; company_id: string | null; active: boolean; version: number;
   kind: "subcontract_gang" | "individual_subcontractor" | "direct_team" | "mixed" | "temporary";
 };
 export type TeamMembership = {
   id: string; team_id: string; operative_id: string; is_lead: boolean; valid_from: string; valid_until: string | null; voided_at: string | null;
+  end_reason?: string | null; void_reason?: string | null;
 };
+export type PlannedOperative = { planned_allocation_id: string; operative_id: string };
 export type PlannedAllocation = {
   id: string; contract_id: string; work_area_id: string; work_package_id: string | null; team_id: string; stage: InstallationStage;
   planned_start: string; planned_end: string; instructions: string; supersedes_id: string | null; superseded_by: string | null;
@@ -73,4 +93,11 @@ export type ActionState = { error?: string; success?: string };
 export const roleLabels: Record<Role, string> = {
   owner: "Owner / Director", contracts_manager: "Contracts manager", supervisor: "QA / Site supervisor",
   lead_installer: "Lead installer", subcontract_installer: "Subcontract installer",
+};
+export const teamKindLabels: Record<Team["kind"], string> = {
+  subcontract_gang: "Subcontract gang", individual_subcontractor: "Individual subcontractor", direct_team: "Direct team (employed)",
+  mixed: "Mixed team", temporary: "Temporary team",
+};
+export const engagementLabels: Record<Operative["engagement"], string> = {
+  direct_employee: "Directly employed", subcontractor: "Subcontractor", agency: "Agency",
 };

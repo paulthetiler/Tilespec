@@ -4,9 +4,12 @@ import { notFound } from "next/navigation";
 import { canManageContracts, canReadFinancial, requireActor } from "@/lib/auth";
 import { checkDatabase, contractDetails, teamFor } from "@/lib/operations/data";
 import { budgetSummary, contractWarnings } from "@/lib/operations/summary";
-import { roleLabels, type Contract } from "@/lib/operations/types";
+import { roleLabels, type Contract, type Location } from "@/lib/operations/types";
+import { indexLocations, locationPath, orderLocations } from "@/lib/operations/locations";
+import { addDays, londonDate, weekStart } from "@/lib/operations/planning";
+import { SiteSetup } from "@/components/office/site-setup";
 import { MAX_FILE_BYTES } from "@/lib/operations/validation";
-import { assignContractAction, assignPackageAction, createAreaAction, createPackageAction, removeContractAssignmentAction, removePackageAssignmentAction, saveCommercialAction, updateContractAction, uploadDocumentAction } from "@/app/admin/actions";
+import { assignContractAction, assignPackageAction, createPackageAction, removeContractAssignmentAction, removePackageAssignmentAction, saveCommercialAction, updateContractAction, uploadDocumentAction } from "@/app/admin/actions";
 import { ContractFields } from "@/components/operations/contract-fields";
 import { AuditHistory } from "@/components/operations/audit-history";
 import { OperationsForm } from "@/components/operations/operations-form";
@@ -53,15 +56,31 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
     const person = team.find(person => person.user_id === userId);
     return person ? `${person.display_name} (${roleLabels[person.role]})` : userId;
   };
-  const areaLabel = (areaId: string | null) => areaId ? areas.find(area => area.id === areaId)?.name ?? "Allocated area" : "Contract documents";
+  const locations = areas as Location[];
+  const locationIndex = indexLocations(locations);
+  const areaLabel = (areaId: string | null) => areaId ? locationPath(locationIndex, areaId) || "Allocated area" : "Contract documents";
+  const activeLocations = orderLocations(locations).filter(location => !location.archived_at);
+  const monday = weekStart(londonDate());
+  const [teamCount, planCount] = manage ? await Promise.all([
+    supabase.from("teams").select("id", { count: "exact", head: true }).eq("active", true),
+    supabase.from("planned_allocations").select("id", { count: "exact", head: true }).eq("contract_id", id).is("superseded_by", null).is("cancelled_at", null)
+      .lte("planned_start", addDays(monday, 6)).gte("planned_end", monday),
+  ]) : [null, null];
+  checkDatabase(teamCount?.error ?? null);
+  checkDatabase(planCount?.error ?? null);
   const warnings = contractWarnings(contract, areas.length, documents.filter(document => document.uploaded_at).length);
   const installer = ["lead_installer", "subcontract_installer"].includes(member.role);
   const summary = commercial ? budgetSummary(commercial) : null;
   return <>
     <div className={styles.pageHeader}>
       <div><p className={styles.eyebrow}>{contract.reference}</p><h1 className={styles.title}>{contract.name}</h1><p className={styles.description}>{contract.client} · {contract.address}</p></div>
-      <Link href="/admin/contracts" className={styles.secondaryButton}>Contract register</Link>
+      <div className={styles.inline}>
+        <Link href="/admin/contracts" className={styles.secondaryButton}>Contract register</Link>
+        {!installer && <Link href={`/admin/contracts/${id}/locations`} className={styles.secondaryButton}>Locations</Link>}
+        {!installer && <Link href={`/admin/contracts/${id}/plan`} className={styles.button}>{manage ? "Plan work" : "Work plan"}</Link>}
+      </div>
     </div>
+    {manage && <SiteSetup contractId={id} locationCount={activeLocations.length} activeTeamCount={teamCount?.count ?? 0} plannedThisWeek={planCount?.count ?? 0} />}
     <section className={styles.warning} aria-label="Contract release status"><span className={styles.warningBadge}>Draft · unreleased</span><h2>Installation is not authorised</h2><ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><p className={styles.small}>No inspection, approval or signature has been recorded by this setup workflow. Quality gates must be implemented and completed before release.</p></section>
 
     <section className={styles.panel}><h2>Contract information</h2><ContractReadout contract={contract} />
@@ -93,25 +112,17 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       </details>
     </section>}
 
-    <section className={styles.panel}><h2>Work areas and packages</h2><p className={styles.muted}>Each area requires its own accepted specification and quality gates. An allocation is access permission, not installation release.</p>
-      <div className={styles.stack}>{areas.map(area => <article key={area.id} className={styles.contractCard}>
-        <div className={styles.cardTop}><h3>{area.name}</h3><span className={styles.warningBadge}>Specification unapproved</span></div>
-        <p>{area.location}</p>
-        <dl className={styles.detailGrid}><div className={styles.detailItem}><dt>Substrate notes</dt><dd>{area.substrate_notes || "Not recorded"}</dd></div><div className={styles.detailItem}><dt>System notes</dt><dd>{area.system_notes || "Not recorded"}</dd></div></dl>
-        {packages.filter(pack => pack.work_area_id === area.id).map(pack => <div key={pack.id} className={styles.documentRow}><div><strong>{pack.name}</strong><p>{Number(pack.quantity).toLocaleString("en-GB")} {pack.unit === "m2" ? "m²" : pack.unit === "lm" ? "linear metres" : "items"}</p>
-          {packageAssignments.filter(assignment => assignment.work_package_id === pack.id).length === 0 && <p className={styles.small}>No installer allocated.</p>}
-          {packageAssignments.filter(assignment => assignment.work_package_id === pack.id).map(assignment => <div key={assignment.user_id} className={styles.inline}><span className={styles.small}>Allocated: {personLabel(assignment.user_id)}</span>{manage && <OperationsForm compact action={removePackageAssignmentAction} submitLabel="Remove package allocation"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="package_id" value={pack.id} /><input type="hidden" name="user_id" value={assignment.user_id} /></OperationsForm>}</div>)}
-        </div></div>)}
-        {packages.every(pack => pack.work_area_id !== area.id) && <p className={styles.small}>No accessible work packages recorded for this area.</p>}
-      </article>)}</div>
-      {areas.length === 0 && <p className={styles.empty}>No work areas available. {manage ? "Record a work area before creating packages." : "Ask your contracts manager to allocate the relevant work package."}</p>}
+    <section className={styles.panel}><h2>Work packages</h2><p className={styles.muted}>Measured packages of work, each at a location. An installer allocation is access permission, not installation release.</p>
+      <ul className={styles.documentList}>{packages.map(pack => <li key={pack.id} className={styles.documentRow}><div><strong>{pack.name}</strong>
+        <p>{areaLabel(pack.work_area_id)} · {Number(pack.quantity).toLocaleString("en-GB")} {pack.unit === "m2" ? "m²" : pack.unit === "lm" ? "linear metres" : "items"}</p>
+        {packageAssignments.filter(assignment => assignment.work_package_id === pack.id).length === 0 && <p className={styles.small}>No installer allocated.</p>}
+        {packageAssignments.filter(assignment => assignment.work_package_id === pack.id).map(assignment => <div key={assignment.user_id} className={styles.inline}><span className={styles.small}>Allocated: {personLabel(assignment.user_id)}</span>{manage && <OperationsForm compact action={removePackageAssignmentAction} submitLabel="Remove package allocation"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="package_id" value={pack.id} /><input type="hidden" name="user_id" value={assignment.user_id} /></OperationsForm>}</div>)}
+      </div></li>)}</ul>
+      {packages.length === 0 && <p className={styles.empty}>{manage ? (activeLocations.length ? "No work packages yet." : "Add locations first, then create work packages at them.") : "Ask your contracts manager to allocate the relevant work package."}</p>}
       {manage && <>
-        <details className={styles.details}><summary>Add a work area</summary><OperationsForm action={createAreaAction} submitLabel="Create unreleased area"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="request_key" value={randomUUID()} /><div className={styles.formGrid}>
-          <label className={styles.field}>Area name *<input name="name" required maxLength={160} /></label><label className={styles.field}>Location *<input name="location" required maxLength={500} /></label>
-          <label className={`${styles.field} ${styles.wide}`}>Substrate notes<textarea name="substrate_notes" rows={3} maxLength={4000} /></label><label className={`${styles.field} ${styles.wide}`}>Installation system notes<textarea name="system_notes" rows={3} maxLength={4000} /></label>
-        </div></OperationsForm></details>
-        {areas.length > 0 && <details className={styles.details}><summary>Add a work package</summary><OperationsForm action={createPackageAction} submitLabel="Create work package"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="request_key" value={randomUUID()} /><div className={styles.formGrid}>
-          <label className={styles.field}>Work area *<select name="area_id" required>{areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</select></label>
+        <p className={styles.small}>{activeLocations.length.toLocaleString("en-GB")} locations on this contract. <Link href={`/admin/contracts/${id}/locations`}>Add or change locations</Link></p>
+        {activeLocations.length > 0 && <details className={styles.details}><summary>Add a work package</summary><OperationsForm action={createPackageAction} submitLabel="Create work package"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="request_key" value={randomUUID()} /><div className={styles.formGrid}>
+          <label className={`${styles.field} ${styles.wide}`}>Location *<select name="area_id" required>{activeLocations.map(location => <option key={location.id} value={location.id}>{locationPath(locationIndex, location.id)}</option>)}</select></label>
           <label className={styles.field}>Package name *<input name="name" required maxLength={160} /></label>
           <label className={styles.field}>Quantity *<input name="quantity" type="number" min="0.01" max="1000000" step="0.01" inputMode="decimal" required /></label>
           <label className={styles.field}>Unit *<select name="unit" defaultValue="m2"><option value="m2">Square metres (m²)</option><option value="lm">Linear metres</option><option value="item">Items</option></select></label>

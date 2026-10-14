@@ -11,8 +11,9 @@ select test.assert((select count(*) = 0 from information_schema.role_table_grant
 select test.assert((select count(*) = 0 from information_schema.role_table_grants
   where grantee = 'authenticated' and table_schema = 'public' and privilege_type <> 'SELECT'
     and table_name in ('operatives', 'teams', 'team_memberships', 'planned_allocations', 'planned_allocation_operatives',
-      'actual_allocations', 'actual_allocation_operatives', 'allocation_absences', 'supervisor_issues', 'supervisor_issue_events')),
-  'Supervisor V2 and issue-register tables are read-only to signed-in users; every write goes through a checked function');
+      'actual_allocations', 'actual_allocation_operatives', 'allocation_absences', 'supervisor_issues', 'supervisor_issue_events',
+      'subcontractor_companies', 'company_insurances', 'company_accreditations')),
+  'Supervisor V2, company and issue-register tables are read-only to signed-in users; every write goes through a checked function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')),
   'anonymous visitors cannot execute any application function');

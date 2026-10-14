@@ -1,4 +1,5 @@
-import { roles } from "./types";
+import { installationStages, insuranceTypes, roles } from "./types";
+import type { LocationBuilderInput } from "./locations";
 
 export class ValidationError extends Error {}
 export function text(form: FormData, key: string, max = 2000, required = false) {
@@ -60,9 +61,6 @@ export function memberRole(form: FormData) {
   if (!roles.some(r => r === role)) throw new ValidationError("Select a recognised staff role.");
   return role;
 }
-export function areaInput(form: FormData) {
-  return { name: text(form, "name", 160, true), location: text(form, "location", 500, true), substrate_notes: text(form, "substrate_notes", 4000), system_notes: text(form, "system_notes", 4000) };
-}
 export function packageInput(form: FormData) {
   const unit = text(form, "unit", 10, true);
   if (!["m2", "lm", "item"].includes(unit)) throw new ValidationError("Select m², linear metres or items.");
@@ -79,4 +77,117 @@ export function fileType(bytes: Uint8Array, claimedType: string) {
   if (png && claimedType === "image/png") return { mime: claimedType, extension: "png" };
   if (jpg && claimedType === "image/jpeg") return { mime: claimedType, extension: "jpg" };
   throw new ValidationError("Only PDF, JPEG and PNG files with a matching file signature are accepted.");
+}
+
+// Supervisor V2 office forms. Each returns exactly the payload its database
+// function accepts; the database validates again and is the authority.
+export const engagements = ["direct_employee", "subcontractor", "agency"] as const;
+export const teamKinds = ["subcontract_gang", "individual_subcontractor", "direct_team", "mixed", "temporary"] as const;
+function choice<T extends string>(form: FormData, key: string, choices: readonly T[], message: string): T {
+  const value = text(form, key, 40, true);
+  if (!choices.some(item => item === value)) throw new ValidationError(message);
+  return value as T;
+}
+function optionalUuid(form: FormData, key: string) {
+  return text(form, key, 36) ? uuid(form, key) : null;
+}
+export function requiredDate(form: FormData, key: string, label: string) {
+  const value = date(form, key);
+  if (!value) throw new ValidationError(`Enter the ${label}.`);
+  return value;
+}
+// Directly employed people and direct teams are never linked to a company, so
+// a company chosen before switching to those kinds is dropped, not sent.
+function companyFor(form: FormData, direct: boolean) {
+  return direct ? null : optionalUuid(form, "company_id");
+}
+export function operativeInput(form: FormData, canLinkLogin: boolean) {
+  const userId = canLinkLogin ? optionalUuid(form, "user_id") : null;
+  const engagement = choice(form, "engagement", engagements, "Choose how this person is engaged.");
+  return {
+    display_name: text(form, "display_name", 160, true),
+    engagement,
+    company_id: companyFor(form, engagement === "direct_employee"),
+    ...(userId ? { user_id: userId } : {}),
+  };
+}
+export function operativeUpdateInput(form: FormData) {
+  const status = text(form, "status", 20, true);
+  if (status !== "active" && status !== "inactive") throw new ValidationError("Choose active or inactive.");
+  return { ...operativeInput(form, false), user_id: optionalUuid(form, "user_id"), status };
+}
+export function teamInput(form: FormData) {
+  const kind = choice(form, "kind", teamKinds, "Choose what kind of team this is.");
+  return { name: text(form, "name", 160, true), kind, company_id: companyFor(form, kind === "direct_team") };
+}
+export function companyInput(form: FormData) {
+  const email = text(form, "contact_email", 254);
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ValidationError("Enter a valid contact email address, or leave it blank.");
+  return {
+    name: text(form, "name", 160, true).replace(/\s+/g, " "),
+    company_number: text(form, "company_number", 40), contact_name: text(form, "contact_name", 160),
+    contact_phone: text(form, "contact_phone", 40), contact_email: email,
+    address: text(form, "address", 1000), notes: text(form, "notes", 4000),
+  };
+}
+export function companyUpdateInput(form: FormData) {
+  return { ...companyInput(form), active: form.get("active") === "on" };
+}
+export function insuranceInput(form: FormData) {
+  const insurance_type = choice(form, "insurance_type", insuranceTypes, "Choose the type of insurance.");
+  const starts_on = date(form, "starts_on");
+  const expires_on = requiredDate(form, "expires_on", "expiry date");
+  if (starts_on && expires_on < starts_on) throw new ValidationError("The expiry date must be on or after the start date.");
+  const cover = text(form, "cover_amount", 25).replace(/[£,\s]/g, "");
+  if (cover && (!/^\d{1,10}$/.test(cover) || Number(cover) > 2_000_000_000)) throw new ValidationError("Enter the cover in whole pounds, for example 5000000.");
+  return {
+    company_id: uuid(form, "company_id"), insurance_type,
+    insurer: text(form, "insurer", 160), policy_number: text(form, "policy_number", 80),
+    ...(cover ? { cover_amount: Number(cover) } : {}), ...(starts_on ? { starts_on } : {}), expires_on,
+    notes: text(form, "notes", 2000),
+  };
+}
+export function accreditationInput(form: FormData) {
+  const expires_on = date(form, "expires_on");
+  return {
+    company_id: uuid(form, "company_id"), scheme: text(form, "scheme", 160, true), reference: text(form, "reference", 80),
+    ...(expires_on ? { expires_on } : {}), notes: text(form, "notes", 2000),
+  };
+}
+export function membershipInput(form: FormData) {
+  return {
+    team_id: uuid(form, "team_id"), operative_id: uuid(form, "operative_id"),
+    valid_from: requiredDate(form, "valid_from", "start date"), is_lead: form.get("is_lead") === "on",
+  };
+}
+export function planInput(form: FormData) {
+  const planned_start = requiredDate(form, "planned_start", "first planned day");
+  const planned_end = date(form, "planned_end") || planned_start;
+  if (planned_end < planned_start) throw new ValidationError("The last planned day must be on or after the first.");
+  const stage = text(form, "stage", 30, true);
+  if (!installationStages.some(item => item === stage)) throw new ValidationError("Choose the installation stage.");
+  const operativeIds = form.getAll("operative_ids");
+  if (operativeIds.some(value => typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))) {
+    throw new ValidationError("A selected operative is invalid. Refresh and try again.");
+  }
+  const packageId = optionalUuid(form, "work_package_id"), supersedesId = optionalUuid(form, "supersedes_id");
+  if (!text(form, "work_area_id", 36)) throw new ValidationError("Choose where the work is planned.");
+  return {
+    contract_id: uuid(form, "contract_id"), work_area_id: uuid(form, "work_area_id"), team_id: uuid(form, "team_id"),
+    stage, planned_start, planned_end, instructions: text(form, "instructions", 4000),
+    operative_ids: [...new Set(operativeIds as string[])],
+    ...(packageId ? { work_package_id: packageId } : {}), ...(supersedesId ? { supersedes_id: supersedesId } : {}),
+  };
+}
+export function locationBuilderInput(form: FormData): LocationBuilderInput {
+  const mode = text(form, "mode", 10, true);
+  if (mode !== "series" && mode !== "names") throw new ValidationError("Choose a numbered series or a list of names.");
+  return { mode, label: text(form, "label", 60), from: text(form, "from", 6), to: text(form, "to", 6), names: text(form, "names", 40000), rooms: text(form, "rooms", 4000) };
+}
+export function locationUpdateInput(form: FormData) {
+  return {
+    name: text(form, "name", 160, true), location_type: text(form, "location_type", 60), code: text(form, "code", 40),
+    description: text(form, "description", 500), substrate_notes: text(form, "substrate_notes", 4000),
+    system_notes: text(form, "system_notes", 4000), parent_id: optionalUuid(form, "parent_id"),
+  };
 }
