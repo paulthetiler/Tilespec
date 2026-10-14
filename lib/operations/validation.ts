@@ -1,3 +1,4 @@
+import { isCalendarDate, isClockTime, londonTimeToIso } from "./planning";
 import { installationStages, insuranceTypes, roles } from "./types";
 import type { LocationBuilderInput } from "./locations";
 
@@ -190,4 +191,162 @@ export function locationUpdateInput(form: FormData) {
     description: text(form, "description", 500), substrate_notes: text(form, "substrate_notes", 4000),
     system_notes: text(form, "system_notes", 4000), parent_id: optionalUuid(form, "parent_id"),
   };
+}
+
+// Supervisor's daily workforce. Times are optional UK wall-clock times on the
+// site day; left blank, the database records the moment it saves, which also
+// makes a retry after a lost connection safe.
+export const absenceReasons = ["Off sick", "On holiday", "No show", "Working on another site", "Personal reasons"] as const;
+export const notOnSiteReasons = ["Did not turn up", "Area not ready", "Called off by the office", "Weather stopped work", "Materials not on site"] as const;
+export const changeReasons = ["Area not ready", "Moved to a more urgent area", "Split to finish sooner", "Planned person absent", "Extra labour needed"] as const;
+export const arrivalNotes = ["Late arrival", "Replacement for an absent operative", "Additional labour"] as const;
+export const departureNotes = ["Finished early", "Unwell", "Sent to another site", "Personal reasons"] as const;
+function clock(form: FormData, key: string, day: string, label: string): string | null {
+  const value = text(form, key, 20);
+  if (!value) return null;
+  if (!isClockTime(value)) throw new ValidationError(`Enter the ${label} as a time, for example 08:00.`);
+  return londonTimeToIso(day, value);
+}
+function siteDay(form: FormData) {
+  const value = text(form, "day", 10, true);
+  if (!isCalendarDate(value)) throw new ValidationError("The site day is invalid. Refresh and try again.");
+  return value;
+}
+function ids(form: FormData, key: string) {
+  // An empty choice ("Nobody else") is no selection, not an invalid one.
+  const values = form.getAll(key).filter(value => value !== "");
+  if (values.some(value => typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))) {
+    throw new ValidationError("A selected person is invalid. Refresh and try again.");
+  }
+  return [...new Set(values as string[])];
+}
+// A tapped quick reason, or the person's own words, which win.
+function reasonFrom(form: FormData, key: string, required: boolean, message: string) {
+  const value = text(form, `${key}_other`, 2000) || text(form, key, 2000);
+  if (required && value.length < 5) throw new ValidationError(message);
+  if (value && value.length < 5) throw new ValidationError("Give a little more detail (at least 5 characters).");
+  return value;
+}
+const leadIn = (lead: string | null, people: string[]) => lead && people.includes(lead) ? { lead_operative_id: lead } : {};
+
+export function confirmAsPlannedInput(form: FormData) {
+  const people = ids(form, "operative_ids");
+  if (people.length === 0) throw new ValidationError("Nobody is listed for this team. Use Make changes to choose who is here.");
+  const started = clock(form, "started_time", siteDay(form), "start time");
+  return {
+    contract_id: uuid(form, "contract_id"), planned_allocation_id: uuid(form, "planned_allocation_id"),
+    ...(started ? { started_at: started } : {}),
+    groups: [{ operative_ids: people, ...leadIn(optionalUuid(form, "lead_operative_id"), people) }],
+  };
+}
+export function confirmChangesInput(form: FormData) {
+  const day = siteDay(form);
+  const split = form.get("split") === "on";
+  const groups: { a: string[]; b: string[] } = { a: [], b: [] };
+  const absent: { operative_id: string; reason: string }[] = [];
+  for (const id of ids(form, "person")) {
+    const status = text(form, `status_${id}`, 10) || "here";
+    if (status === "absent") absent.push({ operative_id: id, reason: reasonFrom(form, `absent_reason_${id}`, true, "Choose or write a reason for each absent person.") });
+    else if (status === "here") groups[split && form.get(`group_${id}`) === "b" ? "b" : "a"].push(id);
+    else if (status !== "later") throw new ValidationError("Choose here, absent or not here yet for each person.");
+  }
+  groups.a.push(...ids(form, "extra_ids").filter(id => !groups.a.includes(id) && !groups.b.includes(id)));
+  if (groups.a.length + groups.b.length === 0) throw new ValidationError("Mark at least one person as here, or use Not on site.");
+  if (split && (groups.a.length === 0 || groups.b.length === 0)) throw new ValidationError("When splitting the gang, put at least one person in each location.");
+  const stage = text(form, "stage", 30);
+  if (stage && !installationStages.some(item => item === stage)) throw new ValidationError("Choose the installation stage.");
+  const areaB = split ? optionalUuid(form, "work_area_id_b") : null;
+  if (split && !areaB) throw new ValidationError("Choose the second location for the split.");
+  const started = clock(form, "started_time", day, "start time");
+  const reason = reasonFrom(form, "reason", false, "");
+  const group = (people: string[], area: string | null, lead: string | null) => ({
+    operative_ids: people, ...(area ? { work_area_id: area } : {}), ...(stage ? { stage } : {}), ...leadIn(lead, people),
+  });
+  return {
+    contract_id: uuid(form, "contract_id"), planned_allocation_id: uuid(form, "planned_allocation_id"),
+    ...(started ? { started_at: started } : {}), ...(reason ? { reason } : {}),
+    groups: [group(groups.a, optionalUuid(form, "work_area_id"), optionalUuid(form, "lead_a")), ...(split ? [group(groups.b, areaB, optionalUuid(form, "lead_b"))] : [])],
+    ...(absent.length ? { absent } : {}),
+  };
+}
+export function notOnSiteInput(form: FormData) {
+  return {
+    planned_allocation_id: uuid(form, "planned_allocation_id"), work_date: siteDay(form),
+    reason: reasonFrom(form, "reason", true, "Choose or write why the team is not on site."),
+  };
+}
+export function moveInput(form: FormData) {
+  const day = siteDay(form);
+  const split = form.get("split") === "on";
+  const groups: { a: string[]; b: string[] } = { a: [], b: [] };
+  for (const id of ids(form, "person")) groups[split && form.get(`group_${id}`) === "b" ? "b" : "a"].push(id);
+  const areaA = optionalUuid(form, "work_area_id");
+  if (!areaA) throw new ValidationError("Choose where they are moving to.");
+  const areaB = split ? optionalUuid(form, "work_area_id_b") : null;
+  if (split && (!areaB || groups.a.length === 0 || groups.b.length === 0)) throw new ValidationError("When splitting, choose both locations and put at least one person in each.");
+  const stage = text(form, "stage", 30);
+  if (stage && !installationStages.some(item => item === stage)) throw new ValidationError("Choose the installation stage.");
+  const at = clock(form, "at_time", day, "time of the move");
+  const target = (people: string[], area: string, lead: string | null) => ({
+    work_area_id: area, ...(split ? { operative_ids: people } : {}), ...(stage ? { stage } : {}), ...leadIn(lead, people),
+  });
+  return {
+    allocation_id: uuid(form, "allocation_id"),
+    data: {
+      ...(at ? { at } : {}), reason: reasonFrom(form, "reason", true, "Choose or write why they moved."),
+      targets: [target(groups.a, areaA, optionalUuid(form, "lead_a")), ...(split ? [target(groups.b, areaB!, optionalUuid(form, "lead_b"))] : [])],
+    },
+  };
+}
+export function arrivalInput(form: FormData) {
+  return {
+    allocation_id: uuid(form, "allocation_id"), operative_id: uuid(form, "operative_id"),
+    joined_at: clock(form, "at_time", siteDay(form), "arrival time"),
+    note: reasonFrom(form, "note", true, "Choose or write why they joined (for example, late arrival)."),
+  };
+}
+export function departureInput(form: FormData) {
+  return {
+    allocation_id: uuid(form, "allocation_id"), operative_id: uuid(form, "operative_id"),
+    left_at: clock(form, "at_time", siteDay(form), "time they left"),
+    note: reasonFrom(form, "note", false, "") || null,
+  };
+}
+export function finishInput(form: FormData) {
+  return { allocation_id: uuid(form, "allocation_id"), ended_at: clock(form, "at_time", siteDay(form), "finish time") };
+}
+export function finishDayInput(form: FormData, timeRequired: boolean) {
+  const at = clock(form, "at_time", siteDay(form), "finish time");
+  if (timeRequired && !at) throw new ValidationError("Enter the time work finished that day.");
+  return { contract_id: uuid(form, "contract_id"), at };
+}
+export function unplannedInput(form: FormData) {
+  const day = siteDay(form);
+  const people = ids(form, "operative_ids");
+  const stage = text(form, "stage", 30, true);
+  if (!installationStages.some(item => item === stage)) throw new ValidationError("Choose the installation stage.");
+  const area = optionalUuid(form, "work_area_id");
+  if (!area) throw new ValidationError("Choose where they are working.");
+  const started = clock(form, "started_time", day, "start time");
+  const team = optionalUuid(form, "team_id");
+  return {
+    contract_id: uuid(form, "contract_id"), work_area_id: area, stage, operative_ids: people,
+    ...(team ? { team_id: team } : {}), ...(started ? { started_at: started } : {}),
+    ...leadIn(optionalUuid(form, "lead_operative_id"), people),
+    reason: reasonFrom(form, "reason", true, "Say why this labour is on site (for example, called in for extra work)."),
+  };
+}
+// Someone not yet registered: the supervisor records them provisionally; only
+// the office can confirm them, and only the office manages companies.
+export function newArrivalInput(form: FormData) {
+  const name = text(form, "new_name", 160);
+  if (!name) return null;
+  const engagement = choice(form, "new_engagement", engagements, "Choose how the new person is engaged.");
+  return { display_name: name, engagement, company_id: companyFor(form, engagement === "direct_employee") };
+}
+export function leadInput(form: FormData) {
+  return { allocation_id: uuid(form, "allocation_id"), operative_id: uuid(form, "operative_id") };
+}
+export function voidRecordInput(form: FormData) {
+  return { id: uuid(form, "record_id"), reason: reasonFrom(form, "reason", true, "Say why this was entered in error.") };
 }

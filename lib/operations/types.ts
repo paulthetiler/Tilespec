@@ -72,7 +72,23 @@ export type ActualAllocation = {
   id: string; contract_id: string; planned_allocation_id: string | null; previous_allocation_id: string | null;
   work_area_id: string; work_package_id: string | null; team_id: string | null; stage: InstallationStage; work_date: string;
   started_at: string; ended_at: string | null; deviations: AllocationDeviation[]; deviation_reason: string | null;
-  confirmed_by: string; recorded_at: string; voided_at: string | null; void_reason: string | null;
+  confirmed_by: string; recorded_at: string; ended_by: string | null; voided_at: string | null; voided_by: string | null; void_reason: string | null;
+  lead_operative_id: string | null;
+};
+// One person on one period of work: present from joined_at until left_at, or
+// until the period ends.
+export type Attendance = {
+  id: string; actual_allocation_id: string; operative_id: string; joined_at: string; left_at: string | null; note: string | null;
+  added_by: string; recorded_at: string; left_recorded_by: string | null; departure_note: string | null;
+};
+// A planned team (operative_id null) or one planned person not on site that day.
+export type Absence = {
+  id: string; planned_allocation_id: string; work_date: string; operative_id: string | null; reason: string;
+  recorded_by: string; recorded_at: string; voided_at: string | null; voided_by: string | null; void_reason: string | null;
+};
+export const allocationDeviationLabels: Record<AllocationDeviation, string> = {
+  unplanned: "Not on the plan", outside_planned_dates: "Outside the planned dates", location_changed: "Different location",
+  team_changed: "Different team", package_changed: "Different work package", stage_changed: "Different stage", operatives_changed: "Different people",
 };
 // One row of public.location_work_history: a candidate with evidence, not a finding of fault.
 export type WorkHistoryEntry = {
