@@ -233,6 +233,9 @@ export async function run({ browser, origin, sql, signIn, contractId, screenshot
   await page.getByText(/Absent: Max Reed \(Off sick\)/).first().waitFor();
   pass('the history for Flat 52 shows the gang, the people, the times, who recorded it and why it changed');
 
+  const { inspect } = await import('./inspection-e2e-flows.mjs');
+  const inspection = await inspect({ manager, page, site, sql, pass });
+
   // Scenario G: another organisation's supervisor can neither see nor change the site.
   const other = await browser.newContext({ viewport: { width: 768, height: 1024 }, locale: 'en-GB' });
   const intruder = watch(await signIn(other, origin, 'oscar.other@e2e.invalid'), 'other');
@@ -244,10 +247,18 @@ export async function run({ browser, origin, sql, signIn, contractId, screenshot
   assert.equal(value(`select count(*) from public.actual_allocations`), before);
   pass('G: another organisation\'s supervisor gets "not found" for the site, and replaying a captured confirmation is refused by the database');
 
+  const inspectionBefore = value('select count(*) from public.location_inspections');
+  const inspectionReplay = await other.request.post(inspection.savedRequest.url, { headers: Object.fromEntries(Object.entries(inspection.savedRequest.headers).filter(([name]) => !['cookie', 'content-length', 'host'].includes(name))), data: inspection.savedRequest.body });
+  assert.match(await inspectionReplay.text(), /You do not have permission for this operation/);
+  assert.equal(value('select count(*) from public.location_inspections'), inspectionBefore);
+  assert.equal((await intruder.goto(inspection.url)).status(), 404);
+  pass('Phase 3A: another organisation cannot view inspections or replay a captured inspection action');
+
   // Layout on real pages and data: no sideways scrolling, finger-sized controls,
   // with every collapsed section opened so every form is measured.
   const viewports = [{ name: 'tablet-portrait', width: 768, height: 1024 }, { name: 'tablet-landscape', width: 1180, height: 820 }, { name: 'phone', width: 390, height: 844 }];
   const screens = [[page, 'dashboard', site], [page, 'checks', `${site}/checks`], [page, 'workforce', `${site}/workforce`], [page, 'history', `${site}/history`],
+    [page, 'location-inspections', inspection.url], [manager, 'inspection-templates', inspection.url],
     [manager, 'planned-vs-actual', `${origin}/admin/contracts/${contractId}/actual`]];
   for (const viewport of viewports) {
     for (const [target, name, url] of screens) {

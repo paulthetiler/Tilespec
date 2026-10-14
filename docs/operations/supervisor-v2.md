@@ -626,3 +626,124 @@ contradictory records. This is a known limitation.
     replaying a captured confirmation.
   - Layout is checked at 768px, 1180px and 390px: no sideways scrolling,
     controls at least 44px, no console errors.
+
+## 10. Phase 3A: location inspection records
+
+Phase 3A implements the requested location templates, persistent inspection
+records and actual-work attribution. It does **not** complete the broader Phase
+3 hold-point, authorised-exception or specification-approval workflow in section
+5. An observation marked Pass is not a work release. The earlier preparation,
+installation and sign-off prototype is still a prototype and has not been
+promoted into a release workflow.
+
+### Development and review
+
+The site navigation and dashboard link to **Location inspections** at
+`/admin/supervisor/sites/[id]/inspections`. The office uses the same screen to
+create or revise a template; the supervisor chooses a location and applicable
+current template, answers its checks and explicitly selects actual work periods.
+No allocation is inferred from a plan or automatically treated as fault.
+
+Templates are contract-specific and apply at their location and descendants.
+They hold a specification reference/revision, stage, an explicit wet-area flag
+and up to 50 checks. Prefix a conditional checklist line with `[wet]`; it is
+included only if that template's specification requires wet-area checks. No
+bathroom name or employment type automatically selects a workflow. Create a
+separate template at a more specific location when its requirements differ.
+Each revision is a new immutable record linked to the previous one. Concurrent
+revision of the same template is refused. A stale inspection screen cannot
+submit a superseded template, but an identical retry of a previously successful
+inspection remains safe after the template changes.
+
+Inspection records hold the original location path, recorded actor/name and
+server time, database-derived answer labels and issue count, and the exact
+immutable template revision. Every Issue or N/A needs a reason. The history
+supports location filtering and pages of 50 records. Corrections are new
+observations; earlier records cannot be edited or deleted.
+
+The supervisor may link recorded, non-voided actual allocations at that
+location, its ancestors or descendants, for the template's stage. Each link
+keeps the original allocation ID and a database-generated snapshot of allocation,
+company/team names and per-person attendance, including arrival, departure and
+acting lead. Later departures, moves, company renames or voids do not rewrite
+that snapshot. Review workforce history for subsequent corrections. An empty
+link list means attribution was not supplied, never that the planned gang did
+attend. Links record presence, not blame.
+
+### Reused architecture and security
+
+- Reuses `work_areas`, the existing stage domain, actual allocations/attendance,
+  company records, dated contract permissions, per-actor request keys and audit
+  triggers. It does not introduce a second workforce or location directory.
+- New tables grant authenticated SELECT only under existing site-supervision
+  permissions. Writes use checked authenticated RPCs. Installers, inactive or
+  unassigned members and other organisations receive no new access.
+- The morning `supervisor_inspections` records and their issue-creation trigger
+  are unchanged. Phase 3A Issue answers stay in the location inspection history;
+  creating linked snags and hold-point enforcement remain later work.
+- Existing issues, photos and evidence remain in their current register.
+  `document_revisions` retains its verified private-upload/download protocol;
+  this phase adds no Storage policies, service-role business writes, file
+  migration or unverified evidence acceptance.
+
+### Migration review (not a deployment instruction)
+
+The new `20261014140000_location_inspections.sql` migration is additive and
+transactional, with prerequisite and collision checks. It creates three tables
+and two functions; it does not alter earlier tables, rows, functions, grants or
+policies. No business templates or inspections are seeded. It has not been
+applied to a hosted database by this work.
+
+Before any hosted application, obtain approval, confirm a restorable backup and
+use a separate staging project. Run
+`supabase/inspection/location-inspections-preflight.sql` as the intended applying
+role. All prerequisites must be present and all five name collisions absent.
+After approval, apply the file unmodified under its own migration filename and
+rerun the report: old row counts must be unchanged. Deploying this UI before the
+migration fails closed on missing tables; the existing workforce and morning
+checks routes remain available. Rollback by dropping history is destructive and
+requires separate approval.
+
+### Validation
+
+- `tests/inspections.test.ts`: conditional checklist selection, current ancestry
+  revisions and form validation.
+- `tests/db/location-inspections.test.sql`: real role/RLS/RPC tests, immutable
+  answers and workforce snapshots, exact retries, conflicting payloads,
+  revision staleness and cross-location/tenant denial.
+- `tests/db/location-inspections-upgrade.test.sh`: hashes all existing public and
+  private rows before/after migration, compares original grants and policies,
+  validates the read-only report and refusal of a second application.
+- `scripts/inspection-e2e-flows.mjs`, within `npm run test:e2e`: real office
+  template creation and supervisor inspection through the app/PostgREST/local
+  database, required reasons, conditional wet checks, actual work linkage,
+  lost-response retry, reload, cross-tenant action replay and phone/tablet layouts.
+
+All database suites use disposable local PostgreSQL and test-only Auth/Storage
+stubs. Hosted Auth and Storage require separately approved staging validation.
+
+### Phase 3A validation results
+
+Validated in this cloud instance on 14 October 2026, using Node 24,
+PostgreSQL 17, PostgREST 12.2.3 and Chromium 151:
+
+| Check | Result |
+| --- | --- |
+| Type check and build | Passed |
+| Application tests | 48 passed |
+| Disposable database acceptance and upgrade checks | 503 passed |
+| Browser boundary tests | 9 passed, 1 expected desktop-only skip |
+| Shared form checks | 3 passed |
+| Office UI checks | 18 passed |
+| Authenticated local E2E, including Phase 3A and layout checks | 23 passed |
+
+Initial browser runs failed on the cloud proxy's certificate trust. Verified
+Chromium now uses the environment's public CA certificates in a task-scoped NSS
+store through an isolated browser wrapper; TLS checks stay enabled and the
+persistent user trust store is unchanged. The existing development runner can
+emit a first-compile warm-up warning; the final measured journeys completed
+with no browser console errors. No assertion was disabled.
+
+These results verify local development and the saved startup workflow. They do
+not verify hosted Supabase Auth/Storage, a hosted migration, publication of the
+cloud environment snapshot or restoration into a new cloud task.
