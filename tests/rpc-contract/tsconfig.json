@@ -1,0 +1,13 @@
+{
+  "//": "Used only by tests/db/office-actions.test.sh (TSX_TSCONFIG_PATH): swaps the three framework-only modules the office actions import for test stand-ins. Everything else is the real application code.",
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "@/lib/auth": ["./tests/rpc-contract/auth-stub.ts"],
+      "next/cache": ["./tests/rpc-contract/next-cache-stub.ts"],
+      "server-only": ["./tests/rpc-contract/server-only-stub.ts"],
+      "@/*": ["./*"]
+    }
+  }
+}
