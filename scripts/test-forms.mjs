@@ -17,7 +17,7 @@ try {
   await mkdir(join(temporary, 'app'));
   // Copy the exact production component and imports; no test implementation is
   // substituted. Local paths avoid Next resolving an external app's aliases.
-  for (const path of ['components/operations/operations-form.tsx', 'app/admin/admin.module.css', 'lib/operations/validation.ts', 'lib/operations/types.ts']) {
+  for (const path of ['components/operations/operations-form.tsx', 'app/admin/admin.module.css', 'lib/operations/validation.ts', 'lib/operations/types.ts', 'lib/operations/planning.ts']) {
     await mkdir(dirname(join(temporary, path)), { recursive: true });
     await copyFile(join(repository, path), join(temporary, path));
   }
@@ -31,12 +31,13 @@ import { OperationsForm } from "@/components/operations/operations-form";
 import type { ActionState } from "@/lib/operations/types";
 async function result(_:ActionState,form:FormData):Promise<ActionState>{
   await new Promise(resolve=>setTimeout(resolve,150));
+  if(form.get('outcome')==='network')throw new TypeError('Failed to fetch');
   return form.get('outcome')==='success'?{success:'Saved test form'}:{error:'Retry test form'};
 }
 export default function Page(){return <OperationsForm action={result} submitLabel="Save test form">
   <label>Reference<input name="reference" defaultValue="" required /></label>
   <label>Test file<input name="file" type="file" required /></label>
-  <label>Outcome<select name="outcome"><option value="error">Error</option><option value="success">Success</option></select></label>
+  <label>Outcome<select name="outcome"><option value="error">Error</option><option value="network">Network</option><option value="success">Success</option></select></label>
   <input name="request_key" type="hidden" value="stable-test-request" />
 </OperationsForm>}`);
   const portServer = net.createServer();
@@ -68,6 +69,15 @@ export default function Page(){return <OperationsForm action={result} submitLabe
   assert.equal(await file.evaluate(input => input.files[0].name), 'inspection.pdf');
   assert.equal(await page.locator('input[name="request_key"]').inputValue(), 'stable-test-request');
   console.log('PASS: failed submission preserves fields, selected file and request key for retry');
+  // A lost connection must not escape to the page's error screen, losing everything typed.
+  await page.getByLabel('Outcome').selectOption('network');
+  await page.getByRole('button', { name: 'Save test form' }).click();
+  await page.getByRole('alert').filter({ hasText: 'could not confirm this was saved because the connection failed' }).waitFor();
+  assert.equal(await page.getByRole('status').count(), 0);
+  assert.equal(await reference.inputValue(), 'TS-NORTH-001');
+  assert.equal(await file.evaluate(input => input.files[0].name), 'inspection.pdf');
+  assert.equal(await page.locator('input[name="request_key"]').inputValue(), 'stable-test-request');
+  console.log('PASS: a lost connection shows an honest message, never success, and keeps every field and the request key for a safe retry');
   await page.getByLabel('Outcome').selectOption('success');
   await page.getByRole('button', { name: 'Save test form' }).click();
   await page.getByRole('status').filter({ hasText: 'Saved test form' }).waitFor();
