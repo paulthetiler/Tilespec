@@ -233,5 +233,43 @@ async function main() {
   assert.deepEqual([...names].filter(name => !calls.some(call => call.name === name)), [], "every database function the office actions call was executed");
   assert.ok(((globalThis as { revalidated?: string[] }).revalidated ?? []).includes("/admin/workforce"));
   pass(`all ${exported.length} office actions ran against the migrated database, calling ${names.size} distinct database functions as the signed-in member`);
+
+  // --- 3. The supervisor's daily workforce actions ---------------------------
+  const siteActions = await import("../../app/admin/supervisor/site-actions");
+  const site = { contract_id: ids.contract, day: today };
+  const allocationOf = (team: string) => idOf(`select a.id from public.actual_allocations a join public.teams t on t.id = a.team_id
+    where t.name = '${team}' and a.ended_at is null and a.voided_at is null order by a.started_at desc limit 1`);
+  await ok("planAllocationAction", actions.planAllocationAction, { contract_id: ids.contract, request_key: key(40), work_area_id: bathroom, team_id: gangA, stage: "installation", planned_start: today, planned_end: "", operative_ids: [sam], instructions: "" });
+  await ok("planAllocationAction", actions.planAllocationAction, { contract_id: ids.contract, request_key: key(41), work_area_id: flat51, team_id: gangB, stage: "grouting", planned_start: today, planned_end: "", operative_ids: [lee, ava], instructions: "" });
+  const planA = idOf(`select id from public.planned_allocations where team_id = '${gangA}' and superseded_by is null and cancelled_at is null`);
+  const planB = idOf(`select id from public.planned_allocations where team_id = '${gangB}' and superseded_by is null and cancelled_at is null`);
+  actAs(ids.supervisor, "supervisor");
+  await ok("confirmAsPlannedAction", siteActions.confirmAsPlannedAction, { ...site, planned_allocation_id: planA, request_key: key(42), operative_ids: [sam], lead_operative_id: sam, started_time: "" });
+  await ok("notOnSiteAction", siteActions.notOnSiteAction, { ...site, planned_allocation_id: planB, request_key: key(43), reason: "Did not turn up", reason_other: "" });
+  await ok("undoNotOnSiteAction", siteActions.undoNotOnSiteAction, { contract_id: ids.contract, record_id: idOf(`select id from public.allocation_absences where planned_allocation_id = '${planB}'`), reason_other: "Recorded against the wrong team" });
+  await ok("confirmChangesAction", siteActions.confirmChangesAction, { ...site, planned_allocation_id: planB, request_key: key(44), person: [lee, ava], [`status_${lee}`]: "here",
+    [`status_${ava}`]: "absent", [`absent_reason_${ava}`]: "Off sick", work_area_id: flat51, stage: "grouting", lead_a: "", started_time: "", reason: "", reason_other: "" });
+  const allocationA = allocationOf("Smith Gang A");
+  await ok("moveAction", siteActions.moveAction, { ...site, allocation_id: allocationA, request_key: key(45), person: [sam], work_area_id: flat51, stage: "installation", lead_a: sam, at_time: "", reason: "Area not ready", reason_other: "" });
+  const allocationB = allocationOf("Smith Gang B (Level 5)");
+  await ok("arrivalAction", siteActions.arrivalAction, { ...site, allocation_id: allocationB, operative_id: ava, at_time: "", note: "Late arrival", note_other: "" });
+  await ok("departureAction", siteActions.departureAction, { ...site, allocation_id: allocationB, operative_id: ava, at_time: "", note: "Unwell", note_other: "" });
+  await ok("setLeadAction", siteActions.setLeadAction, { ...site, allocation_id: allocationB, operative_id: lee });
+  await ok("recordUnplannedAction", siteActions.recordUnplannedAction, { ...site, request_key: key(46), person_request_key: key(47), team_id: "", operative_ids: "", new_name: "Walk In",
+    new_engagement: "agency", company_id: agency, work_area_id: bathroom, stage: "remedial", lead_operative_id: "", started_time: "", reason: "Extra labour needed", reason_other: "" });
+  await ok("finishPeriodAction", siteActions.finishPeriodAction, { ...site, allocation_id: allocationOf("Smith Gang A"), at_time: "" });
+  const unplanned = idOf("select id from public.actual_allocations where planned_allocation_id is null");
+  await ok("voidPeriodAction", siteActions.voidPeriodAction, { contract_id: ids.contract, record_id: unplanned, reason_other: "Recorded at the wrong site" });
+  assert.equal(await ok("finishDayAction", siteActions.finishDayAction, { ...site, at_time: "" }), "Finished 1 period of work.");
+  assert.equal(value(`select count(*) filter (where ended_at is null and voided_at is null) || '|' || count(*) filter (where voided_at is not null) || '|' || count(*) from public.actual_allocations`), "0|1|4");
+  assert.equal(value(`select status from public.operatives where display_name = 'Walk In'`), "provisional");
+  assert.equal(value(`select count(*) filter (where voided_at is null) || '|' || count(*) from public.allocation_absences`), "0|2",
+    "the absence entered by mistake and the absence contradicted by a late arrival are both kept, voided");
+  assert.equal(value(`select (select display_name from public.operatives where id = lead_operative_id) from public.actual_allocations where id = '${allocationB}'`), "Lee Hart");
+  const siteExported = Object.keys(siteActions).filter(name => name.endsWith("Action"));
+  assert.deepEqual(siteExported.filter(name => !used.has(name)), [], "every supervisor action is exercised");
+  const siteNames = new Set(rpcCalls.filter(call => call.file === "app/admin/supervisor/site-actions.ts").map(call => call.name));
+  assert.deepEqual([...siteNames].filter(name => !calls.some(call => call.name === name)), [], "every database function the supervisor actions call was executed");
+  pass(`all ${siteExported.length} supervisor actions ran against the migrated database as the assigned supervisor, calling ${siteNames.size} distinct database functions`);
 }
 main().catch(error => { console.error(error); process.exit(1); });

@@ -268,7 +268,7 @@ the snag was raised.
 | --- | --- | --- |
 | **1 (this)** | Phase 1: hardening, locations, teams, allocations, attribution, preflight report, tests. Each migration is its own commit | Draft. Stop for review before any hosted migration |
 | 2a | Office setup: subcontractor companies (with insurance and accreditations), location builder (bulk flats/rooms), teams and operatives, planning board | In review (section 8) |
-| 2b | Supervisor dashboard: auto-open a single site, next action from saved records, morning checks with severities and holds, allocation confirmation (confirm, amend, move, split, absent), office planned-vs-actual view | Phase 2 |
+| 2b | Supervisor dashboard: auto-open a single site, next action from saved records, allocation confirmation (confirm, amend, move, split, absent), office planned-vs-actual view | In review (section 9) |
 | 3a | Inspection requirements: specification revisions, conditional checklists (wet areas only where specified), mandatory hold points, authorised exceptions | Phase 3 |
 | 3b | Location-first inspection UI; retire prototype sections 2–4 | Phase 3 |
 | 4a | Snag register with verified photo evidence and attribution snapshot | Phase 4 |
@@ -471,3 +471,158 @@ portrait (768px), iPad landscape (1180px) and phone (390px). It fails on any of:
 The stub actions run the real server parsers, so each flow proves the screen
 submits a request the server accepts. Authenticated journeys against hosted
 Supabase still need checking on the preview.
+
+## 9. Phase 2B: supervisor daily workforce
+
+The supervisor turns the office's plan into an accurate record of who
+actually worked where, when, and on what. The plan and every record of the
+day are kept; nothing is overwritten.
+
+### The supervisor's day
+
+| Step | Screen | What happens |
+| --- | --- | --- |
+| 1 | **Site dashboard** (`/admin/supervisor/sites/[id]`) | One large button shows the next thing to do, worked out from saved records only (see below). A supervisor with one site opens straight onto it. |
+| 2 | **Morning checks** | The existing readiness checks, unchanged. Once saved, the next button goes straight to Today's Workforce. |
+| 3 | **Today's Workforce** | Each planned team as a card: team, company, lead, planned people, location, stage and dates. Three actions: **Confirm as planned**, **Make changes**, **Not on site**. |
+| 4 | **Issues** | The existing issue register, filtered to the site. |
+| 5 | **Workforce history** | Who worked where and when, by day, location or team, with who recorded each change and why. |
+
+Location inspections and the daily handover are shown on the dashboard as
+"not available yet". They are not presented as working features.
+
+**Next action, from saved records only:**
+
+1. Start morning checks, if none has been recorded for the site today.
+2. Finish earlier work, if work from an earlier day was never finished.
+   Those people are still recorded as working there, so they cannot be
+   recorded anywhere else until it is finished.
+3. Confirm today's allocations, or review unconfirmed teams once some are done.
+4. Review outstanding issues, if any are open on the site.
+5. Otherwise, monitor today's work.
+
+### Recording rules
+
+| Situation | How it is recorded |
+| --- | --- |
+| Gang arrives as planned | **Confirm as planned**: one tap. Planned people, location and stage, the team lead as acting lead, no note. An optional start time covers a team that started earlier. |
+| Some people absent | **Make changes**: mark each person here, absent (with a one-tap reason) or not here yet. An absence reason is enough on its own: no second note is needed when the only change is who is missing. |
+| Team moved | Choose the actual location. The plan is unchanged; the record links to it and says why it differs. |
+| Gang split | Tick "split", choose the second location and who goes there. Each location is its own record with its own people, acting lead and times. |
+| Midday move or split | **Move or split** ends the current period at the time of the move and starts new ones, linked back. Earlier periods are never changed. |
+| Late arrival, replacement | **Someone arrived**, with a reason. If they were recorded absent, that absence is voided (kept, with the arrival time). |
+| Early departure | **Someone left**, with an optional reason. |
+| Team did not come | **Not on site**, with a reason. If they turn up later, confirming them voids that record. |
+| Labour not on the plan | **Record labour not on the plan**: a registered team, people from other teams for the day, or someone new. |
+| End of the day | **Finish today's work** ends every open period at the time work stopped. |
+| A mistake | **Entered in error**, with a reason. The record stays in the history. |
+
+**Rules the database enforces:**
+
+- **Once per day.** A plan is confirmed once a day; a second confirmation
+  from another device is refused, and the plan row is locked while confirming.
+  After that, the gang is moved, joined or left.
+- **One place at a time.** Nobody is recorded in two places at once, across
+  every team and contract (Phase 1 rule). A split puts different people in
+  different places, so it is never blocked.
+- **No contradictions.** Someone recorded on site cannot also be absent that
+  day. Recording them on site voids the absence and keeps it.
+- **Reasons for differences.** Any difference from the plan (location, stage,
+  people, team, unplanned) needs a reason. The error message names the
+  difference in plain words.
+- **Acting lead.** Recorded once per period, and it must be someone on that
+  work. To change lead, the gang is moved: a new period starts.
+- **Retries.** Every action is safe to retry: a request key, or a natural key
+  such as "this person on this allocation", means a repeat records nothing new.
+
+**Permanent teams are never changed.** Working with another team for the day
+is recorded on that day's allocation only; team memberships are untouched.
+
+**Unexpected people** are recorded as provisional operatives. They are shown
+as "Provisional, not yet confirmed by the office" and never as approved.
+Supervisors still cannot create or approve companies, or confirm people.
+
+**History is not blame.** The history shows presence on a recorded period of
+work, for people to weigh. It is not a finding of responsibility for a defect.
+
+### Office view
+
+**Planned vs actual** (`/admin/contracts/[id]/actual`, from the contract and
+plan pages) shows, for any day:
+
+- the plan;
+- what the supervisor recorded, team by team;
+- every difference: team not on site, absent, missing, additional operative,
+  moved, split, stage changed, unconfirmed, supervisor-added labour,
+  provisional people, late arrivals and early departures.
+
+The office re-enters nothing. These are workforce records only: no payroll,
+CIS or payment figures are derived from them.
+
+### Database changes
+
+The additive migration `20261014120000_supervisor_daily_workforce.sql`:
+
+- Adds `actual_allocations.lead_operative_id` (nullable), filled once, and
+  checked to be someone on that work.
+- Adds functions:
+  - `confirm_planned_allocation`: confirms present, absent and split in one
+    step, once per plan per day;
+  - `set_allocation_lead`;
+  - `end_open_allocations`: finishes a day;
+  - `allocation_actor_names`: the names of people who recorded allocations on
+    that contract, so supervisors can see who did what without reading the
+    member directory.
+- Replaces four Phase 1 functions with the same signatures, keeping every
+  Phase 1 rule:
+  - `insert_actual_allocation` and `add_allocation_operative` also void
+    contradicted absences;
+  - `record_actual_allocation` and `reallocate_actual_allocation` also accept
+    an acting lead;
+  - the "reason needed" message names differences in plain words.
+
+Existing records are untouched: no backfill, no lead invented for earlier work.
+`supabase/inspection/supervisor-daily-workforce-preflight.sql` is a read-only
+report to run before and after applying.
+
+**Permissions.** Unchanged in principle:
+
+- The supervisor must be assigned to the contract (date-effective), or be the
+  owner or an assigned contracts manager.
+- Every function checks contract access itself.
+- Installers cannot read or change allocations.
+- Another organisation sees nothing.
+- The pages check the same and show "not found" for a site you cannot see.
+
+### Connection problems
+
+- If a save fails because the connection dropped, the form says it could not
+  confirm the save and keeps everything typed, including the request key. A
+  retry is recorded once whether or not the first attempt reached the server.
+- Success is shown only after the database confirms it.
+- A red banner shows when the device is offline.
+- Leaving or reloading a page with unsaved typing asks first.
+
+**Not built: offline queueing.** Changes cannot be saved without a
+connection. A queue that saves later was left out deliberately: replaying
+site records after the fact, without the server's checks at the time, risks
+contradictory records. This is a known limitation.
+
+### Validation
+
+- `tests/db/supervisor-daily-workforce.test.sql`: scenarios A to H in the
+  database, plus permissions, retries, contradictions and history protection.
+- `tests/db/daily-workforce-upgrade.test.sh`: the migration over records
+  made with the earlier functions.
+- `tests/db/office-actions.test.sh`: all 12 supervisor server actions against
+  the migrated database.
+- `npm run test:e2e` (`scripts/test-site-e2e.mjs`): the real app, real
+  pages and server actions, through PostgREST 12.2.3, to a disposable
+  PostgreSQL with every migration and RLS policy; only sign-in is stood in.
+  - It runs scenarios A to I through the screens and checks each in the
+    database: H by cutting the connection before and after the server
+    receives a confirmation; I by reloading.
+  - It checks that another organisation's supervisor is refused, including
+    replaying a captured confirmation.
+  - Layout is checked at 768px, 1180px and 390px: no sideways scrolling,
+    controls at least 44px, no console errors.

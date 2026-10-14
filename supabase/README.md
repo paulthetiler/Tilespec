@@ -154,6 +154,26 @@ in their columns, and each link is audited.
 4. Re-run the report. Every new object should now show, and row counts should
    be unchanged.
 
+### Supervisor daily workforce (Phase 2B)
+
+`20261014120000_supervisor_daily_workforce.sql` adds the acting lead column
+and the supervisor's confirmation functions. It replaces four allocation
+functions with the same signatures. It is additive and transactional, refuses
+to run before `20261014100000` or a second time, and changes no existing
+record.
+
+1. Take a database backup.
+2. Run `inspection/supervisor-daily-workforce-preflight.sql` (read-only) and
+   keep the output. Every prerequisite must be "present" and every name
+   collision "absent (ready)". The data review rows count open work, work
+   from earlier days that was never finished, and legacy absences that
+   contradict recorded attendance. Supervisors can finish open work after the
+   update; nothing is changed automatically.
+3. Apply `20261014120000_supervisor_daily_workforce.sql`, unmodified, recorded
+   under its own filename.
+4. Re-run the report. Every new object should show, and row counts should be
+   unchanged.
+
 Design, risks and permissions are in
 [supervisor-v2.md](../docs/operations/supervisor-v2.md). Production application
 is a separately approved step.

@@ -44,3 +44,27 @@ export function planOverlaps(plan: Pick<PlannedAllocation, "planned_start" | "pl
 export function membershipOnDay(membership: Pick<TeamMembership, "valid_from" | "valid_until" | "voided_at">, day: string): boolean {
   return !membership.voided_at && membership.valid_from <= day && (membership.valid_until === null || membership.valid_until >= day);
 }
+
+// Site times are UK wall-clock times. A supervisor's "08:00" means 08:00 in
+// London on that day, whether GMT or BST.
+const londonParts = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+});
+function londonWallClock(ms: number): number {
+  const part = Object.fromEntries(londonParts.formatToParts(new Date(ms)).map(item => [item.type, item.value]));
+  return Date.UTC(+part.year, +part.month - 1, +part.day, +part.hour, +part.minute);
+}
+export function londonClock(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+}
+export function isClockTime(value: unknown): value is string {
+  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+export function londonTimeToIso(day: string, time: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const wall = Date.UTC(year, month - 1, date, hour, minute);
+  let instant = wall;
+  for (let attempt = 0; attempt < 2; attempt++) instant = wall - (londonWallClock(instant) - instant);
+  return new Date(instant).toISOString();
+}

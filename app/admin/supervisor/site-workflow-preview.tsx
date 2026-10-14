@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 const morning = [
@@ -25,7 +26,7 @@ const defects = [
   "Other workmanship defect"
 ];
 
-export default function SiteWorkflowPreview({ areaNames, contractReference, contractId, onNext }: { areaNames: string[]; contractReference: string; contractId:string; onNext?:()=>void }) {
+export default function SiteWorkflowPreview({ areaNames, contractReference, contractId, dashboardHref, workforceHref }: { areaNames: string[]; contractReference: string; contractId:string; dashboardHref:string; workforceHref:string }) {
   const [checks, setChecks] = useState<string[]>([]);
   
   const [naChecks,setNaChecks]=useState<string[]>([]);
@@ -88,13 +89,15 @@ export default function SiteWorkflowPreview({ areaNames, contractReference, cont
        }}>{saving?"Saving inspection…":"Complete daily inspection →"}</button>:<div role="status" style={{marginTop:12}}>
         <h3>Inspection saved</h3><p>Reference: {saved.id}</p><p>Recorded: {new Date(saved.createdAt).toLocaleString("en-GB")}</p>
         <p>{saved.issuesCount?String(saved.issuesCount)+" outstanding issue(s) — office review required.":"No issues recorded in this inspection."}</p>
-        <p><strong>Next action:</strong> {saved.issuesCount?"Escalate outstanding issues before affected work proceeds.":"Review area preparation and outstanding site requirements."}</p>
-        <button type="button" style={btn} onClick={()=>onNext?.()}>Return to job dashboard →</button>
+        <p><strong>Next action:</strong> confirm who is on site and where.{saved.issuesCount?" Escalate outstanding issues before affected work proceeds.":""}</p>
+        <Link href={workforceHref} style={{...btn,display:"flex",alignItems:"center",justifyContent:"center",minHeight:60,background:"#0f2a3a",color:"#fff",fontSize:18,textTransform:"uppercase",textDecoration:"none",marginBottom:8}}>Confirm today&apos;s workforce →</Link>
+        <Link href={dashboardHref} style={{...btn,display:"inline-flex",alignItems:"center",textDecoration:"none"}}>Return to site dashboard</Link>
         <button type="button" style={{...btn,marginLeft:8}} onClick={()=>{setChecks([]);setNaChecks([]);setNaReasons({});setCheckIssues({});setSaved(null);setRequestKey(crypto.randomUUID());}}>Start another inspection</button>
        </div>}
        {saveError&&<p role="alert" style={{color:"#a12626"}}>{saveError} — nothing has been confirmed saved.</p>}
       </div>
     </details>
+    <p style={{fontSize:13,color:"#52646d",marginTop:20}}>Sections 2 to 4 preview later inspection features. They do not save anything yet.</p>
     <details><summary>2. Area preparation decision</summary>
       <label style={{display:"block",margin:"10px 0"}}>Work area
         <select value={area} onChange={e=>{setArea(e.target.value);setPrep("not-assessed");setIssues([]);setInspection(false);setAck(false);setSnagsCleared(false);}}>

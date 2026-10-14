@@ -1,6 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AuditEvent, Commercial, Company, CompanyAccreditation, CompanyInsurance, Contract, DocumentRevision, Location, Member, Operative, PlannedAllocation, PlannedOperative, Team, TeamMembership, WorkArea, WorkPackage } from "./types";
+import type { Absence, ActualAllocation, Attendance, AuditEvent, Commercial, Company, CompanyAccreditation, CompanyInsurance, Contract, DocumentRevision, Location, Member, Operative, PlannedAllocation, PlannedOperative, Team, TeamMembership, WorkArea, WorkPackage } from "./types";
+import type { DayRecords } from "./site-day";
+import { londonTimeToIso } from "./planning";
 import { rpcErrorMessage } from "./errors";
 
 export function checkDatabase(error: { code?: string } | null) {
@@ -68,9 +70,9 @@ export async function companyRecordsFor(supabase: SupabaseClient) {
 }
 // Every plan touching the period, including revised and cancelled ones so the
 // history of changes stays visible.
+const planColumns = "id,contract_id,work_area_id,work_package_id,team_id,stage,planned_start,planned_end,instructions,supersedes_id,superseded_by,cancelled_at,cancel_reason,created_by,created_at";
 export async function plansFor(supabase: SupabaseClient, contractId: string, from: string, to: string) {
-  const { data, error } = await supabase.from("planned_allocations")
-    .select("id,contract_id,work_area_id,work_package_id,team_id,stage,planned_start,planned_end,instructions,supersedes_id,superseded_by,cancelled_at,cancel_reason,created_by,created_at")
+  const { data, error } = await supabase.from("planned_allocations").select(planColumns)
     .eq("contract_id", contractId).lte("planned_start", to).gte("planned_end", from).order("planned_start");
   checkDatabase(error);
   const plans = (data || []) as (PlannedAllocation & { cancel_reason: string | null })[];
@@ -78,4 +80,80 @@ export async function plansFor(supabase: SupabaseClient, contractId: string, fro
   const operatives = await supabase.from("planned_allocation_operatives").select("planned_allocation_id,operative_id").in("planned_allocation_id", plans.map(plan => plan.id));
   checkDatabase(operatives.error);
   return { plans, plannedOperatives: (operatives.data || []) as PlannedOperative[] };
+}
+
+// The supervisor's day: plans, what was confirmed, attendance and absences.
+const actualColumns = "id,contract_id,planned_allocation_id,previous_allocation_id,work_area_id,work_package_id,team_id,stage,work_date,started_at,ended_at,deviations,deviation_reason,confirmed_by,recorded_at,ended_by,voided_at,voided_by,void_reason,lead_operative_id";
+const attendanceColumns = "id,actual_allocation_id,operative_id,joined_at,left_at,note,added_by,recorded_at,left_recorded_by,departure_note";
+const absenceColumns = "id,planned_allocation_id,work_date,operative_id,reason,recorded_by,recorded_at,voided_at,voided_by,void_reason";
+async function attendanceFor(supabase: SupabaseClient, actuals: ActualAllocation[]) {
+  if (actuals.length === 0) return [] as Attendance[];
+  const { data, error } = await supabase.from("actual_allocation_operatives").select(attendanceColumns).in("actual_allocation_id", actuals.map(item => item.id));
+  checkDatabase(error);
+  return (data || []) as Attendance[];
+}
+async function plannedOperativesFor(supabase: SupabaseClient, plans: PlannedAllocation[]) {
+  if (plans.length === 0) return [] as PlannedOperative[];
+  const { data, error } = await supabase.from("planned_allocation_operatives").select("planned_allocation_id,operative_id").in("planned_allocation_id", plans.map(plan => plan.id));
+  checkDatabase(error);
+  return (data || []) as PlannedOperative[];
+}
+export async function actorNamesFor(supabase: SupabaseClient, contractId: string) {
+  const { data, error } = await supabase.rpc("allocation_actor_names", { p_contract: contractId });
+  checkDatabase(error);
+  return new Map(((data || []) as { user_id: string; display_name: string }[]).map(row => [row.user_id, row.display_name]));
+}
+export type StaleWork = { id: string; work_date: string; started_at: string; work_area_id: string };
+export async function siteDayFor(supabase: SupabaseClient, contractId: string, day: string) {
+  const now = new Date().toISOString();
+  const [locations, workforce, plans, actuals, absences, stale, names] = await Promise.all([
+    locationsFor(supabase, contractId), workforceFor(supabase),
+    supabase.from("planned_allocations").select(planColumns).eq("contract_id", contractId).lte("planned_start", day).gte("planned_end", day),
+    supabase.from("actual_allocations").select(actualColumns).eq("contract_id", contractId).eq("work_date", day).order("started_at"),
+    supabase.from("allocation_absences").select(absenceColumns).eq("contract_id", contractId).eq("work_date", day),
+    // Work from an earlier day that was never finished blocks today's records for those people.
+    supabase.from("actual_allocations").select("id,work_date,started_at,work_area_id").eq("contract_id", contractId).lt("work_date", day)
+      .is("ended_at", null).is("voided_at", null).order("work_date"),
+    actorNamesFor(supabase, contractId),
+  ]);
+  [plans, actuals, absences, stale].forEach(result => checkDatabase(result.error));
+  const [attendance, plannedOperatives] = await Promise.all([
+    attendanceFor(supabase, (actuals.data || []) as ActualAllocation[]), plannedOperativesFor(supabase, (plans.data || []) as PlannedAllocation[]),
+  ]);
+  const records: DayRecords = {
+    day, now, locations, plans: (plans.data || []) as PlannedAllocation[], plannedOperatives, actuals: (actuals.data || []) as ActualAllocation[],
+    attendance, absences: (absences.data || []) as Absence[], teams: workforce.teams, operatives: workforce.operatives,
+    memberships: workforce.memberships, companies: workforce.companies,
+  };
+  return { records, stale: (stale.data || []) as StaleWork[], names };
+}
+// Saved checks and open issues decide the dashboard's next action.
+export async function siteStatusFor(supabase: SupabaseClient, contractId: string, day: string) {
+  const [checks, issues] = await Promise.all([
+    supabase.from("supervisor_inspections").select("id,created_at,issues_count").eq("contract_id", contractId)
+      .gte("created_at", londonTimeToIso(day, "00:00")).order("created_at", { ascending: false }).limit(1),
+    supabase.from("supervisor_issues").select("id,state").eq("contract_id", contractId).neq("state", "closed"),
+  ]);
+  [checks, issues].forEach(result => checkDatabase(result.error));
+  return { lastCheck: (checks.data?.[0] ?? null) as { id: string; created_at: string; issues_count: number } | null, openIssues: (issues.data || []).length };
+}
+// Every period of work recorded on the contract between two days, with the
+// plans they belong to, for the history view.
+export async function workforceHistoryFor(supabase: SupabaseClient, contractId: string, from: string, to: string) {
+  const [locations, workforce, actuals, absences, names] = await Promise.all([
+    locationsFor(supabase, contractId), workforceFor(supabase),
+    supabase.from("actual_allocations").select(actualColumns).eq("contract_id", contractId).gte("work_date", from).lte("work_date", to)
+      .order("started_at", { ascending: false }).limit(500),
+    supabase.from("allocation_absences").select(absenceColumns).eq("contract_id", contractId).gte("work_date", from).lte("work_date", to),
+    actorNamesFor(supabase, contractId),
+  ]);
+  [actuals, absences].forEach(result => checkDatabase(result.error));
+  const allocations = (actuals.data || []) as ActualAllocation[];
+  const planIds = [...new Set([...allocations.map(item => item.planned_allocation_id), ...((absences.data || []) as Absence[]).map(item => item.planned_allocation_id)].filter(Boolean))] as string[];
+  const [attendance, plans] = await Promise.all([
+    attendanceFor(supabase, allocations),
+    planIds.length ? supabase.from("planned_allocations").select(planColumns).in("id", planIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  checkDatabase(plans.error);
+  return { locations, workforce, allocations, attendance, absences: (absences.data || []) as Absence[], plans: (plans.data || []) as PlannedAllocation[], names };
 }

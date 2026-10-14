@@ -77,6 +77,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       <div className={styles.inline}>
         <Link href="/admin/contracts" className={styles.secondaryButton}>Contract register</Link>
         {!installer && <Link href={`/admin/contracts/${id}/locations`} className={styles.secondaryButton}>Locations</Link>}
+        {!installer && <Link href={`/admin/contracts/${id}/actual`} className={styles.secondaryButton}>Planned vs actual</Link>}
         {!installer && <Link href={`/admin/contracts/${id}/plan`} className={styles.button}>{manage ? "Plan work" : "Work plan"}</Link>}
       </div>
     </div>

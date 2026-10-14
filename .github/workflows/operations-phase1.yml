@@ -34,7 +34,7 @@ jobs:
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,3 +56,20 @@ jobs:
       - run: npm run test:browser
       - run: npm run test:forms
       - run: npm run test:ui
+      # The end-to-end test runs the real app against PostgREST and a disposable
+      # PostgreSQL. The PostgREST release is pinned and checksum-verified.
+      - name: PostgREST for the end-to-end test
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/postgrest.tar.xz" https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
+          echo "9f71269e61ac3a940281e93ff415760f5957e430e475ba4c3889f3ede7d5527c  $RUNNER_TEMP/postgrest.tar.xz" | sha256sum -c -
+          tar -xf "$RUNNER_TEMP/postgrest.tar.xz" -C "$RUNNER_TEMP"
+          echo "POSTGREST_BIN=$RUNNER_TEMP/postgrest" >> "$GITHUB_ENV"
+      - run: npm run test:e2e
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/site-screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: supervisor-site-screenshots
+          path: ${{ runner.temp }}/site-screenshots
+          if-no-files-found: ignore
