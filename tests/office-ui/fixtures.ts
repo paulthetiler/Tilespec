@@ -1,6 +1,6 @@
 // Realistic but fictional records for the office UI harness only. They are
 // never written to any database and no application route serves them.
-import type { Location, Operative, PlannedAllocation, PlannedOperative, Team, TeamMembership, WorkPackage } from "@/lib/operations/types";
+import type { Company, CompanyAccreditation, CompanyInsurance, Location, Operative, PlannedAllocation, PlannedOperative, Team, TeamMembership, WorkPackage } from "@/lib/operations/types";
 
 export const today = "2026-10-14";
 export const contractId = "c0000000-0000-4000-8000-000000000001";
@@ -36,24 +36,52 @@ export const find = (path: string[]) => {
   return current;
 };
 
-export const teams: Team[] = [
-  { id: uuid("b", 1), organisation_id: "org", name: "Smith Tiling", kind: "subcontract_gang", contractor_name: "Smith Tiling Ltd", active: true, version: 1 },
-  { id: uuid("b", 2), organisation_id: "org", name: "Jones Installations", kind: "subcontract_gang", contractor_name: "Jones Installations", active: true, version: 1 },
-  { id: uuid("b", 3), organisation_id: "org", name: "Direct Team A", kind: "direct_team", contractor_name: "", active: true, version: 1 },
-  { id: uuid("b", 4), organisation_id: "org", name: "Old Snagging Crew", kind: "temporary", contractor_name: "", active: false, version: 2 },
+const company = (n: number, name: string, extra: Partial<Company> = {}): Company => ({
+  id: uuid("3", n), organisation_id: "org", name, company_number: "", contact_name: "", contact_phone: "", contact_email: "", address: "", notes: "",
+  active: true, version: 1, ...extra,
+});
+export const companies: Company[] = [
+  company(1, "Jones Installations", { contact_name: "Jo Jones", contact_phone: "07700 900456" }),
+  company(2, "Moss Tiling", { active: false, version: 3 }),
+  company(3, "Site Labour Agency", { contact_email: "bookings@labour.example" }),
+  company(4, "Smith Tiling Ltd", { contact_name: "Sam Smith", contact_phone: "07700 900123", contact_email: "office@smith-tiling.example", company_number: "01234567" }),
 ];
-const person = (n: number, display_name: string, engagement: Operative["engagement"], company_name: string, status: Operative["status"] = "active", user_id: string | null = null): Operative =>
-  ({ id: uuid("d", n), organisation_id: "org", display_name, engagement, company_name, user_id, status, version: 1 });
+export const smithCompany = uuid("3", 4);
+const insurance = (n: number, companyNumber: number, insurance_type: CompanyInsurance["insurance_type"], expires_on: string, extra: Partial<CompanyInsurance> = {}): CompanyInsurance => ({
+  id: uuid("4", n), company_id: uuid("3", companyNumber), insurance_type, insurer: "", policy_number: "", cover_amount: null, starts_on: null, expires_on,
+  notes: "", recorded_at: "2026-09-01T09:00:00Z", ...extra,
+});
+export const insurances: CompanyInsurance[] = [
+  insurance(1, 4, "public_liability", "2027-06-30", { insurer: "Example Mutual", policy_number: "PL-1002", cover_amount: 10000000, starts_on: "2026-07-01" }),
+  insurance(2, 4, "public_liability", "2026-06-30", { insurer: "Example Mutual", policy_number: "PL-1001", cover_amount: 5000000 }),
+  insurance(3, 4, "employers_liability", "2026-10-30", { insurer: "Example Mutual" }),
+  insurance(4, 1, "public_liability", "2026-10-03"),
+];
+export const accreditations: CompanyAccreditation[] = [
+  { id: uuid("5", 1), company_id: uuid("3", 4), scheme: "CHAS", reference: "CH-778", expires_on: "2027-03-31", notes: "", recorded_at: "2026-09-01T09:00:00Z" },
+  { id: uuid("5", 2), company_id: uuid("3", 1), scheme: "The Tile Association member", reference: "", expires_on: null, notes: "", recorded_at: "2026-09-01T09:00:00Z" },
+];
+
+export const teams: Team[] = [
+  { id: uuid("b", 1), organisation_id: "org", name: "Smith Tiling", kind: "subcontract_gang", company_id: smithCompany, active: true, version: 1 },
+  { id: uuid("b", 2), organisation_id: "org", name: "Jones Installations", kind: "subcontract_gang", company_id: uuid("3", 1), active: true, version: 1 },
+  { id: uuid("b", 3), organisation_id: "org", name: "Direct Team A", kind: "direct_team", company_id: null, active: true, version: 1 },
+  { id: uuid("b", 4), organisation_id: "org", name: "Old Snagging Crew", kind: "temporary", company_id: null, active: false, version: 2 },
+  { id: uuid("b", 5), organisation_id: "org", name: "Smith Tiling gang 2", kind: "subcontract_gang", company_id: smithCompany, active: true, version: 1 },
+];
+const person = (n: number, display_name: string, engagement: Operative["engagement"], companyNumber: number | null, status: Operative["status"] = "active", user_id: string | null = null): Operative =>
+  ({ id: uuid("d", n), organisation_id: "org", display_name, engagement, company_id: companyNumber === null ? null : uuid("3", companyNumber), user_id, status, version: 1 });
 export const operatives: Operative[] = [
-  person(1, "Sam Smith", "subcontractor", "Smith Tiling Ltd", "active", uuid("e", 1)),
-  person(2, "Tom Baker", "subcontractor", "Smith Tiling Ltd"),
-  person(3, "Lee Hart", "subcontractor", "Smith Tiling Ltd"),
-  person(4, "Jo Jones", "subcontractor", "Jones Installations"),
-  person(5, "Kim Lowe", "subcontractor", "Jones Installations"),
-  person(6, "Dan Price", "direct_employee", ""),
-  person(7, "Eve Shaw", "direct_employee", ""),
-  person(8, "Replacement Labourer", "agency", "Site Labour Agency", "provisional"),
-  person(9, "Ray Dunn", "subcontractor", "Smith Tiling Ltd", "inactive"),
+  person(1, "Sam Smith", "subcontractor", 4, "active", uuid("e", 1)),
+  person(2, "Tom Baker", "subcontractor", 4),
+  person(3, "Lee Hart", "subcontractor", 4),
+  person(4, "Jo Jones", "subcontractor", 1),
+  person(5, "Kim Lowe", "subcontractor", 1),
+  person(6, "Dan Price", "direct_employee", null),
+  person(7, "Eve Shaw", "direct_employee", null),
+  person(8, "Replacement Labourer", "agency", 3, "provisional"),
+  person(9, "Ray Dunn", "subcontractor", 4, "inactive"),
+  person(10, "Ben Ward", "subcontractor", 4),
 ];
 const member = (n: number, team: number, operative: number, valid_from: string, extra: Partial<TeamMembership> = {}): TeamMembership =>
   ({ id: uuid("f", n), team_id: uuid("b", team), operative_id: uuid("d", operative), is_lead: false, valid_from, valid_until: null, voided_at: null, end_reason: null, void_reason: null, ...extra });
@@ -68,6 +96,7 @@ export const memberships: TeamMembership[] = [
   member(8, 3, 7, "2026-08-01"),
   member(9, 1, 6, "2026-10-02", { voided_at: "2026-10-02T10:00:00Z", void_reason: "Added to the wrong team" }),
   member(10, 3, 3, "2026-10-20"),
+  member(11, 5, 10, "2026-09-01", { is_lead: true }),
 ];
 export const logins = [
   { user_id: uuid("e", 1), display_name: "Sam Smith" },

@@ -6,6 +6,7 @@ type DatabaseError = { code?: string; message?: string } | null;
 const writtenForPeople = new Set(["22023", "23514", "23P01", "23503", "23505", "40001"]);
 const knownConstraints: [RegExp, string][] = [
   [/teams_active_name/, "An active team already has that name."],
+  [/subcontractor_companies_name/, "A company with that name is already on record. Check the list, including inactive companies."],
   [/operatives_organisation_id_user_id_key/, "That login is already linked to another operative."],
   [/allocation_absences_once/, "That absence has already been recorded."],
 ];

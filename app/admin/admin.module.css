@@ -89,9 +89,14 @@
 .panelHeader { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
 .panelHeader h2 { margin-bottom: 0; }
 .badge,
+.okBadge,
+.dangerBadge,
 .warningBadge { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; padding: 4px 9px; border-radius: 4px; font-size: 11px; font-weight: 800; line-height: 1.6; letter-spacing: .02em; }
 .badge { background: #e8edef; color: #375363; }
 .warningBadge { background: #fff0d9; color: #80500b; border: 1px solid #edcf96; }
+.okBadge { background: #eaf6ef; color: #225e3e; border: 1px solid #acd2bb; }
+.dangerBadge { background: #fff0ee; color: #8a3228; border: 1px solid #e9bbb4; }
+.badgeRow { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
 .warning { background: #fff6e7; border: 1px solid #e8cf9e; border-left: 4px solid #bd7b1f; border-radius: 6px; color: #684910; padding: 16px 18px; margin-bottom: 22px; font-size: 14px; }
 .warning p:last-child { margin-bottom: 0; }
 .muted { color: var(--admin-muted); }
@@ -229,6 +234,7 @@ details[open] > summary .treeToggle::before { content: "▾"; }
 .planCard h4 { margin: 0; font-size: 16px; }
 .planActions,
 .rowActions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.cardActions { margin-top: 12px; }
 /* A disclosure that looks like a button: compact until opened, then full width. */
 .disclosure { min-width: 0; }
 .disclosure > summary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 16px; border: 1px solid #b7c9cf; border-radius: 6px; background: #fff; color: var(--admin-ink); font-size: 14px; list-style: none; }

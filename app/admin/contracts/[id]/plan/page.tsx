@@ -38,7 +38,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
     </div>
     {installer ? <p className={styles.empty}>Work plans are shared with the office and site supervisors. Your allocated work packages are on the contract page.</p>
       : <PlanBoard contractId={id} weekStart={monday} today={today} basePath={`/admin/contracts/${id}/plan`} canPlan={canManageContracts(member)} newKey={randomUUID}
-        locations={locations} teams={workforce.teams} operatives={workforce.operatives} memberships={workforce.memberships} packages={(packages.data ?? []) as WorkPackage[]}
+        locations={locations} companies={workforce.companies} teams={workforce.teams} operatives={workforce.operatives} memberships={workforce.memberships} packages={(packages.data ?? []) as WorkPackage[]}
         plans={planned.plans} plannedOperatives={planned.plannedOperatives} actions={{ plan: planAllocationAction, cancel: cancelPlanAction }} />}
   </>;
 }

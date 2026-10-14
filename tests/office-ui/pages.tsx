@@ -23,7 +23,7 @@ function Frame({ children }: { children: React.ReactNode }) {
 function Workforce() {
   const company = useSearchParams().get("company");
   return <Frame><h1 className={styles.title}>Workforce</h1>
-    <WorkforceView teams={fixture.teams} operatives={fixture.operatives} memberships={fixture.memberships} logins={fixture.logins} company={company}
+    <WorkforceView companies={fixture.companies} insurances={fixture.insurances} accreditations={fixture.accreditations} teams={fixture.teams} operatives={fixture.operatives} memberships={fixture.memberships} logins={fixture.logins} company={company}
       today={fixture.today} newKey={newKey} actions={workforceActions} basePath="/workforce" />
   </Frame>;
 }
@@ -50,7 +50,7 @@ export function LocationsPage() {
 export function PlanPage() {
   return <Frame><h1 className={styles.title}>Plan work</h1>
     <PlanBoard contractId={fixture.contractId} weekStart="2026-10-12" today={fixture.today} basePath="/plan" canPlan newKey={newKey}
-      locations={fixture.locations} teams={fixture.teams} operatives={fixture.operatives} memberships={fixture.memberships} packages={fixture.packages}
+      locations={fixture.locations} companies={fixture.companies} teams={fixture.teams} operatives={fixture.operatives} memberships={fixture.memberships} packages={fixture.packages}
       plans={fixture.plans} plannedOperatives={fixture.plannedOperatives} actions={planActions} />
   </Frame>;
 }

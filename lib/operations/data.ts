@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AuditEvent, Commercial, Contract, DocumentRevision, Location, Member, Operative, PlannedAllocation, PlannedOperative, Team, TeamMembership, WorkArea, WorkPackage } from "./types";
+import type { AuditEvent, Commercial, Company, CompanyAccreditation, CompanyInsurance, Contract, DocumentRevision, Location, Member, Operative, PlannedAllocation, PlannedOperative, Team, TeamMembership, WorkArea, WorkPackage } from "./types";
 import { rpcErrorMessage } from "./errors";
 
 export function checkDatabase(error: { code?: string } | null) {
@@ -47,13 +47,24 @@ export async function locationsFor(supabase: SupabaseClient, contractId: string)
   return (data || []) as Location[];
 }
 export async function workforceFor(supabase: SupabaseClient) {
-  const [teams, operatives, memberships] = await Promise.all([
-    supabase.from("teams").select("id,organisation_id,name,kind,contractor_name,active,version").order("name"),
-    supabase.from("operatives").select("id,organisation_id,display_name,engagement,company_name,user_id,status,version").order("display_name"),
+  const [companies, teams, operatives, memberships] = await Promise.all([
+    supabase.from("subcontractor_companies").select("id,organisation_id,name,company_number,contact_name,contact_phone,contact_email,address,notes,active,version").order("name"),
+    supabase.from("teams").select("id,organisation_id,name,kind,company_id,active,version").order("name"),
+    supabase.from("operatives").select("id,organisation_id,display_name,engagement,company_id,user_id,status,version").order("display_name"),
     supabase.from("team_memberships").select("id,team_id,operative_id,is_lead,valid_from,valid_until,voided_at,end_reason,void_reason").order("valid_from"),
   ]);
-  [teams, operatives, memberships].forEach(result => checkDatabase(result.error));
-  return { teams: teams.data as Team[], operatives: operatives.data as Operative[], memberships: memberships.data as TeamMembership[] };
+  [companies, teams, operatives, memberships].forEach(result => checkDatabase(result.error));
+  return { companies: companies.data as Company[], teams: teams.data as Team[], operatives: operatives.data as Operative[], memberships: memberships.data as TeamMembership[] };
+}
+// Current (not voided) insurance and accreditation entries for every company.
+export async function companyRecordsFor(supabase: SupabaseClient) {
+  const [insurances, accreditations] = await Promise.all([
+    supabase.from("company_insurances").select("id,company_id,insurance_type,insurer,policy_number,cover_amount,starts_on,expires_on,notes,recorded_at")
+      .is("voided_at", null).order("expires_on", { ascending: false }),
+    supabase.from("company_accreditations").select("id,company_id,scheme,reference,expires_on,notes,recorded_at").is("voided_at", null).order("scheme"),
+  ]);
+  [insurances, accreditations].forEach(result => checkDatabase(result.error));
+  return { insurances: insurances.data as CompanyInsurance[], accreditations: accreditations.data as CompanyAccreditation[] };
 }
 // Every plan touching the period, including revised and cancelled ones so the
 // history of changes stays visible.

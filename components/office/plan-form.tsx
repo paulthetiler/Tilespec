@@ -2,18 +2,18 @@
 
 import { useState } from "react";
 import { membershipOnDay } from "@/lib/operations/planning";
-import { installationStageLabels, installationStages, type Location, type Operative, type PlannedAllocation, type Team, type TeamMembership, type WorkPackage } from "@/lib/operations/types";
+import { installationStageLabels, installationStages, type Company, type Location, type Operative, type PlannedAllocation, type Team, type TeamMembership, type WorkPackage } from "@/lib/operations/types";
 import { LocationPicker } from "./location-picker";
 import styles from "@/app/admin/admin.module.css";
 
 type Props = {
-  locations: Location[]; teams: Team[]; operatives: Operative[]; memberships: TeamMembership[]; packages: WorkPackage[];
+  locations: Location[]; companies: Company[]; teams: Team[]; operatives: Operative[]; memberships: TeamMembership[]; packages: WorkPackage[];
   today: string; plan?: PlannedAllocation & { operative_ids: string[] };
 };
 
 // Where, who, what stage and when. Naming people is optional: the supervisor
 // confirms who actually attends on site.
-export function PlanForm({ locations, teams, operatives, memberships, packages, today, plan }: Props) {
+export function PlanForm({ locations, companies, teams, operatives, memberships, packages, today, plan }: Props) {
   const [locationId, setLocationId] = useState<string | null>(plan?.work_area_id ?? null);
   const [teamId, setTeamId] = useState(plan?.team_id ?? "");
   const [firstDay, setFirstDay] = useState(plan?.planned_start ?? today);
@@ -27,6 +27,7 @@ export function PlanForm({ locations, teams, operatives, memberships, packages, 
   const people = operatives.filter(person => memberIds.has(person.id) && person.status === "active");
   const lead = memberships.find(m => m.team_id === teamId && m.is_lead && membershipOnDay(m, firstDay));
   const choosable = teams.filter(team => team.active || team.id === plan?.team_id);
+  const companyName = (team: Team) => companies.find(company => company.id === team.company_id)?.name;
   return (
     <div className={styles.form}>
       <LocationPicker name="work_area_id" label="Where *" locations={locations} defaultValue={plan?.work_area_id ?? null} onChange={setLocationId}
@@ -34,7 +35,7 @@ export function PlanForm({ locations, teams, operatives, memberships, packages, 
       <div className={styles.formGrid}>
         <label className={styles.field}>Which team *<select name="team_id" required value={teamId} onChange={event => setTeamId(event.target.value)}>
           <option value="" disabled>Choose a team</option>
-          {choosable.map(team => <option key={team.id} value={team.id}>{team.name}{team.contractor_name && team.contractor_name !== team.name ? ` (${team.contractor_name})` : ""}</option>)}
+          {choosable.map(team => <option key={team.id} value={team.id}>{team.name}{companyName(team) ? ` (${companyName(team)})` : ""}</option>)}
         </select></label>
         <label className={styles.field}>Stage *<select name="stage" required defaultValue={plan?.stage ?? "installation"}>
           {installationStages.map(stage => <option key={stage} value={stage}>{installationStageLabels[stage]}</option>)}

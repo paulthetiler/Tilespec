@@ -3,8 +3,12 @@ import assert from "node:assert/strict";
 import { buildLocationItems, splitNames, subtreeIds, type LocationBuilderInput } from "../lib/operations/locations";
 import { addDays, isCalendarDate, londonDate, membershipOnDay, planCoversDay, planOverlaps, planStatus, weekDays, weekStart } from "../lib/operations/planning";
 import { rpcErrorMessage } from "../lib/operations/errors";
-import { locationBuilderInput, locationUpdateInput, membershipInput, operativeInput, operativeUpdateInput, planInput, teamInput, ValidationError } from "../lib/operations/validation";
-import type { Location } from "../lib/operations/types";
+import { accreditationSummary, coverStatus, daysUntil, insuranceSummary } from "../lib/operations/companies";
+import {
+  accreditationInput, companyInput, companyUpdateInput, insuranceInput, locationBuilderInput, locationUpdateInput, membershipInput,
+  operativeInput, operativeUpdateInput, planInput, teamInput, ValidationError,
+} from "../lib/operations/validation";
+import type { CompanyAccreditation, CompanyInsurance, Location } from "../lib/operations/types";
 
 const series = (overrides: Partial<LocationBuilderInput>): LocationBuilderInput => ({ mode: "series", label: "Flat", from: "51", to: "58", names: "", rooms: "", ...overrides });
 const form = (values: Record<string, string | string[]>) => {
@@ -71,14 +75,17 @@ test("plan state, coverage and membership are read from the records, never assum
 });
 
 test("office forms produce exactly the payload the database functions accept", () => {
-  assert.deepEqual(operativeInput(form({ display_name: " Sam Smith ", engagement: "subcontractor", company_name: "Smith Tiling Ltd", user_id: id(1) }), true),
-    { display_name: "Sam Smith", engagement: "subcontractor", company_name: "Smith Tiling Ltd", user_id: id(1) });
+  assert.deepEqual(operativeInput(form({ display_name: " Sam Smith ", engagement: "subcontractor", company_id: id(8), user_id: id(1) }), true),
+    { display_name: "Sam Smith", engagement: "subcontractor", company_id: id(8), user_id: id(1) });
   assert.equal("user_id" in operativeInput(form({ display_name: "Sam", engagement: "agency", user_id: id(1) }), false), false);
-  assert.deepEqual(operativeUpdateInput(form({ display_name: "Sam", engagement: "agency", status: "inactive", user_id: "" })),
-    { display_name: "Sam", engagement: "agency", company_name: "", user_id: null, status: "inactive" });
+  assert.deepEqual(operativeUpdateInput(form({ display_name: "Sam", engagement: "agency", status: "inactive", user_id: "", company_id: "" })),
+    { display_name: "Sam", engagement: "agency", company_id: null, user_id: null, status: "inactive" });
+  assert.equal(operativeInput(form({ display_name: "Dan", engagement: "direct_employee", company_id: id(8) }), true).company_id, null);
   assert.throws(() => operativeInput(form({ display_name: "Sam", engagement: "freelance" }), true), ValidationError);
-  assert.deepEqual(teamInput(form({ name: "Smith Tiling", kind: "subcontract_gang", contractor_name: "Smith Tiling Ltd" })),
-    { name: "Smith Tiling", kind: "subcontract_gang", contractor_name: "Smith Tiling Ltd" });
+  assert.throws(() => operativeInput(form({ display_name: "Sam", engagement: "subcontractor", company_id: "Smith Tiling Ltd" }), true), ValidationError);
+  assert.deepEqual(teamInput(form({ name: "Smith Tiling", kind: "subcontract_gang", company_id: id(8) })),
+    { name: "Smith Tiling", kind: "subcontract_gang", company_id: id(8) });
+  assert.equal(teamInput(form({ name: "Direct Team A", kind: "direct_team", company_id: id(8) })).company_id, null);
   assert.deepEqual(membershipInput(form({ team_id: id(2), operative_id: id(3), valid_from: "2026-10-14", is_lead: "on" })),
     { team_id: id(2), operative_id: id(3), valid_from: "2026-10-14", is_lead: true });
   assert.deepEqual(locationUpdateInput(form({ name: "Flat 52", location_type: "Flat", code: "52", description: "", parent_id: "" })),
@@ -107,4 +114,48 @@ test("database messages written for people are shown; raw PostgreSQL text never 
   assert.equal(rpcErrorMessage({ code: "42501", message: "Office permission required" }), "You do not have permission for this operation.");
   assert.equal(rpcErrorMessage({ code: "40001", message: "That plan has already been revised or cancelled; reload the current plan" }), "That plan has already been revised or cancelled; reload the current plan");
   assert.equal(rpcErrorMessage({ code: "PGRST301", message: "JWT expired" }), "The record could not be saved. Check your connection and try again.");
+  assert.equal(rpcErrorMessage({ code: "23514", message: "This company still has 2 active teams. Deactivate them or link them to another company first." }),
+    "This company still has 2 active teams. Deactivate them or link them to another company first.");
+  assert.equal(rpcErrorMessage({ code: "23505", message: 'duplicate key value violates unique constraint "subcontractor_companies_name"' }),
+    "A company with that name is already on record. Check the list, including inactive companies.");
+});
+
+test("company, insurance and accreditation forms produce the payload the database functions accept", () => {
+  const details = { name: "  Smith   Tiling Ltd ", contact_name: "Sam Smith", contact_phone: "07700 900123", contact_email: "office@smith.example", company_number: "01234567", address: "", notes: "" };
+  assert.deepEqual(companyInput(form(details)),
+    { name: "Smith Tiling Ltd", company_number: "01234567", contact_name: "Sam Smith", contact_phone: "07700 900123", contact_email: "office@smith.example", address: "", notes: "" });
+  assert.equal(companyUpdateInput(form({ ...details, active: "on" })).active, true);
+  assert.equal(companyUpdateInput(form(details)).active, false);
+  assert.throws(() => companyInput(form({ ...details, contact_email: "office at smith" })), /valid contact email/);
+  assert.throws(() => companyInput(form({ ...details, name: " " })), ValidationError);
+  assert.deepEqual(insuranceInput(form({ company_id: id(8), insurance_type: "public_liability", expires_on: "2027-06-30", starts_on: "2026-07-01", cover_amount: "£10,000,000", insurer: "Example Mutual", policy_number: "PL-1" })),
+    { company_id: id(8), insurance_type: "public_liability", insurer: "Example Mutual", policy_number: "PL-1", cover_amount: 10000000, starts_on: "2026-07-01", expires_on: "2027-06-30", notes: "" });
+  assert.deepEqual(insuranceInput(form({ company_id: id(8), insurance_type: "employers_liability", expires_on: "2027-01-31", cover_amount: "", starts_on: "" })),
+    { company_id: id(8), insurance_type: "employers_liability", insurer: "", policy_number: "", expires_on: "2027-01-31", notes: "" });
+  assert.throws(() => insuranceInput(form({ company_id: id(8), insurance_type: "public_liability", expires_on: "" })), /expiry date/);
+  assert.throws(() => insuranceInput(form({ company_id: id(8), insurance_type: "public_liability", expires_on: "2027-01-01", starts_on: "2027-02-01" })), /on or after/);
+  assert.throws(() => insuranceInput(form({ company_id: id(8), insurance_type: "public_liability", expires_on: "2027-01-01", cover_amount: "5m" })), /whole pounds/);
+  assert.throws(() => insuranceInput(form({ company_id: id(8), insurance_type: "van", expires_on: "2027-01-01" })), /type of insurance/);
+  assert.deepEqual(accreditationInput(form({ company_id: id(8), scheme: "CHAS", reference: "CH-778", expires_on: "" })),
+    { company_id: id(8), scheme: "CHAS", reference: "CH-778", notes: "" });
+  assert.throws(() => accreditationInput(form({ company_id: id(8), scheme: "" })), ValidationError);
+});
+
+test("cover status uses each policy's latest renewal and warns 30 days ahead", () => {
+  const today = "2026-10-14";
+  assert.deepEqual(["2026-10-13", "2026-10-14", "2026-11-13", "2026-11-14", null].map(date => coverStatus(date, today)), ["expired", "expiring", "expiring", "valid", "valid"]);
+  assert.equal(daysUntil("2026-10-30", today), 16);
+  const entry = (insurance_type: CompanyInsurance["insurance_type"], expires_on: string, company_id = "smith"): CompanyInsurance =>
+    ({ id: `${company_id}-${insurance_type}-${expires_on}`, company_id, insurance_type, insurer: "", policy_number: "", cover_amount: null, starts_on: null, expires_on, notes: "", recorded_at: "" });
+  const renewed = [entry("public_liability", "2026-06-30"), entry("public_liability", "2027-06-30"), entry("public_liability", "2026-01-01", "jones")];
+  assert.equal(insuranceSummary(renewed, "smith", today).status, "valid");
+  const mixed = insuranceSummary([...renewed, entry("employers_liability", "2026-10-30")], "smith", today);
+  assert.equal(mixed.status, "expiring");
+  assert.equal(mixed.attention?.entry.insurance_type, "employers_liability");
+  assert.equal(insuranceSummary(renewed, "jones", today).status, "expired");
+  assert.deepEqual(insuranceSummary(renewed, "agency", today), { status: "none", policies: [], attention: null });
+  const accreditation = (scheme: string, expires_on: string | null): CompanyAccreditation => ({ id: scheme + expires_on, company_id: "smith", scheme, reference: "", expires_on, notes: "", recorded_at: "" });
+  const schemes = accreditationSummary([accreditation("CHAS", "2025-03-31"), accreditation("chas", "2027-03-31"), accreditation("TTA member", null)], "smith", today);
+  assert.equal(schemes.status, "valid");
+  assert.deepEqual(schemes.schemes.map(item => item.entry.expires_on), ["2027-03-31", null]);
 });

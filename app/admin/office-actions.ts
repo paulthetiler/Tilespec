@@ -5,12 +5,12 @@ import { requireActor, canManageContracts } from "@/lib/auth";
 import { checkRpc } from "@/lib/operations/data";
 import { buildLocationItems } from "@/lib/operations/locations";
 import {
-  integer, locationBuilderInput, locationUpdateInput, membershipInput, operativeInput, operativeUpdateInput, planInput,
-  requiredDate, teamInput, text, uuid, ValidationError,
+  accreditationInput, companyInput, companyUpdateInput, insuranceInput, integer, locationBuilderInput, locationUpdateInput,
+  membershipInput, operativeInput, operativeUpdateInput, planInput, requiredDate, teamInput, text, uuid, ValidationError,
 } from "@/lib/operations/validation";
 import type { ActionState } from "@/lib/operations/types";
 
-// Office screens for Supervisor V2. Every write is a Phase 1 database function
+// Office screens for Supervisor V2. Every write is a Supervisor V2 database function
 // called with the signed-in user's own session; row-level security and the
 // function's checks decide what is allowed. Pages refresh only after success.
 const failure = (error: unknown): ActionState => ({ error: error instanceof Error ? error.message : "The change could not be saved. Try again." });
@@ -20,6 +20,55 @@ function reason(form: FormData, required: boolean) {
   return value;
 }
 
+export async function createCompanyAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const { supabase } = await requireActor();
+  try {
+    const input = companyInput(form);
+    checkRpc((await supabase.rpc("create_company", { p_request_key: uuid(form, "request_key"), p_data: input })).error);
+    revalidatePath("/admin/workforce");
+    return { success: `${input.name} added. Link its gangs and operatives to it below.` };
+  } catch (error) { return failure(error); }
+}
+export async function updateCompanyAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const { supabase } = await requireActor();
+  try {
+    checkRpc((await supabase.rpc("update_company", { p_company: uuid(form, "company_id"), p_version: integer(form, "version", 1), p_data: companyUpdateInput(form) })).error);
+    revalidatePath("/admin/workforce");
+    return { success: "Company saved." };
+  } catch (error) { return failure(error); }
+}
+export async function recordInsuranceAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const { supabase } = await requireActor();
+  try {
+    checkRpc((await supabase.rpc("record_company_insurance", { p_request_key: uuid(form, "request_key"), p_data: insuranceInput(form) })).error);
+    revalidatePath("/admin/workforce");
+    return { success: "Insurance recorded." };
+  } catch (error) { return failure(error); }
+}
+export async function recordAccreditationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const { supabase } = await requireActor();
+  try {
+    checkRpc((await supabase.rpc("record_company_accreditation", { p_request_key: uuid(form, "request_key"), p_data: accreditationInput(form) })).error);
+    revalidatePath("/admin/workforce");
+    return { success: "Accreditation recorded." };
+  } catch (error) { return failure(error); }
+}
+export async function voidInsuranceAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const { supabase } = await requireActor();
+  try {
+    checkRpc((await supabase.rpc("void_company_insurance", { p_insurance: uuid(form, "record_id"), p_reason: reason(form, true) })).error);
+    revalidatePath("/admin/workforce");
+    return { success: "Marked as entered in error. The entry is kept with your reason." };
+  } catch (error) { return failure(error); }
+}
+export async function voidAccreditationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const { supabase } = await requireActor();
+  try {
+    checkRpc((await supabase.rpc("void_company_accreditation", { p_accreditation: uuid(form, "record_id"), p_reason: reason(form, true) })).error);
+    revalidatePath("/admin/workforce");
+    return { success: "Marked as entered in error. The entry is kept with your reason." };
+  } catch (error) { return failure(error); }
+}
 export async function createOperativeAction(_: ActionState, form: FormData): Promise<ActionState> {
   const { supabase, member } = await requireActor();
   try {

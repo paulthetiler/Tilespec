@@ -1,4 +1,4 @@
-import { installationStages, roles } from "./types";
+import { installationStages, insuranceTypes, roles } from "./types";
 import type { LocationBuilderInput } from "./locations";
 
 export class ValidationError extends Error {}
@@ -96,12 +96,18 @@ export function requiredDate(form: FormData, key: string, label: string) {
   if (!value) throw new ValidationError(`Enter the ${label}.`);
   return value;
 }
+// Directly employed people and direct teams are never linked to a company, so
+// a company chosen before switching to those kinds is dropped, not sent.
+function companyFor(form: FormData, direct: boolean) {
+  return direct ? null : optionalUuid(form, "company_id");
+}
 export function operativeInput(form: FormData, canLinkLogin: boolean) {
   const userId = canLinkLogin ? optionalUuid(form, "user_id") : null;
+  const engagement = choice(form, "engagement", engagements, "Choose how this person is engaged.");
   return {
     display_name: text(form, "display_name", 160, true),
-    engagement: choice(form, "engagement", engagements, "Choose how this person is engaged."),
-    company_name: text(form, "company_name", 160),
+    engagement,
+    company_id: companyFor(form, engagement === "direct_employee"),
     ...(userId ? { user_id: userId } : {}),
   };
 }
@@ -111,10 +117,41 @@ export function operativeUpdateInput(form: FormData) {
   return { ...operativeInput(form, false), user_id: optionalUuid(form, "user_id"), status };
 }
 export function teamInput(form: FormData) {
+  const kind = choice(form, "kind", teamKinds, "Choose what kind of team this is.");
+  return { name: text(form, "name", 160, true), kind, company_id: companyFor(form, kind === "direct_team") };
+}
+export function companyInput(form: FormData) {
+  const email = text(form, "contact_email", 254);
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ValidationError("Enter a valid contact email address, or leave it blank.");
   return {
-    name: text(form, "name", 160, true),
-    kind: choice(form, "kind", teamKinds, "Choose what kind of team this is."),
-    contractor_name: text(form, "contractor_name", 160),
+    name: text(form, "name", 160, true).replace(/\s+/g, " "),
+    company_number: text(form, "company_number", 40), contact_name: text(form, "contact_name", 160),
+    contact_phone: text(form, "contact_phone", 40), contact_email: email,
+    address: text(form, "address", 1000), notes: text(form, "notes", 4000),
+  };
+}
+export function companyUpdateInput(form: FormData) {
+  return { ...companyInput(form), active: form.get("active") === "on" };
+}
+export function insuranceInput(form: FormData) {
+  const insurance_type = choice(form, "insurance_type", insuranceTypes, "Choose the type of insurance.");
+  const starts_on = date(form, "starts_on");
+  const expires_on = requiredDate(form, "expires_on", "expiry date");
+  if (starts_on && expires_on < starts_on) throw new ValidationError("The expiry date must be on or after the start date.");
+  const cover = text(form, "cover_amount", 25).replace(/[£,\s]/g, "");
+  if (cover && (!/^\d{1,10}$/.test(cover) || Number(cover) > 2_000_000_000)) throw new ValidationError("Enter the cover in whole pounds, for example 5000000.");
+  return {
+    company_id: uuid(form, "company_id"), insurance_type,
+    insurer: text(form, "insurer", 160), policy_number: text(form, "policy_number", 80),
+    ...(cover ? { cover_amount: Number(cover) } : {}), ...(starts_on ? { starts_on } : {}), expires_on,
+    notes: text(form, "notes", 2000),
+  };
+}
+export function accreditationInput(form: FormData) {
+  const expires_on = date(form, "expires_on");
+  return {
+    company_id: uuid(form, "company_id"), scheme: text(form, "scheme", 160, true), reference: text(form, "reference", 80),
+    ...(expires_on ? { expires_on } : {}), notes: text(form, "notes", 2000),
   };
 }
 export function membershipInput(form: FormData) {

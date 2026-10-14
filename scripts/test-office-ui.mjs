@@ -199,17 +199,50 @@ try {
   await smith.getByText('Transferred to Jones Installations').waitFor();
   await smith.getByText('Entered in error: Added to the wrong team').waitFor();
   pass('a team shows current members, future starters and kept history; it never offers current or inactive people');
-  await page.getByRole('link', { name: /^Smith Tiling Ltd/ }).click();
-  await page.waitForURL(/company=Smith/);
-  assert.equal(await page.locator('article').count(), 1);
+  // Companies: one record per subcontractor, with cover status at a glance.
+  const companies = page.getByRole('region', { name: 'Subcontractor companies' });
+  const badges = async name => (await companies.getByRole('list', { name: `${name} insurance and accreditations` }).getByRole('listitem').allTextContents()).map(text => text.trim());
+  assert.deepEqual(await badges('Smith Tiling Ltd'), ["Employer's liability expires in 16 days", 'CHAS to 31 Mar 2027']);
+  assert.deepEqual(await badges('Jones Installations'), ['Public liability expired 3 Oct 2026', 'The Tile Association member']);
+  assert.deepEqual(await badges('Site Labour Agency'), ['No insurance recorded']);
+  const smithCompany = companies.locator('article', { has: page.getByRole('heading', { name: 'Smith Tiling Ltd', exact: true }) });
+  await smithCompany.getByText('2 active gangs · 4 operatives').waitFor();
+  await companies.locator('article', { has: page.getByRole('heading', { name: 'Moss Tiling', exact: true }) }).getByText('Inactive').waitFor();
+  pass('each company shows its contact, active gangs and people, and whether insurance is valid, expiring or expired');
+  await companies.locator('summary', { hasText: '+ Add a company' }).click();
+  const addCompany = companies.locator('details', { has: page.locator('summary', { hasText: '+ Add a company' }) }).locator('form');
+  await addCompany.getByLabel('Company name *').fill('  Wet Area   Specialists ');
+  await addCompany.getByLabel('Contact phone').fill('0113 496 0001');
+  await addCompany.getByLabel('Contact email').fill('jobs@wet-areas.example');
+  await addCompany.getByRole('button', { name: 'Add company' }).click();
+  const newCompany = await submitted(addCompany);
+  assert.deepEqual(newCompany.data, { name: 'Wet Area Specialists', company_number: '', contact_name: '', contact_phone: '0113 496 0001', contact_email: 'jobs@wet-areas.example', address: '', notes: '' });
+  pass('a new company is submitted once with its contact details and a tidy name');
+  await smithCompany.locator('summary', { hasText: 'Manage company' }).click();
+  await smithCompany.locator('summary', { hasText: 'Insurance (3)' }).click();
+  const insuranceForm = smithCompany.locator('form', { has: page.getByRole('button', { name: 'Record insurance' }) });
+  await insuranceForm.getByLabel('Type *').selectOption({ label: "Employer's liability" });
+  await insuranceForm.getByLabel('Expiry date *').fill('2027-10-30');
+  await insuranceForm.getByLabel('Cover (£)').fill('£10,000,000');
+  await insuranceForm.getByRole('button', { name: 'Record insurance' }).click();
+  const renewal = await submitted(insuranceForm);
+  assert.deepEqual(renewal.data, { company_id: '30000000-0000-4000-8000-000000000004', insurance_type: 'employers_liability', insurer: '', policy_number: '', cover_amount: 10000000, expires_on: '2027-10-30', notes: '' });
+  pass('a renewed policy is recorded as a new entry against the company ID; the earlier entries stay as history');
+
+  // Gangs and people link to the company by ID; one company runs several gangs.
+  await page.getByRole('navigation', { name: 'Filter by company' }).getByRole('link', { name: /^Smith Tiling Ltd/ }).click();
+  await page.waitForURL(/company=30000000-0000-4000-8000-000000000004/);
+  assert.deepEqual(await page.getByRole('region', { name: 'Gangs and teams' }).getByRole('heading', { level: 3 }).allTextContents(), ['Smith Tiling', 'Smith Tiling gang 2']);
+  assert.equal(await page.getByRole('region', { name: 'Subcontractor companies' }).locator('article').count(), 1);
   await page.locator('summary', { hasText: '+ Add an operative' }).click();
   const addPerson = page.locator('details', { has: page.locator('summary', { hasText: '+ Add an operative' }) }).locator('form');
-  assert.equal(await addPerson.getByLabel('Company').inputValue(), 'Smith Tiling Ltd');
+  assert.equal(await addPerson.getByLabel('Company').inputValue(), '30000000-0000-4000-8000-000000000004');
+  assert.equal(await addPerson.getByLabel('Company').locator('option', { hasText: 'Moss Tiling' }).count(), 0);
   await addPerson.getByLabel('Full name *').fill('New Tiler');
   await addPerson.getByRole('button', { name: 'Add operative' }).click();
   const person = await submitted(addPerson);
-  assert.deepEqual(person.data, { display_name: 'New Tiler', engagement: 'subcontractor', company_name: 'Smith Tiling Ltd' });
-  pass('filtering by company narrows everything and pre-fills that company for new people');
+  assert.deepEqual(person.data, { display_name: 'New Tiler', engagement: 'subcontractor', company_id: '30000000-0000-4000-8000-000000000004' });
+  pass('filtering by company shows its two gangs and pre-selects that company, by ID, for new people; inactive companies are not offered');
   assert.deepEqual(consoleErrors, [], 'browser console errors');
   pass('no browser console errors or React warnings on any screen');
 } finally {

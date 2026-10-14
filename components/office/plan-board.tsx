@@ -3,7 +3,7 @@ import { OperationsForm } from "@/components/operations/operations-form";
 import { calendarDate, eventDate } from "@/components/operations/format";
 import { indexLocations, locationPath } from "@/lib/operations/locations";
 import { addDays, dayLabel, planCoversDay, planOverlaps, planStatus, weekDays } from "@/lib/operations/planning";
-import { installationStageLabels, type ActionState, type Location, type Operative, type PlannedAllocation, type PlannedOperative, type Team, type TeamMembership, type WorkPackage } from "@/lib/operations/types";
+import { installationStageLabels, type ActionState, type Company, type Location, type Operative, type PlannedAllocation, type PlannedOperative, type Team, type TeamMembership, type WorkPackage } from "@/lib/operations/types";
 import { PlanForm } from "./plan-form";
 import styles from "@/app/admin/admin.module.css";
 
@@ -11,14 +11,15 @@ type Action = (state: ActionState, form: FormData) => Promise<ActionState>;
 type Plan = PlannedAllocation & { cancel_reason?: string | null };
 type Props = {
   contractId: string; weekStart: string; today: string; basePath: string; canPlan: boolean; newKey: () => string;
-  locations: Location[]; teams: Team[]; operatives: Operative[]; memberships: TeamMembership[]; packages: WorkPackage[];
+  locations: Location[]; companies: Company[]; teams: Team[]; operatives: Operative[]; memberships: TeamMembership[]; packages: WorkPackage[];
   plans: Plan[]; plannedOperatives: PlannedOperative[]; actions: { plan: Action; cancel: Action };
 };
 
-export function PlanBoard({ contractId, weekStart, today, basePath, canPlan, newKey, locations, teams, operatives, memberships, packages, plans, plannedOperatives, actions }: Props) {
+export function PlanBoard({ contractId, weekStart, today, basePath, canPlan, newKey, locations, companies, teams, operatives, memberships, packages, plans, plannedOperatives, actions }: Props) {
   const days = weekDays(weekStart), weekEnd = days[6];
   const index = indexLocations(locations);
   const names = new Map(operatives.map(person => [person.id, person.display_name]));
+  const companyNames = new Map(companies.map(company => [company.id, company.name]));
   const namedFor = (planId: string) => plannedOperatives.filter(item => item.planned_allocation_id === planId).map(item => item.operative_id);
   const active = plans.filter(plan => planStatus(plan) === "active" && planOverlaps(plan, weekStart, weekEnd));
   const changed = plans.filter(plan => planStatus(plan) !== "active" && planOverlaps(plan, weekStart, weekEnd));
@@ -32,7 +33,7 @@ export function PlanBoard({ contractId, weekStart, today, basePath, canPlan, new
       <input type="hidden" name="contract_id" value={contractId} />
       <input type="hidden" name="request_key" value={requestKey} />
       {plan && <input type="hidden" name="supersedes_id" value={plan.id} />}
-      <PlanForm key={requestKey} locations={locations} teams={teams} operatives={operatives} memberships={memberships} packages={packages} today={today}
+      <PlanForm key={requestKey} locations={locations} companies={companies} teams={teams} operatives={operatives} memberships={memberships} packages={packages} today={today}
         plan={plan ? { ...plan, operative_ids: namedFor(plan.id) } : undefined} />
     </>;
   };
@@ -61,7 +62,7 @@ export function PlanBoard({ contractId, weekStart, today, basePath, canPlan, new
         const team = teams.find(item => item.id === teamId);
         const lead = memberships.find(m => m.team_id === teamId && m.is_lead && !m.voided_at && m.valid_from <= weekEnd && (m.valid_until === null || m.valid_until >= weekStart));
         return <div key={teamId} className={styles.teamBlock}>
-          <h3>{team?.name ?? "Team"}<span className={styles.small}>{team?.contractor_name && team.contractor_name !== team.name ? ` · ${team.contractor_name}` : ""}{lead ? ` · Lead: ${names.get(lead.operative_id)}` : ""}</span></h3>
+          <h3>{team?.name ?? "Team"}<span className={styles.small}>{team?.company_id && companyNames.has(team.company_id) ? ` · ${companyNames.get(team.company_id)}` : ""}{lead ? ` · Lead: ${names.get(lead.operative_id)}` : ""}</span></h3>
           {active.filter(plan => plan.team_id === teamId).sort((a, b) => a.planned_start.localeCompare(b.planned_start)).map(plan => {
             const named = namedFor(plan.id);
             return <article key={plan.id} className={styles.planCard}>

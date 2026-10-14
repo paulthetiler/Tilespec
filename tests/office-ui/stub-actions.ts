@@ -3,7 +3,8 @@
 // send to the database, so tests prove the screens submit valid requests.
 import { buildLocationItems } from "@/lib/operations/locations";
 import {
-  locationBuilderInput, locationUpdateInput, membershipInput, operativeInput, operativeUpdateInput, planInput, teamInput, text, uuid,
+  accreditationInput, companyInput, companyUpdateInput, insuranceInput, locationBuilderInput, locationUpdateInput, membershipInput,
+  operativeInput, operativeUpdateInput, planInput, teamInput, text, uuid,
 } from "@/lib/operations/validation";
 import type { ActionState } from "@/lib/operations/types";
 
@@ -17,6 +18,12 @@ function stub(parse: Parser) {
 }
 const withKey = (parse: Parser): Parser => form => ({ request_key: uuid(form, "request_key"), data: parse(form) });
 export const workforceActions = {
+  createCompany: stub(withKey(companyInput)),
+  updateCompany: stub(form => ({ id: uuid(form, "company_id"), data: companyUpdateInput(form) })),
+  recordInsurance: stub(withKey(insuranceInput)),
+  recordAccreditation: stub(withKey(accreditationInput)),
+  voidInsurance: stub(form => ({ id: uuid(form, "record_id"), reason: text(form, "reason", 2000, true) })),
+  voidAccreditation: stub(form => ({ id: uuid(form, "record_id"), reason: text(form, "reason", 2000, true) })),
   createOperative: stub(withKey(form => operativeInput(form, true))),
   updateOperative: stub(form => ({ id: uuid(form, "operative_id"), data: operativeUpdateInput(form) })),
   confirmOperative: stub(form => ({ id: uuid(form, "operative_id"), status: "active" })),
