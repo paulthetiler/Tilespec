@@ -70,7 +70,7 @@ SQL
       echo 'FAIL: concurrent snag retries returned different result IDs.' >&2; exit 1;
     }
   else
-    rg 'ok - ' "$race_directory/second.log"
+    grep -E 'ok - ' "$race_directory/second.log"
   fi
 }
 

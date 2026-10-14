@@ -10,12 +10,12 @@ base=("$psql_binary" -X -q -A -t -w -h "$test_socket" -p "$test_port" -U postgre
 "${base[@]}" -d postgres -c 'create database snags_upgrade' >/dev/null
 trap '"${base[@]}" -d postgres -c "drop database if exists snags_upgrade" >/dev/null 2>&1 || true' EXIT
 psql=("${base[@]}" -d snags_upgrade)
-rg -v '^create role' "$repository_root/tests/db/platform.sql" | "${psql[@]}" >/dev/null
+grep -Ev '^create role' "$repository_root/tests/db/platform.sql" | "${psql[@]}" >/dev/null
 migration_file="$repository_root/supabase/migrations/20261014160000_snag_lifecycle.sql"
 for migration in "$repository_root"/supabase/migrations/*.sql; do
   [[ "$(basename "$migration")" < 20261014140000 ]] && "${psql[@]}" -f "$migration" >/dev/null
 done
-if "${psql[@]}" -f "$migration_file" >"$test_socket/snags-order.log" 2>&1 || ! rg -q 'Preflight failed' "$test_socket/snags-order.log"; then
+if "${psql[@]}" -f "$migration_file" >"$test_socket/snags-order.log" 2>&1 || ! grep -Eq 'Preflight failed' "$test_socket/snags-order.log"; then
   cat "$test_socket/snags-order.log" >&2
   echo 'FAIL: Phase 3B must refuse to apply before Phase 3A.' >&2
   exit 1
@@ -131,14 +131,14 @@ before="$(snapshot)"
 security_before="$(security_snapshot)"
 view_before="$(legacy_view)"
 report_before="$(preflight)"
-if rg -q 'MISSING|ALREADY EXISTS|UNSAFE' <<<"$report_before"; then
+if grep -Eq 'MISSING|ALREADY EXISTS|UNSAFE' <<<"$report_before"; then
   echo "$report_before" >&2
   exit 1
 fi
-collision_count="$(rg -c '^name collision\|' <<<"$report_before")"
+collision_count="$(grep -Ec '^name collision\|' <<<"$report_before")"
 [[ "$before" == "$(snapshot)" ]] || { echo 'FAIL: preflight modified history.' >&2; exit 1; }
 if printf 'set role authenticated;\n\\i %s\n' "$migration_file" | "${psql[@]}" >"$test_socket/snags-limited.log" 2>&1 ||
- ! rg -q 'cannot read storage.objects past row-level security' "$test_socket/snags-limited.log" || [[ "$before" != "$(snapshot)" ]]; then
+ ! grep -Eq 'cannot read storage.objects past row-level security' "$test_socket/snags-limited.log" || [[ "$before" != "$(snapshot)" ]]; then
   cat "$test_socket/snags-limited.log" >&2
   echo 'FAIL: Phase 3B must refuse an applying role that cannot inspect stored bytes past RLS.' >&2
   exit 1
@@ -156,13 +156,13 @@ for unsafe_case in public insufficient_size missing_png; do
   "${psql[@]}" -c "update storage.buckets set $unsafe_update where id='supervisor-evidence';" >/dev/null
   unsafe_before="$(snapshot)"
   unsafe_report="$(preflight)"
-  if ! rg -q '^security\|evidence bucket is private and supports photographs\|UNSAFE' <<<"$unsafe_report"; then
+  if ! grep -Eq '^security\|evidence bucket is private and supports photographs\|UNSAFE' <<<"$unsafe_report"; then
     echo "$unsafe_report" >&2
     echo "FAIL: preflight failed to identify unsafe evidence bucket ($unsafe_case)." >&2
     exit 1
   fi
   if "${psql[@]}" -f "$migration_file" >"$test_socket/snags-bucket-$unsafe_case.log" 2>&1 ||
-   ! rg -q 'Preflight failed: supervisor-evidence must be private and support JPEG/PNG photographs up to 4 MB' "$test_socket/snags-bucket-$unsafe_case.log" ||
+   ! grep -Eq 'Preflight failed: supervisor-evidence must be private and support JPEG/PNG photographs up to 4 MB' "$test_socket/snags-bucket-$unsafe_case.log" ||
    [[ "$unsafe_before" != "$(snapshot)" || "$unsafe_report" != "$(preflight)" ]]; then
     cat "$test_socket/snags-bucket-$unsafe_case.log" >&2
     echo "FAIL: unsafe evidence bucket ($unsafe_case) was not refused before changing history or schema." >&2
@@ -182,13 +182,13 @@ if [[ "$before" != "$after" || "$security_before" != "$(security_snapshot)" || "
   exit 1
 fi
 report_after="$(preflight)"
-if [[ "$(rg -c 'ALREADY EXISTS' <<<"$report_after")" != "$collision_count" ]] ||
- [[ "$(rg '^row count' <<<"$report_before")" != "$(rg '^row count' <<<"$report_after")" ]]; then
+if [[ "$(grep -Ec 'ALREADY EXISTS' <<<"$report_after")" != "$collision_count" ]] ||
+ [[ "$(grep -E '^row count' <<<"$report_before")" != "$(grep -E '^row count' <<<"$report_after")" ]]; then
   diff <(echo "$report_before") <(echo "$report_after") >&2 || true
   echo 'FAIL: Phase 3B preflight did not report all new objects and identical row counts.' >&2
   exit 1
 fi
-if "${psql[@]}" -f "$migration_file" >"$test_socket/snags-reapply.log" 2>&1 || ! rg -q 'Preflight failed' "$test_socket/snags-reapply.log" || [[ "$after" != "$(snapshot)" ]]; then
+if "${psql[@]}" -f "$migration_file" >"$test_socket/snags-reapply.log" 2>&1 || ! grep -Eq 'Preflight failed' "$test_socket/snags-reapply.log" || [[ "$after" != "$(snapshot)" ]]; then
   cat "$test_socket/snags-reapply.log" >&2
   echo 'FAIL: repeated Phase 3B migration was not safely refused.' >&2
   exit 1
