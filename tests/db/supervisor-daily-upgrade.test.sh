@@ -86,7 +86,7 @@ if ! diff <(tail -n 6 "$test_socket/daily-preflight-before.log") <(tail -n 6 "$t
   echo 'FAIL: read-only daily preflight changed preserved counts.' >&2; exit 1
 fi
 if "${psql[@]}" -f "$repository_root/supabase/migrations/20261015130000_supervisor_daily_workflow.sql" >"$test_socket/daily-reapply.log" 2>&1 \
-  || ! rg -q 'Preflight failed' "$test_socket/daily-reapply.log" || [[ "$before" != "$(snapshot)" ]]; then
+  || ! grep -q 'Preflight failed' "$test_socket/daily-reapply.log" || [[ "$before" != "$(snapshot)" ]]; then
   echo 'FAIL: daily migration reapplication did not safely refuse without changing history.' >&2; exit 1
 fi
 "${psql[@]}" -c "select test.assert(true,'daily workflow migration refuses a second application, and its read-only preflight changes no history');"
