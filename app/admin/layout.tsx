@@ -23,15 +23,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <header className={styles.header}>
         <div className={styles.shell}>
           <Link href={supervisor ? "/admin/supervisor" : "/admin"} className={styles.brand} aria-label={supervisor ? "TileSPEC my sites" : "TileSPEC Admin overview"}>
-            <svg width="34" height="38" viewBox="0 0 34 38" fill="none" aria-hidden="true" focusable="false">
-              <path d="M1 7 33 1v8L1 15Z" fill="#0f2a3a" />
-              <path d="M1 18 33 12v8L1 26Z" fill="#7b8790" />
-              <path d="M1 29 33 23v8L1 37Z" fill="#7fb8b0" />
-            </svg>
-            <span>
-              <strong>Tile<span>SPEC</span></strong>
-              <span className={styles.brandMeta}>{supervisor ? "Site supervisor" : "Contract operations"}</span>
-            </span>
+            <img src="/tilespec-logo-animated.svg" alt="TileSPEC — Wall & Floor Tiling Contractors" width="280" height="75" style={{ width: "min(240px, 52vw)", height: "auto" }} />
           </Link>
           <div className={styles.identity}>
             <div>
