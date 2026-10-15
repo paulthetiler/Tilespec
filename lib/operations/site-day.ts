@@ -164,13 +164,18 @@ function overlaps(a: ActualAllocation, b: ActualAllocation, now: string) {
   return time(a.started_at) < time(b.ended_at ?? now) && time(b.started_at) < time(a.ended_at ?? now);
 }
 
-export type NextActionKey = "checks" | "earlier" | "confirm" | "review" | "issues" | "monitor" | "critical" | "reinspection" | "disputed" | "overdue";
+export type NextActionKey = "checks" | "earlier" | "confirm" | "review" | "issues" | "monitor" | "critical" | "reinspection" | "disputed" | "overdue" | "safety" | "quality" | "release" | "inspection";
 export type NextAction = { key: NextActionKey; label: string; detail: string; href: string };
 // The one thing the supervisor should do next, from saved records only.
-export function nextAction(input: { siteHref: string; issuesHref: string; checksDone: boolean; staleOpen: number; openIssues: number; day: SiteDay; snags?: { critical: number; awaiting_reinspection: number; disputed: number; overdue: number } }): NextAction {
+export function nextAction(input: { siteHref: string; issuesHref: string; checksDone: boolean; staleOpen: number; openIssues: number; day: SiteDay; snags?: { critical: number; awaiting_reinspection: number; disputed: number; overdue: number }; holds?: { href: string; active_safety: number; active_quality: number; awaiting_release: number; inspections_due: number; failed_mandatory: number } }): NextAction {
   const { summary } = input.day;
   const filtered = (filter: string) => `${input.issuesHref}${input.issuesHref.includes("?") ? "&" : "?"}${filter}`;
-  if (input.snags?.critical) return { key: "critical", label: "Review critical defects", detail: `${input.snags.critical} critical findings require immediate office review. This does not grant a stop-work hold.`, href: filtered("severity=critical") };
+  const holdFilter = (filter: string) => `${input.holds!.href}${input.holds!.href.includes("?") ? "&" : "?"}${filter}`;
+  if (input.holds?.active_safety) return { key: "safety", label: "Review safety stops", detail: `${input.holds.active_safety} saved safety stops affect the work shown in their scope. Follow the principal contractor's site-safety controls.`, href: holdFilter("hold_type=safety") };
+  if (input.holds?.awaiting_release) return { key: "release", label: "Review release requests", detail: `${input.holds.awaiting_release} corrections await an independently authorised office decision. A request does not release work.`, href: holdFilter("status=awaiting_release") };
+  if (input.holds?.active_quality) return { key: "quality", label: "Review quality holds", detail: `${input.holds.active_quality} saved quality holds restrict their specified location and activity.`, href: holdFilter("hold_type=quality") };
+  if (input.holds?.failed_mandatory) return { key: "inspection", label: "Review failed mandatory inspections", detail: `${input.holds.failed_mandatory} mandatory inspection requirements have a failed saved result. Affected work remains blocked.`, href: `${input.siteHref}/inspections` };
+  if (input.snags?.critical) return { key: "critical", label: "Review critical defects", detail: `${input.snags.critical} critical findings require immediate office review. Critical escalation does not grant a stop-work hold. Raise a scoped hold explicitly where affected work must stop.`, href: filtered("severity=critical") };
   if (input.snags?.awaiting_reinspection) return { key: "reinspection", label: "Reinspect repairs", detail: `${input.snags.awaiting_reinspection} repairs await independent reinspection. Submission is not acceptance.`, href: filtered("awaiting_reinspection=true") };
   if (input.snags?.disputed) return { key: "disputed", label: "Review disputed responsibility", detail: `${input.snags.disputed} responsibility decisions require office review.`, href: filtered("disputed=true") };
   if (input.snags?.overdue) return { key: "overdue", label: "Review overdue rectification", detail: `${input.snags.overdue} repairs have passed their target date.`, href: filtered("overdue=true") };
@@ -188,6 +193,7 @@ export function nextAction(input: { siteHref: string; issuesHref: string; checks
   if (input.openIssues > 0) {
     return { key: "issues", label: "Review outstanding issues", detail: `${input.openIssues} ${input.openIssues === 1 ? "issue is" : "issues are"} open on this site.`, href: input.issuesHref };
   }
+  if (input.holds?.inspections_due) return { key: "inspection", label: "Inspect location", detail: `${input.holds.inspections_due} applicable mandatory inspections are outstanding. Inspect against the approved contract requirements.`, href: `${input.siteHref}/inspections` };
   return { key: "monitor", label: "Monitor today's work", detail: summary.plannedTeams || summary.openPeriods
     ? "Every planned team is accounted for. Record moves, arrivals and departures as the day goes on." : "Nothing is planned for today. Record any labour that arrives.",
     href: `${input.siteHref}/workforce` };

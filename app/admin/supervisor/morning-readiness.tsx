@@ -15,18 +15,7 @@ const morning = [
   "Delays, variations and dayworks identified",
   "Team briefed and safe to start"
 ];
-const defects = [
-  "Adhesive in grout joints / inadequate grout depth",
-  "Adhesive visible through completed grout",
-  "Excessive lippage or poor alignment",
-  "Unacceptable cuts or gaps",
-  "Missing / incomplete grout joints",
-  "Poor trims, edges or movement joints",
-  "Incorrect falls, levels or setting out",
-  "Other workmanship defect"
-];
-
-export default function SiteWorkflowPreview({ areaNames, contractReference, contractId, dashboardHref, workforceHref }: { areaNames: string[]; contractReference: string; contractId:string; dashboardHref:string; workforceHref:string }) {
+export default function MorningReadiness({ contractReference, contractId, dashboardHref, workforceHref }: { contractReference: string; contractId:string; dashboardHref:string; workforceHref:string }) {
   const [checks, setChecks] = useState<string[]>([]);
   
   const [naChecks,setNaChecks]=useState<string[]>([]);
@@ -38,24 +27,14 @@ export default function SiteWorkflowPreview({ areaNames, contractReference, cont
   const [checkIssues,setCheckIssues]=useState<Record<string,string>>({});
   const [issueFor,setIssueFor]=useState<string|null>(null);
   const [issueText,setIssueText]=useState("");
-  const [prep, setPrep] = useState("not-assessed");
-  const [area, setArea] = useState(areaNames[0] || "Sample work area");
-  const [issues, setIssues] = useState<string[]>([]);
-  const [notes, setNotes] = useState("");
-  const [snagsCleared, setSnagsCleared] = useState(false);
-  const [inspection, setInspection] = useState(false);
-  const [ack, setAck] = useState(false);
-  const toggle = (value: string, list: string[], set: (value: string[]) => void) =>
-    set(list.includes(value) ? list.filter(item => item !== value) : [...list, value]);
   const answered = new Set([...checks,...naChecks,...Object.keys(checkIssues)]).size;
   const ready = answered === morning.length && issueFor===null && naChecks.every(item=>Boolean(naReasons[item]?.trim()));
   const issueCount=Object.keys(checkIssues).length;
-  const pass = inspection && ack && issues.length === 0 && prep !== "not-assessed";
   const btn = { minHeight: 48, padding: "10px 16px", borderRadius: 8, border: "1px solid #aabdc5", background: "#fff", color: "#0f2a3a", fontWeight: 700, cursor: "pointer" } as const;
   return <section style={{background:"#fff",border:"1px solid #d7e2e5",borderRadius:12,padding:18,margin:"20px 0"}}>
     <p style={{fontSize:12,fontWeight:800,letterSpacing:1,color:"#326e67"}}>DAILY SITE INSPECTION</p>
-    <h2>Daily supervisor routine</h2>
-    <p>Submit the morning inspection to the office. Submission does not authorise work release or payment.</p>
+    <h2>Morning readiness checks</h2>
+    <p>Record the morning inspection. Review affected work in the location inspection, snag and hold records before work proceeds.</p><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}><Link href={`/admin/holds/new?contract=${contractId}`} style={{...btn,display:"inline-flex",alignItems:"center",background:"#8a3228",color:"#fff",textDecoration:"none"}}>Stop work</Link><Link href={`/admin/snags/new?contract=${contractId}`} style={{...btn,display:"inline-flex",alignItems:"center",textDecoration:"none"}}>Raise snag</Link></div>
     <details open><summary>1. Morning arrival — {answered}/{morning.length} reviewed</summary>
       {morning.map(item=><div key={item} style={{borderBottom:"1px solid #edf1f2",padding:"8px 0"}}>
         <p style={{fontWeight:600,overflowWrap:"anywhere"}}>{item}</p>
@@ -89,6 +68,7 @@ export default function SiteWorkflowPreview({ areaNames, contractReference, cont
        }}>{saving?"Saving inspection…":"Complete daily inspection →"}</button>:<div role="status" style={{marginTop:12}}>
         <h3>Inspection saved</h3><p>Reference: {saved.id}</p><p>Recorded: {new Date(saved.createdAt).toLocaleString("en-GB")}</p>
         <p>{saved.issuesCount?String(saved.issuesCount)+" outstanding issue(s) — office review required.":"No issues recorded in this inspection."}</p>
+        {saved.issuesCount > 0 && <p><Link href={`/admin/holds/new?contract=${contractId}&morning=${saved.id}`} style={{...btn,display:"inline-flex",alignItems:"center",background:"#8a3228",color:"#fff",textDecoration:"none"}}>Stop affected work — linked morning finding</Link></p>}
         <p><strong>Next action:</strong> confirm who is on site and where.{saved.issuesCount?" Escalate outstanding issues before affected work proceeds.":""}</p>
         <Link href={workforceHref} style={{...btn,display:"flex",alignItems:"center",justifyContent:"center",minHeight:60,background:"#0f2a3a",color:"#fff",fontSize:18,textTransform:"uppercase",textDecoration:"none",marginBottom:8}}>Confirm today&apos;s workforce →</Link>
         <Link href={dashboardHref} style={{...btn,display:"inline-flex",alignItems:"center",textDecoration:"none"}}>Return to site dashboard</Link>
@@ -97,46 +77,6 @@ export default function SiteWorkflowPreview({ areaNames, contractReference, cont
        {saveError&&<p role="alert" style={{color:"#a12626"}}>{saveError} — nothing has been confirmed saved.</p>}
       </div>
     </details>
-    <p style={{fontSize:13,color:"#52646d",marginTop:20}}>Sections 2 to 4 preview later inspection features. They do not save anything yet.</p>
-    <details><summary>2. Area preparation decision</summary>
-      <label style={{display:"block",margin:"10px 0"}}>Work area
-        <select value={area} onChange={e=>{setArea(e.target.value);setPrep("not-assessed");setIssues([]);setInspection(false);setAck(false);setSnagsCleared(false);}}>
-          {(areaNames.length?areaNames:["Sample work area"]).map(a=><option key={a}>{a}</option>)}
-        </select>
-      </label>
-      <label style={{display:"block",margin:"10px 0"}}>Preparation status
-        <select value={prep} onChange={e=>{setPrep(e.target.value);setAck(false);}}>
-          <option value="not-assessed">Not assessed</option>
-          <option value="required">Preparation required — not yet released</option>
-          <option value="existing">Already completed — verify suitability</option>
-          <option value="not-required">Not required — substrate suitable</option>
-        </select>
-      </label>
-      <p>Supervisor chooses the appropriate route. Any unsuitable substrate or outstanding preparation prevents release of the affected area.</p>
-    </details>
-    <details><summary>3. Installation QA and snags</summary>
-      <p>Inspect joint cleanliness <strong>before grouting</strong> and the finished grout afterwards. Record defects against the affected area.</p>
-      {defects.map(item=><label key={item} style={{display:"flex",gap:12,alignItems:"center",minHeight:48,padding:"4px 0"}}>
-        <input type="checkbox" style={{width:22,height:22,minHeight:22,flexShrink:0}} checked={issues.includes(item)} onChange={()=>{toggle(item,issues,setIssues);setSnagsCleared(false);setAck(false);}}/><span>{item}</span>
-      </label>)}
-      <label style={{display:"block",margin:"12px 0"}}>Snag notes / location / responsible installer
-        <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Describe the problem and what must be rectified"/>
-      </label>
-      {issues.length>0&&<p role="status"><strong>QA hold:</strong> {issues.length} defect type(s) flagged. Rectification and reinspection required. Owner reviews any proposed deduction; no automatic deduction.</p>}
-      {issues.length>0&&<button type="button" style={btn} onClick={()=>{setIssues([]);setSnagsCleared(true);setInspection(false);setAck(false);}}>Mark rectified — require reinspection</button>}
-      {snagsCleared&&<p>Rectification noted in this preview. Reinspect before signing off.</p>}
-      <label style={{display:"flex",alignItems:"center",gap:12,minHeight:48,marginTop:10}}>
-        <input type="checkbox" style={{width:22,height:22,minHeight:22}} checked={inspection} onChange={e=>{setInspection(e.target.checked);setAck(false);}}/>Workmanship physically inspected against the job specification and tolerances
-      </label>
-    </details>
-    <details><summary>4. Sign-off and escalation</summary>
-      <p><strong>Routine QA:</strong> supervisor may approve satisfactory work. Serious defects, disputes, unusual remedial costs and proposed deductions go to the owner.</p>
-      <label style={{display:"flex",alignItems:"center",gap:12,minHeight:48}}>
-        <input type="checkbox" style={{width:22,height:22,minHeight:22}} checked={ack} onChange={e=>setAck(e.target.checked)} disabled={!inspection||issues.length>0||prep==="not-assessed"||prep==="required"}/>
-        I confirm the affected area is acceptable for routine QA sign-off
-      </label>
-      <p role="status"><strong>{pass?"Ready for supervisor sign-off in the future live workflow":"QA sign-off unavailable"}</strong></p>
-      <p>Actual sign-off, photographs, audit history, variation approvals and invoice review are not yet implemented in this prototype.</p>
-    </details>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:20}}><Link href={`${dashboardHref}/inspections`} style={{...btn,display:"inline-flex",alignItems:"center",textDecoration:"none"}}>Inspect location</Link><Link href={`/admin/holds?contract_id=${contractId}`} style={{...btn,display:"inline-flex",alignItems:"center",textDecoration:"none"}}>Review holds</Link><Link href={`/admin/snags?contract_id=${contractId}`} style={{...btn,display:"inline-flex",alignItems:"center",textDecoration:"none"}}>Review saved snags and historic issues</Link></div>
   </section>;
 }
