@@ -2,15 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import styles from "@/app/admin/admin.module.css";
+import styles from "./daily.module.css";
 
-// The same short route back to every part of the site, on every site screen.
-export function SiteNav({ base, contractId }: { base: string; contractId: string }) {
+// The daily page already presents the common tasks. Other site screens have
+// one route home and secondary links, without a second row of daily actions.
+export function SiteNav({ base, contractId, siteName, reference }: { base: string; contractId: string; siteName: string; reference: string }) {
   const path = usePathname();
-  const items: [string, string][] = [[base, "Site dashboard"], [`${base}/checks`, "Morning checks"], [`${base}/workforce`, "Today's workforce"],
-    [`${base}/inspections`, "Location inspections"], [`${base}/history`, "Workforce history"], [`/admin/snags?contract_id=${contractId}`, "Snag register"],
-    [`/admin/holds?contract_id=${contractId}`, "Holds and releases"], [`/admin/alerts?contract_id=${contractId}`, "Site alerts"]];
-  return <nav aria-label="Site"><ul className={styles.siteNav}>
-    {items.map(([href, label]) => <li key={href}><Link href={href} aria-current={path === href ? "page" : undefined}>{label}</Link></li>)}
-  </ul></nav>;
+  if (path === base) return null;
+  const items: [string, string][] = [[`${base}/checks`, "Morning checks"], [`${base}/workforce`, "Who's on site?"],
+    [`${base}/inspections`, "Check workmanship"], [`${base}/messages`, "Office messages"],
+    [`${base}/snags`, "Outstanding snags"], [`/admin/holds?contract_id=${contractId}`, "Work restrictions"],
+    [`${base}/history`, "Workforce history"], [`${base}/finish`, "Finish today"], ["/admin/supervisor", "Choose another site"]];
+  return <div className={styles.siteBar}>
+    <p className={styles.siteName}><strong>{siteName}</strong>{reference}</p>
+    <nav className={styles.siteNav} aria-label="Site">
+      <Link href={base}>Today</Link>
+      <details className={styles.more} key={path}><summary>More</summary><div className={styles.moreLinks}>
+        {items.map(([href, label]) => <Link key={href} href={href} aria-current={path === href ? "page" : undefined}>{label}</Link>)}
+      </div></details>
+      <Link href={`/admin/holds/new?contract=${contractId}`}>STOP WORK</Link>
+    </nav>
+  </div>;
 }

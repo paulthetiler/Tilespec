@@ -15,24 +15,30 @@ type Props = {
   // No box around the form, and anything optional placed after the button.
   plain?: boolean;
   footer?: React.ReactNode;
+  // Workforce forms keep the exact attempted payload until the database can
+  // confirm the outcome. Other existing forms retain their current behaviour.
+  freezeOnFailure?: boolean;
 };
 
 // A lost connection is not a refusal: the change may or may not have reached
 // the server. Say so plainly; the request key makes a retry safe either way.
 export const CONNECTION_FAILED = "We could not confirm this was saved because the connection failed. Your entries are still here: check your signal and try again. It will not be recorded twice.";
 
-export function OperationsForm({ action, children, submitLabel, compact = false, submitClassName, plain = false, footer }: Props) {
-  const [state, formAction, pending] = useActionState(async (previous: ActionState, form: FormData): Promise<ActionState> => {
+type RetryState = ActionState & { uncertain?: boolean };
+export function OperationsForm({ action, children, submitLabel, compact = false, submitClassName, plain = false, footer, freezeOnFailure = false }: Props) {
+  const frozen = useRef<FormData | null>(null);
+  const [state, formAction, pending] = useActionState(async (previous: RetryState, form: FormData): Promise<RetryState> => {
     try {
-      return await action(previous, form);
+      return await action(previous, form) as RetryState;
     } catch {
-      return { error: CONNECTION_FAILED };
+      return { error: CONNECTION_FAILED, uncertain: true };
     }
   }, {});
   const [clientError, setClientError] = useState<string | null>(null);
   const [unsaved, setUnsaved] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
+    if (!state.uncertain) frozen.current = null;
     // Only a confirmed successful mutation clears a create/upload form. Errors
     // keep both the original values and file available for an idempotent retry.
     if (state.success) {
@@ -61,17 +67,21 @@ export function OperationsForm({ action, children, submitLabel, compact = false,
       // Dispatch explicitly so React does not reset uncontrolled fields when a
       // server action returns a validation/upload error. The original file and
       // request key remain available for a safe connectivity retry.
-      const submitted = new FormData(event.currentTarget);
+      if (pending) return;
+      if (freezeOnFailure && !frozen.current) frozen.current = new FormData(event.currentTarget);
+      const submitted = frozen.current ?? new FormData(event.currentTarget);
+      if (freezeOnFailure) setUnsaved(true);
       startTransition(() => formAction(submitted));
     }}>
       <fieldset disabled={pending} className={plain ? styles.plainFieldset : styles.fieldset}>
-        {children}
+        {freezeOnFailure ? <fieldset disabled={!!state.uncertain} className={styles.plainFieldset}>{children}</fieldset> : children}
         <div className={styles.actions}>
           <button type="submit" className={submitClassName ?? styles.button}>{pending ? "Saving…" : submitLabel}</button>
         </div>
-        {footer}
+        {freezeOnFailure && footer ? <fieldset disabled={!!state.uncertain} className={styles.plainFieldset}>{footer}</fieldset> : footer}
       </fieldset>
       {!pending && (clientError || state.error) && <p className={styles.error} role="alert">{clientError || state.error}</p>}
+      {!pending && freezeOnFailure && state.uncertain && <p role="status">Your entries are kept unchanged. Retry sends the same details; check saved records before starting a different entry.</p>}
       {!pending && !clientError && state.success && <p className={styles.success} role="status">{state.success}</p>}
     </form>
   );

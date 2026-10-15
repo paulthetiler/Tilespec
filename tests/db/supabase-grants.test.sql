@@ -13,7 +13,8 @@ select test.assert((select count(*) = 0 from information_schema.role_table_grant
     and table_name in ('operatives', 'teams', 'team_memberships', 'planned_allocations', 'planned_allocation_operatives',
       'actual_allocations', 'actual_allocation_operatives', 'allocation_absences', 'supervisor_issues', 'supervisor_issue_events',
       'subcontractor_companies', 'company_insurances', 'company_accreditations', 'location_inspection_requirements',
-      'work_holds', 'work_hold_events', 'hold_photos', 'hold_notifications', 'hold_notification_reads')),
+      'work_holds', 'work_hold_events', 'hold_photos', 'hold_notifications', 'hold_notification_reads',
+      'supervisor_office_items', 'supervisor_office_acknowledgements', 'supervisor_qa_submissions', 'site_handovers')),
   'Supervisor V2, company and issue-register tables are read-only to signed-in users; every write goes through a checked function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')),

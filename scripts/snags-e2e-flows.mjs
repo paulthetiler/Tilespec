@@ -41,7 +41,12 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
   const detailUrl = id => `${origin}/admin/snags/${id}`;
   const registerUrl = `${origin}/admin/snags?contract_id=${contractId}`;
   const siteUrl = `${origin}/admin/supervisor/sites/${contractId}`;
+  const openAdvanced = async target => {
+    const advanced = target.locator('details').filter({ has: target.locator('summary').getByText('Repair, responsibility and history', { exact: true }) }).first();
+    if (await advanced.count() && !await advanced.evaluate(element => element.open)) await advanced.locator('summary').first().click();
+  };
   const panel = async (target, label) => {
+    await openAdvanced(target);
     const details = target.locator(`details:has(> summary:text-is("${label}"))`);
     await details.waitFor();
     if (!await details.evaluate(element => element.open)) await details.locator('summary').click();
@@ -57,15 +62,18 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
     await form.getByRole('button', { name: label, exact: true }).click();
     const response = await saved;
     assert.equal(response.status(), 200);
+    await openAdvanced(target);
     // A successful transition can legitimately remove its own action panel
     // (e.g. dispute or submit repair), including its transient success status.
     assert.equal(eventCount(id), before + 1, `${label} added exactly one permanent event`);
     await target.locator('section').filter({ has: target.getByRole('heading', { name: 'Permanent snag history', exact: true }) })
       .getByText(note, { exact: true }).waitFor();
     await target.reload();
+    await openAdvanced(target);
   };
   const upload = async (target, id, purpose, name) => {
     await target.goto(detailUrl(id));
+    await openAdvanced(target);
     const region = target.getByRole('region', { name: `${purpose} photograph uploads`, exact: true });
     await region.getByLabel('Choose photographs', { exact: true }).setInputFiles(image(name));
     await region.getByRole('button', { name: 'Upload photographs', exact: true }).click();
@@ -82,6 +90,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
       await target.getByRole('searchbox', { name: 'Exact location', exact: true }).fill('52 bath');
       await target.getByRole('list', { name: 'Exact location choices' }).getByRole('button', { name: 'Block B › Level 5 › Flat 52 › Bathroom', exact: true }).click();
     }
+    await target.getByText('More details', { exact: true }).click();
     await target.locator('select[name=category]').selectOption(category);
     await target.locator('select[name=severity]').selectOption(severity);
     await target.locator('textarea[name=description]').fill(description);
@@ -104,7 +113,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
         catch (error) { throw new Error(`Lost-response fixture request failed: ${String(error.message).split('\n')[0]}`); }
         await route.abort('connectionreset');
       });
-      await target.getByRole('button', { name: 'Raise snag', exact: true }).click();
+      await target.getByRole('button', { name: 'Submit snag', exact: true }).click();
       await findingForm.getByRole('alert').first().waitFor();
       const id = sql(`select id from public.supervisor_issues where description='${description}'`);
       assert.ok(id, `${lose} request actually reached PostgreSQL before response loss`);
@@ -125,6 +134,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
       await target.unroute('**/*');
       await target.getByRole('button', { name: lose === 'create' ? 'Retry original findings' : lose === 'proposal' ? 'Retry responsibility proposal' : 'Retry verification and submission', exact: true }).click();
       await target.waitForURL(`**/admin/snags/${id}`);
+      await openAdvanced(target);
       expectedNetwork = false;
       assert.equal(eventCount(id, 'create_draft'), 1);
       assert.equal(eventCount(id, 'submit'), 1);
@@ -139,7 +149,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
     if (fault) {
       expectedNetwork = true;
       storage.faults.failUploads = 1;
-      await target.getByRole('button', { name: 'Raise snag', exact: true }).click();
+      await target.getByRole('button', { name: 'Submit snag', exact: true }).click();
       await target.getByRole('alert').filter({ hasText: /not been confirmed saved|remains pending|could not confirm/i }).first().waitFor();
       const id = sql(`select id from public.supervisor_issues where description='${description}'`);
       assert.equal(state(id), 'draft');
@@ -156,11 +166,13 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
       assert.equal(sql(`select count(*) from public.supervisor_issue_photos where issue_id='${id}' and uploaded_at is not null`), '0');
       await target.getByRole('button', { name: 'Retry verification and submission', exact: true }).click();
       await target.waitForURL(`**/admin/snags/${id}`);
+      await openAdvanced(target);
       expectedNetwork = false;
       return id;
     }
-    await target.getByRole('button', { name: 'Raise snag', exact: true }).click();
+    await target.getByRole('button', { name: 'Submit snag', exact: true }).click();
     await target.waitForURL(url => /^\/admin\/snags\/[0-9a-f-]{36}$/.test(url.pathname));
+    await openAdvanced(target);
     return target.url().split('/').at(-1);
   };
   const rest = async (email, path, method = 'GET', data, headers = {}) => fetch(`${gatewayOrigin}${path}`, {
@@ -204,6 +216,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
     await page.goto(`${origin}/admin/snags/new?contract=${contractId}`);
     await page.getByRole('searchbox', { name: 'Exact location', exact: true }).fill('52 bath');
     await page.getByRole('list', { name: 'Exact location choices' }).getByRole('button', { name: 'Block B › Level 5 › Flat 52 › Bathroom', exact: true }).click();
+    await page.getByText('More details', { exact: true }).click();
     const candidates = page.getByRole('region', { name: 'Historical workforce candidates', exact: true });
     for (const name of ['Smith Tiling', 'Jones Installations', 'Sam Smith', 'Jo Jones']) await candidates.getByText(name, { exact: false }).first().waitFor();
     assert.equal(await candidates.locator('select[name=responsibility_allocation]').inputValue(), '');
@@ -282,6 +295,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
     await sam.goto(detailUrl(id));
     assert.equal(await sam.getByText('Recorded workforce evidence for this proposal', { exact: true }).count(), 0);
     await page.goto(detailUrl(id));
+    await openAdvanced(page);
     await page.getByText('Recorded workforce evidence for this proposal', { exact: true }).waitFor();
     pass('3B D: the actual proposed gang disputes responsibility, the office records an immutable decision, and installers cannot read private workforce snapshots');
 
@@ -377,13 +391,15 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
     const originalInspection = sql(`select to_jsonb(i)::text from public.location_inspections i where id='${inspection}'`);
     const inspectionArea = sql(`select work_area_id from public.location_inspections where id='${inspection}'`);
     await page.goto(`${siteUrl}/inspections?location=${inspectionArea}`);
+    const history = page.locator('details').filter({ has: page.locator('summary').getByText('Saved inspection history', { exact: true }) }).first();
+    if (!await history.evaluate(element => element.open)) await history.locator('summary').first().click();
     // The previous regression journey deliberately generated 50 later records.
     // Count the collapsed record's DOM link before deciding whether the failed
     // inspection is on a later page; role locators intentionally hide links in
     // closed <details>, which is unrelated to pagination.
     const linked = page.locator(`a[href*="inspection=${inspection}"]`);
     if (!await linked.count()) await page.getByRole('link', { name: 'Earlier inspections', exact: true }).click();
-    const linkedRecord = page.locator('details').filter({ has: page.getByText('Grout joints filled: issue — Joint beside doorway incomplete', { exact: true }) }).first();
+    const linkedRecord = page.locator(`#inspection-${inspection}`);
     if (!await linkedRecord.evaluate(element => element.open)) await linkedRecord.locator('summary').first().click();
     const linkedHref = await linkedRecord.getByRole('link', { name: 'Create linked snag', exact: true }).getAttribute('href');
     assert.match(linkedHref, new RegExp(`inspection=${inspection}`));
@@ -444,6 +460,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
     const savedHistory = sql(`select jsonb_agg(to_jsonb(e) order by id)::text from public.supervisor_issue_events e where issue_id='${id}'`);
     const savedEvidence = sql(`select jsonb_agg(to_jsonb(p) order by id)::text from public.supervisor_issue_photos p where issue_id='${id}'`);
     await page.goto(detailUrl(id)); await page.reload();
+    await openAdvanced(page);
     await page.getByText('Three bathroom tiles have excessive lippage beside the doorway', { exact: true }).waitFor();
     await page.getByRole('heading', { name: 'Permanent snag history', exact: true }).waitFor();
     assert.equal(sql(`select jsonb_agg(to_jsonb(e) order by id)::text from public.supervisor_issue_events e where issue_id='${id}'`), savedHistory);
@@ -489,7 +506,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
           return [...new Set(found)];
         });
         assert.deepEqual(problems, [], `${name} on ${viewport.name}`);
-        if (screenshots) await page.screenshot({ path: join(screenshots, `${name}-${viewport.name}.png`), fullPage: true, caret: 'initial' });
+        if (screenshots) await page.screenshot({ path: join(screenshots, `${name}-${viewport.name}.png`), fullPage: true, caret: 'initial', style: 'nextjs-portal { display: none !important; }' });
       }
       pass(`3B snag register, creation, repair and permanent history fit ${viewport.name} with 44px touch controls`);
     }

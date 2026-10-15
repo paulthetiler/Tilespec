@@ -160,7 +160,8 @@ export async function runHolds({ browser, origin, sql, signIn, pass, screenshots
   try {
     await page.waitForURL(`**/admin/supervisor/sites/${contractId}`);
     const urgentActions = page.getByRole('region', { name: 'Site actions', exact: true });
-    for (const label of ['Stop work', 'Raise snag', 'Inspect location', 'Review holds', 'Finish today']) await urgentActions.getByRole('link', { name: label, exact: true }).waitFor();
+    for (const label of ['STOP WORK', 'Raise a snag', 'Check workmanship', 'FINISH TODAY']) await page.getByRole('link', { name: label, exact: true }).waitFor();
+    await urgentActions.getByRole('link', { name: 'START MORNING CHECKS', exact: true }).waitFor();
     assert.equal((await releaseStatus()).status, 'not_assessed');
     assert.equal((await releaseStatus()).authorised, false);
     pass('3C O: a one-site supervisor lands on the saved site dashboard; urgent stop, snag and location inspection actions remain available before morning checks or workforce confirmation');
@@ -331,6 +332,7 @@ export async function runHolds({ browser, origin, sql, signIn, pass, screenshots
     assert.equal(revised.status, 'not_assessed'); assert.equal(revised.release, null);
     assert.equal(state(normal), 'released', 'the original historical release decision remains immutable');
     await page.goto(siteUrl);
+    await page.getByText('Site details and earlier records', { exact: true }).click();
     const bathroomActivity = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Block B › Level 5 › Flat 52 › Bathroom', exact: true }) }).filter({ has: page.getByText('Tile installation', { exact: true }) });
     await bathroomActivity.getByText('Not assessed', { exact: true }).waitFor();
     pass('3C release revision: a newer specification requirement invalidates earlier authority even after a fresh passing inspection; the old release and its evidence remain preserved');
@@ -427,7 +429,7 @@ export async function runHolds({ browser, origin, sql, signIn, pass, screenshots
     await rpc(emails.supervisor, 'transition_snag', { p_issue: critical, p_request_key: randomUUID(), p_version: 1, p_action: 'submit', p_data: { note: 'Critical source evidence submitted for a deliberate formal-hold decision.', photo_ids: [snagPhoto.id] } });
     assert.equal(sql(`select count(*) from public.work_holds where source_snag_id='${critical}'`), '0');
     await page.goto(`${origin}/admin/snags/${critical}`);
-    const linkedHref = await page.getByRole('main').getByRole('link', { name: 'STOP AFFECTED WORK — linked hold', exact: true }).getAttribute('href');
+    const linkedHref = await page.getByRole('main').getByRole('link', { name: 'STOP WORK', exact: true }).getAttribute('href');
     assert.match(linkedHref, new RegExp(`snag=${critical}`));
     const linked = await create(page, 'A formally saved hold explicitly links the critical shower junction snag.', { source: critical });
     assert.equal(sql(`select source_snag_id from public.work_holds where id='${linked}'`), critical);
@@ -493,7 +495,7 @@ export async function runHolds({ browser, origin, sql, signIn, pass, screenshots
           return [...new Set(found)];
         });
         assert.deepEqual(problems, [], `${name} on ${viewport.name}`);
-        if (screenshots) await target.screenshot({ path: join(screenshots, `${name}-${viewport.name}.png`), fullPage: true, caret: 'initial' });
+        if (screenshots) await target.screenshot({ path: join(screenshots, `${name}-${viewport.name}.png`), fullPage: true, caret: 'initial', style: 'nextjs-portal { display: none !important; }' });
       }
       pass(`3C stops, correction/release history, site and office dashboards and alerts fit ${viewport.name} with 44px touch controls`);
     }

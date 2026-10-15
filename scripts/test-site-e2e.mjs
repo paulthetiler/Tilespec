@@ -1,4 +1,4 @@
-// End-to-end workforce, inspection, snag and formal hold journeys: real Next.js pages and
+// End-to-end workforce, inspection, snag, formal hold and simple daily journeys: real Next.js pages and
 // actions talk through PostgREST to disposable PostgreSQL with every migration
 // and RLS policy applied. Local stand-ins supply Auth and the Storage HTTP/byte
 // transport; Storage metadata and permissions still use the real migrated
@@ -34,6 +34,7 @@ const users = {
   'bea.manager@e2e.invalid': 'e2e00000-0000-4000-8000-000000000007',
   'ada.supervisor@e2e.invalid': 'e2e00000-0000-4000-8000-000000000008',
   'grace.owner@e2e.invalid': 'e2e00000-0000-4000-8000-000000000009',
+  'dave.supervisor@e2e.invalid': 'e2e00000-0000-4000-8000-000000000010',
 };
 const contractId = 'e2e00000-0000-4000-8000-0000000000c1';
 const children = [];
@@ -71,6 +72,7 @@ async function startDatabase() {
   sql(await readFile(join(repository, 'tests/e2e/seed.sql'), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/snags-seed.sql'), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/holds-seed.sql'), 'utf8'));
+  sql(await readFile(join(repository, 'tests/e2e/simple-seed.sql'), 'utf8'));
 }
 
 // --- Tokens and the Supabase stand-in ------------------------------------------
@@ -101,7 +103,7 @@ async function startGateway(restPort) {
   const storage = storageFixture({ restPort, verify });
   // Transport fault injection only. A malformed HTTP 200 must never become a
   // confirmed release; these responses deliberately perform no SQL mutation.
-  const rpcFaults = { holdReleaseResults: [] };
+  const rpcFaults = { holdReleaseResults: [], dailyResults: new Map() };
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, 'http://localhost');
     const body = await new Promise(resolve => { const chunks = []; request.on('data', chunk => chunks.push(chunk)); request.on('end', () => resolve(Buffer.concat(chunks))); });
@@ -127,6 +129,8 @@ async function startGateway(restPort) {
           JSON.parse(body.toString()).p_action === 'release' && rpcFaults.holdReleaseResults.length) {
         return json(200, rpcFaults.holdReleaseResults.shift());
       }
+      const dailyFaults = rpcFaults.dailyResults.get(url.pathname.slice('/rest/v1/rpc/'.length));
+      if (url.pathname.startsWith('/rest/v1/rpc/') && dailyFaults?.length) return json(200, dailyFaults.shift());
       const headers = { ...request.headers, host: `127.0.0.1:${restPort}` };
       delete headers['content-length'];
       const upstream = http.request({ host: '127.0.0.1', port: restPort, method: request.method, path: url.pathname.slice('/rest/v1'.length) + url.search,
@@ -274,24 +278,32 @@ async function main() {
   await compileAuthenticatedRoutes(next.origin, gateway.port);
   browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, headless: true });
   await warm(next.origin);
-  // Optional developer focus while diagnosing a snag or hold journey. The normal npm
+  // Optional developer focus while diagnosing a snag, hold or simple journey. The normal npm
   // test:e2e command always executes the complete existing regression suite.
-  if (process.env.E2E_SNAGS_ONLY !== '1' && process.env.E2E_HOLDS_ONLY !== '1') {
+  if (process.env.E2E_SNAGS_ONLY !== '1' && process.env.E2E_HOLDS_ONLY !== '1' && process.env.E2E_SIMPLE_ONLY !== '1') {
     const { run } = await import('./site-e2e-flows.mjs');
     const { consoleErrors } = await run({ browser, origin: next.origin, sql, signIn, contractId, screenshots, pass, log: next.log });
     assert.deepEqual(consoleErrors, [], 'browser console errors');
     pass('no browser console errors on any screen');
   }
-  if (process.env.E2E_HOLDS_ONLY !== '1') {
+  if (process.env.E2E_HOLDS_ONLY !== '1' && process.env.E2E_SIMPLE_ONLY !== '1') {
     const { runSnags } = await import('./snags-e2e-flows.mjs');
     await runSnags({ browser, origin: next.origin, sql, signIn, contractId, screenshots, pass,
       storage: gateway.storage, gatewayOrigin: `http://127.0.0.1:${gateway.port}`,
       tokenFor: email => session(users[email], email).access_token, log: next.log });
   }
-  const { runHolds } = await import('./holds-e2e-flows.mjs');
-  await runHolds({ browser, origin: next.origin, sql, signIn, contractId, screenshots, pass,
-    storage: gateway.storage, rpcFaults: gateway.rpcFaults, gatewayOrigin: `http://127.0.0.1:${gateway.port}`,
-    tokenFor: email => session(users[email], email).access_token, log: next.log });
+  if (process.env.E2E_SIMPLE_ONLY !== '1') {
+    const { runHolds } = await import('./holds-e2e-flows.mjs');
+    await runHolds({ browser, origin: next.origin, sql, signIn, contractId, screenshots, pass,
+      storage: gateway.storage, rpcFaults: gateway.rpcFaults, gatewayOrigin: `http://127.0.0.1:${gateway.port}`,
+      tokenFor: email => session(users[email], email).access_token, log: next.log });
+  }
+  if (process.env.E2E_SNAGS_ONLY !== '1' && process.env.E2E_HOLDS_ONLY !== '1') {
+    const { runSimple } = await import('./simple-e2e-flows.mjs');
+    await runSimple({ browser, origin: next.origin, sql, signIn, screenshots, pass,
+      storage: gateway.storage, rpcFaults: gateway.rpcFaults, gatewayOrigin: `http://127.0.0.1:${gateway.port}`,
+      tokenFor: email => session(users[email], email).access_token, log: next.log });
+  }
 }
 
 try {

@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { londonDate } from "../../lib/operations/planning";
+import { londonClock, londonDate } from "../../lib/operations/planning";
 import type { ActionState } from "../../lib/operations/types";
 
 const [psqlBinary, host, port, database, repository] = process.argv.slice(2);
@@ -105,6 +105,37 @@ function argument(input: unknown) {
 // Each call is its own transaction as the member, as PostgREST runs it.
 function clientFor(userId: string) {
   return {
+    from(table: string) {
+      assert.ok(columns.has(table), `read fixture: unknown table ${table}`);
+      let selected = "", single = false;
+      const filters: string[] = [];
+      const column = (name: string) => {
+        assert.ok(columns.get(table)?.has(name), `read fixture: unknown column ${table}.${name}`);
+        return `"${name}"`;
+      };
+      const builder = {
+        select(list: string) { selected = list.split(",").map(name => column(name.trim())).join(","); return builder; },
+        eq(name: string, input: unknown) { filters.push(`${column(name)} = ${argument(input)}`); return builder; },
+        in(name: string, input: unknown[]) { filters.push(input.length ? `${column(name)} in (${input.map(argument).join(",")})` : "false"); return builder; },
+        is(name: string, input: null) { assert.equal(input, null); filters.push(`${column(name)} is null`); return builder; },
+        lt(name: string, input: unknown) { filters.push(`${column(name)} < ${argument(input)}`); return builder; },
+        single() { single = true; return builder; },
+        async then(resolve: (result: { data: unknown; error: { code: string; message: string } | null }) => unknown) {
+          assert.ok(selected, "read fixture: select columns explicitly");
+          const sql = `\\set VERBOSITY verbose\nbegin;\nset local role authenticated;\nselect set_config('request.jwt.claims', ${literal(JSON.stringify({ sub: userId }))}, true) is not null;\nselect coalesce(jsonb_agg(row_to_json(r)), '[]'::jsonb) from (select ${selected} from public."${table}"${filters.length ? ` where ${filters.join(" and ")}` : ""}) r;\ncommit;\n`;
+          try {
+            const result = execFileSync(psqlBinary, connection, { input: sql, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).split("\n")[1];
+            const rows = JSON.parse(result) as unknown[];
+            return resolve(single && rows.length !== 1 ? { data: null, error: { code: "PGRST116", message: "Expected one readable saved record" } } : { data: single ? rows[0] : rows, error: null });
+          } catch (failure) {
+            const stderr = String((failure as { stderr?: string }).stderr ?? failure);
+            const match = /ERROR:\s+([0-9A-Z]{5}): (.*)/.exec(stderr);
+            return resolve({ data: null, error: { code: match?.[1] ?? "XX000", message: match?.[2] ?? stderr } });
+          }
+        },
+      };
+      return builder;
+    },
     async rpc(name: string, args: Record<string, unknown>) {
       calls.push({ name, args });
       const named = Object.entries(args).map(([key, item]) => `${key} => ${argument(item)}`).join(", ");
@@ -260,7 +291,7 @@ async function main() {
   await ok("finishPeriodAction", siteActions.finishPeriodAction, { ...site, allocation_id: allocationOf("Smith Gang A"), at_time: "" });
   const unplanned = idOf("select id from public.actual_allocations where planned_allocation_id is null");
   await ok("voidPeriodAction", siteActions.voidPeriodAction, { contract_id: ids.contract, record_id: unplanned, reason_other: "Recorded at the wrong site" });
-  assert.equal(await ok("finishDayAction", siteActions.finishDayAction, { ...site, at_time: "" }), "Finished 1 period of work.");
+  assert.equal(await ok("finishDayAction", siteActions.finishDayAction, { ...site, at_time: londonClock(new Date(Date.now() + 60_000).toISOString()) }), "Finished 1 period of work.");
   assert.equal(value(`select count(*) filter (where ended_at is null and voided_at is null) || '|' || count(*) filter (where voided_at is not null) || '|' || count(*) from public.actual_allocations`), "0|1|4");
   assert.equal(value(`select status from public.operatives where display_name = 'Walk In'`), "provisional");
   assert.equal(value(`select count(*) filter (where voided_at is null) || '|' || count(*) from public.allocation_absences`), "0|2",

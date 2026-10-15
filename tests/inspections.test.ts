@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applicableChecks, inspectionHasBlockingFailure, currentTemplates, inspectionInput, templateInput, requirementInput, type InspectionTemplate } from "../lib/operations/inspections";
+import { applicableChecks, everydayWorkmanshipChecks, hollowInvestigationNote, isHollowSoundCheck, inspectionHasBlockingFailure, currentTemplates, inspectionInput, templateInput, requirementInput, type InspectionTemplate } from "../lib/operations/inspections";
 const id = "a1000000-0000-4000-8000-000000000001";
 function form(values: Record<string, string>) { const result = new FormData(); for (const [key, value] of Object.entries(values)) result.set(key, value); return result; }
 test("wet checks require explicit specification applicability", () => {
@@ -65,4 +65,21 @@ test("mandatory N/A stays blocking even when the preserved legacy issue count is
   assert.equal(inspectionHasBlockingFailure({issues_count:0,answers:[{item:"Hold point",status:"na",note:"Unable to inspect",hold_point:true}]}),true);
   assert.equal(inspectionHasBlockingFailure({issues_count:0,answers:[{item:"Optional check",status:"na",note:"Does not apply"}]}),false);
   assert.equal(inspectionHasBlockingFailure({issues_count:0,answers:[{item:"Mandatory check",status:"pass",note:"",mandatory:true}]}),false);
+});
+
+test("everyday starter is an office-published versioned checklist with the nine practical checks", () => {
+  assert.equal(everydayWorkmanshipChecks.length, 9);
+  const input = templateInput(form({ contract_id: id, work_area_id: id, stage: "installation", title: "Floor workmanship", specification_reference: "Actual project reference", specification_revision: "D", checklist: everydayWorkmanshipChecks.join("\n") }));
+  assert.equal(input.checklist.length, 9);
+  assert.equal(input.supersedes_id, null);
+  assert.equal(isHollowSoundCheck(input.checklist[4].label), true);
+  assert.equal(isHollowSoundCheck("HOLLOW sounding floor tiles"), true);
+  assert.equal(isHollowSoundCheck("Lippage"), false);
+});
+
+test("a reported hollow tile is an investigation issue even if a client sends Pass", () => {
+  const values = { contract_id: id, work_area_id: id, template_id: id, check_count: "1", status_0: "pass", note_0: "", hollow_found_0: "true" };
+  assert.deepEqual(inspectionInput(form(values)).answers[0], { status: "issue", note: hollowInvestigationNote, hollow_found: true });
+  assert.equal(inspectionInput(form({ ...values, hollow_found_0: "false" })).answers[0].status, "pass");
+  assert.throws(() => inspectionInput(form({ ...values, hollow_found_0: "maybe" })), /Choose whether/);
 });

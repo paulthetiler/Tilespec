@@ -15,13 +15,14 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const { member } = await requireActor();
+  const supervisor = member.role === "supervisor";
 
   return (
     <div className={styles.admin}>
       <a className={styles.skipLink} href="#admin-main">Skip to content</a>
       <header className={styles.header}>
         <div className={styles.shell}>
-          <Link href="/admin" className={styles.brand} aria-label="TileSPEC Admin overview">
+          <Link href={supervisor ? "/admin/supervisor" : "/admin"} className={styles.brand} aria-label={supervisor ? "TileSPEC my sites" : "TileSPEC Admin overview"}>
             <svg width="34" height="38" viewBox="0 0 34 38" fill="none" aria-hidden="true" focusable="false">
               <path d="M1 7 33 1v8L1 15Z" fill="#0f2a3a" />
               <path d="M1 18 33 12v8L1 26Z" fill="#7b8790" />
@@ -29,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             </svg>
             <span>
               <strong>Tile<span>SPEC</span></strong>
-              <span className={styles.brandMeta}>Contract operations</span>
+              <span className={styles.brandMeta}>{supervisor ? "Site supervisor" : "Contract operations"}</span>
             </span>
           </Link>
           <div className={styles.identity}>
@@ -43,7 +44,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </div>
         </div>
       </header>
-      <nav className={`${styles.shell} ${styles.nav}`} aria-label="Admin navigation">
+      {!supervisor && <nav className={`${styles.shell} ${styles.nav}`} aria-label="Admin navigation">
         <Link href="/admin">Overview</Link>
         <Link href="/admin/contracts">Contracts</Link>
         {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
@@ -55,7 +56,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
         {member.role === "owner" && <Link href="/admin/team">User access</Link>}
         {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
-      </nav>
+      </nav>}
       <main id="admin-main" className={`${styles.shell} ${styles.main}`} tabIndex={-1}>
         {children}
       </main>

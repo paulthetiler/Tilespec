@@ -1,0 +1,101 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { requireActor } from "@/lib/auth";
+import { handoverInput, isRecordId, officeItemInput } from "@/lib/operations/daily-input";
+import { rpcErrorMessage } from "@/lib/operations/errors";
+import { uuid, ValidationError } from "@/lib/operations/validation";
+import type { DailyActionState } from "@/components/site/daily-form";
+
+const uncertainError = "We could not confirm the save. Your entries are kept here. Check the saved records, then retry the same details.";
+function refresh(contract: string) {
+  for (const path of ["", "/messages", "/finish", "/inspections", "/workforce", "/history"]) revalidatePath(`/admin/supervisor/sites/${contract}${path}`);
+  revalidatePath("/admin/quality");
+}
+function declined(error: { code?: string; message?: string }): DailyActionState {
+  return { error: rpcErrorMessage(error), uncertain: !error.code || !(/^[A-Z0-9]{5}$/.test(error.code) || error.code.startsWith("PGRST")) };
+}
+function failure(error: unknown, attempted: boolean): DailyActionState {
+  return { error: error instanceof ValidationError ? error.message : uncertainError, uncertain: attempted && !(error instanceof ValidationError) };
+}
+
+export async function sendOfficeItemAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase, member } = await requireActor();
+  let attempted = false;
+  try {
+    const data = officeItemInput(form), key = uuid(form, "request_key");
+    attempted = true;
+    const result = await supabase.rpc("create_supervisor_office_item", { p_request_key: key, p_data: data });
+    if (result.error) return declined(result.error);
+    if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
+    const saved = await supabase.from("supervisor_office_items").select("*").eq("id", result.data).single();
+    if (saved.error || !saved.data || saved.data.id !== result.data || saved.data.created_by !== member.user_id
+      || saved.data.request_key !== key || Object.entries(data).some(([name, value]) => saved.data[name] !== value)) throw new Error("Unconfirmed message");
+    refresh(data.contract_id);
+    return { id: result.data, success: data.kind === "qa_request" ? "Inspection request sent to the supervisor." : "Office message saved and sent." };
+  } catch (error) { return failure(error, attempted); }
+}
+
+export async function acknowledgeOfficeItemAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase, member } = await requireActor();
+  let attempted = false;
+  try {
+    const item = uuid(form, "item_id"), key = uuid(form, "request_key"), contract = uuid(form, "contract_id");
+    attempted = true;
+    const result = await supabase.rpc("acknowledge_supervisor_office_item", { p_item: item, p_request_key: key });
+    if (result.error) return declined(result.error);
+    if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
+    const saved = await supabase.from("supervisor_office_acknowledgements").select("*").eq("id", result.data).single();
+    if (saved.error || !saved.data || saved.data.item_id !== item || saved.data.actor_id !== member.user_id
+      || saved.data.contract_id !== contract || saved.data.request_key !== key || !saved.data.acknowledged_at) throw new Error("Unconfirmed acknowledgement");
+    refresh(contract);
+    return { id: result.data, success: "Message acknowledged. The office can see your reply." };
+  } catch (error) { return failure(error, attempted); }
+}
+
+export async function submitQaResultAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase, member } = await requireActor();
+  let attempted = false;
+  try {
+    const item = uuid(form, "item_id"), inspection = uuid(form, "inspection_id"), contract = uuid(form, "contract_id"), key = uuid(form, "request_key");
+    attempted = true;
+    const result = await supabase.rpc("submit_supervisor_qa_result", { p_item: item, p_inspection: inspection, p_request_key: key });
+    if (result.error) return declined(result.error);
+    if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
+    const saved = await supabase.from("supervisor_qa_submissions").select("*").eq("id", result.data).single();
+    if (saved.error || !saved.data || saved.data.item_id !== item || saved.data.inspection_id !== inspection
+      || saved.data.submitted_by !== member.user_id || saved.data.contract_id !== contract || saved.data.request_key !== key || !saved.data.submitted_at) throw new Error("Unconfirmed inspection result");
+    refresh(contract);
+    revalidatePath(`/admin/supervisor/sites/${contract}/tasks/${item}`);
+    return { id: result.data, success: "Inspection result sent to the office. Existing snags and work restrictions still apply." };
+  } catch (error) { return failure(error, attempted); }
+}
+
+export async function recordHandoverAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase, member } = await requireActor();
+  let attempted = false;
+  try {
+    const data = handoverInput(form), key = uuid(form, "request_key");
+    attempted = true;
+    const result = await supabase.rpc("record_site_handover", { p_request_key: key, p_data: data });
+    if (result.error) return declined(result.error);
+    if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
+    const saved = await supabase.from("site_handovers").select("*").eq("id", result.data).single();
+    if (saved.error || !saved.data || saved.data.id !== result.data || saved.data.actor_id !== member.user_id || saved.data.request_key !== key
+      || saved.data.contract_id !== data.contract_id || saved.data.finish_workforce !== data.finish_workforce
+      || new Date(saved.data.finished_at).getTime() !== new Date(data.finished_at!).getTime()
+      || ["work_completed", "outstanding_problems", "materials_needed", "areas_awaiting_attention", "office_notes"].some(name => saved.data[name] !== data[name as keyof typeof data])) throw new Error("Unconfirmed handover");
+    // The handover and workforce finishing share one database transaction. Check
+    // every linked record before claiming the workforce has also been finished.
+    if (data.finish_workforce && saved.data.actual_allocation_ids?.length) {
+      const ids = saved.data.actual_allocation_ids as string[];
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const batch = ids.slice(offset, offset + 100);
+        const rows = await supabase.from("actual_allocations").select("id,ended_at").in("id", batch);
+        if (rows.error || rows.data?.length !== batch.length || rows.data.some(row => !row.ended_at)) throw new Error("Unconfirmed workforce finish");
+      }
+    }
+    refresh(data.contract_id);
+    return { id: result.data, success: data.finish_workforce ? `Handover saved for the office. ${saved.data.ended_count} recorded work periods finished up to ${new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" }).format(new Date(saved.data.finished_at))}.` : "Handover saved for the office. Workforce times were kept as recorded." };
+  } catch (error) { return failure(error, attempted); }
+}

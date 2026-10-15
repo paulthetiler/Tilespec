@@ -20,7 +20,7 @@ export async function run({ browser, origin, sql, signIn, contractId, screenshot
   };
   // caret: 'initial' stops Playwright styling inputs, which React would see
   // as a hydration difference if a screenshot is taken while it hydrates.
-  const shot = (target, name) => target.screenshot({ path: join(screenshots, name), fullPage: true, caret: 'initial' });
+  const shot = (target, name) => target.screenshot({ path: join(screenshots, name), fullPage: true, caret: 'initial', style: 'nextjs-portal { display: none !important; }' });
   const value = statement => sql(statement);
   const planFor = team => `(select p.id from public.planned_allocations p join public.teams t on t.id = p.team_id where t.name = '${team}' and p.contract_id = '${contractId}')`;
   const allocations = team => Number(value(`select count(*) from public.actual_allocations where planned_allocation_id = ${planFor(team)} and voided_at is null`));
@@ -29,25 +29,26 @@ export async function run({ browser, origin, sql, signIn, contractId, screenshot
   const tablet = await browser.newContext({ viewport: { width: 768, height: 1024 }, hasTouch: true, locale: 'en-GB' });
   const page = watch(await signIn(tablet, origin, 'sid.supervisor@e2e.invalid'), 'supervisor');
   await page.waitForURL(`**/admin/supervisor/sites/${contractId}`);
-  await page.getByRole('link', { name: 'Start morning checks' }).waitFor();
+  await page.getByRole('link', { name: 'START MORNING CHECKS', exact: true }).waitFor();
   if (screenshots) await shot(page, 'dashboard-start-tablet.png');
   pass('a supervisor with one site opens straight onto its dashboard, which asks for the morning checks first');
 
   // Morning checks, then straight on to today's workforce.
-  await page.getByRole('link', { name: 'Start morning checks' }).click();
+  await page.getByRole('link', { name: 'START MORNING CHECKS', exact: true }).click();
   await page.waitForURL('**/checks');
-  const passes = page.getByRole('button', { name: 'Pass', exact: true });
-  for (let index = 0; index < 10; index++) await passes.nth(index).click();
-  await page.getByRole('button', { name: 'Complete daily inspection →' }).click();
-  await page.getByRole('heading', { name: 'Inspection saved' }).waitFor();
+  const groups = page.locator('main fieldset').filter({ has: page.getByRole('button', { name: 'YES', exact: true }) });
+  assert.equal(await groups.count(), 11);
+  for (let index = 0; index < 11; index++) await groups.nth(index).getByRole('button', { name: index < 9 ? 'YES' : 'NO', exact: true }).click();
+  await page.getByRole('button', { name: 'COMPLETE MORNING CHECKS', exact: true }).click();
+  await page.getByRole('heading', { name: 'Morning checks complete' }).waitFor();
   assert.equal(value(`select count(*) from public.supervisor_inspections where contract_id = '${contractId}'`), '1');
-  await page.getByRole('link', { name: "Confirm today's workforce →" }).click();
+  await page.getByRole('link', { name: 'Who’s on site?', exact: true }).click();
   await page.waitForURL('**/workforce');
   pass('after the morning checks are saved, the next prominent action goes straight to confirming today\'s workforce');
   await page.goto(site);
-  await page.getByRole('link', { name: "Confirm today's allocations" }).waitFor();
+  await page.getByRole('link', { name: "WHO'S ON SITE?", exact: true }).waitFor();
   pass('the dashboard\'s next action comes from saved records: with checks done it asks to confirm today\'s allocations');
-  await page.getByRole('link', { name: "Confirm today's allocations" }).click();
+  await page.getByRole('link', { name: "WHO'S ON SITE?", exact: true }).click();
   await page.waitForURL('**/workforce');
   if (screenshots) await shot(page, 'workforce-unconfirmed-tablet.png');
 
@@ -62,7 +63,7 @@ export async function run({ browser, origin, sql, signIn, contractId, screenshot
   await page.route('**/*', route => isAction(route.request()) ? route.abort('internetdisconnected') : route.continue());
   await moss.getByRole('button', { name: 'Confirm as planned' }).click();
   await moss.getByRole('alert').filter({ hasText: 'could not confirm this was saved' }).waitFor();
-  assert.equal(await moss.getByRole('status').count(), 0, 'no success is shown when the request never arrived');
+  assert.equal(await moss.getByRole('status').filter({ hasText: 'Confirmed as planned:' }).count(), 0, 'no success is shown when the request never arrived');
   assert.equal(allocations('Moss Pair'), 0);
   await page.unroute('**/*');
   let captured;
@@ -208,7 +209,8 @@ export async function run({ browser, origin, sql, signIn, contractId, screenshot
   await page.getByRole('region', { name: 'Workforce today' }).getByText('Not confirmed').locator('xpath=..').getByText('0', { exact: true }).waitFor();
   if (screenshots) await shot(page, 'workforce-confirmed-tablet.png');
   await page.goto(site);
-  await page.getByRole('link', { name: "Monitor today's work" }).waitFor();
+  await page.getByRole('link', { name: 'CHECK WORKMANSHIP', exact: true }).waitFor();
+  await page.getByText('Site details and earlier records', { exact: true }).click();
   await page.getByText(/Smith Tiling Ltd is on site and its employer's liability insurance has expired/).waitFor();
   if (screenshots) await shot(page, 'dashboard-day-underway-tablet.png');
   pass('I: after a reload every confirmed team, move, absence and arrival is shown as saved, and the dashboard moves on to monitoring');

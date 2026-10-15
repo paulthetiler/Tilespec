@@ -25,7 +25,7 @@ export function UnplannedForm({ action, contractId, day, requestKey, personKey, 
   const members = teamId ? memberships.filter(item => item.team_id === teamId && membershipOnDay(item, day)).map(item => item.operative_id) : [];
   const fromTeam = available.filter(person => members.includes(person.id));
   const others = available.filter(person => !members.includes(person.id));
-  return <OperationsForm key={requestKey} action={action} submitLabel="Record labour on site">
+  return <OperationsForm freezeOnFailure key={requestKey} action={action} submitLabel="Record labour on site">
     <div className={styles.stack}>
       <input type="hidden" name="contract_id" value={contractId} />
       <input type="hidden" name="day" value={day} />
