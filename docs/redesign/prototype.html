@@ -24,13 +24,14 @@
     --ok-bg: #eef7f2;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #e7eef0; color: var(--ink); font-family: "DM Sans", Arial, sans-serif; }
+  html, body { height: 100%; }
+  body { margin: 0; background: #e7eef0; color: var(--ink); font-family: "DM Sans", Arial, sans-serif; display: flex; flex-direction: column; }
   button, input, select, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; }
-  .review { position: sticky; top: 0; z-index: 5; background: var(--ink); color: #fff; padding: 14px 16px 12px; }
-  .review p { margin: 0 0 10px; font-size: 13px; line-height: 1.45; color: #d5e4e8; max-width: 78ch; }
+  .review { flex: none; z-index: 5; background: var(--ink); color: #fff; padding: 14px 16px 12px; }
+  .review p { margin: 0 0 8px; font-size: 13px; line-height: 1.4; color: #d5e4e8; max-width: 78ch; }
   .review strong { color: #fff; }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .controls { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; overflow-x: auto; }
   .controls button, .controls select { min-height: 40px; border-radius: 8px; border: 1px solid #3d6270; background: transparent; color: #fff; padding: 0 12px; }
   .controls button[aria-pressed="true"] { background: #fff; color: var(--ink); border-color: #fff; }
   .controls select { background: var(--ink); }
@@ -40,14 +41,14 @@
   .saved fieldset { border: 1px solid #2c4a58; margin: 8px 0 0; }
   .saved legend { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #b7cdd4; }
   .saved label { display: inline-flex; align-items: center; gap: 6px; margin: 6px 14px 0 0; font-size: 13px; min-height: 32px; }
-  .stage { padding: 20px 12px 48px; display: flex; justify-content: center; }
-  .device { width: min(390px, 100%); height: min(780px, calc(100vh - 150px)); background: var(--paper); border: 1px solid #c5d4d8; display: flex; flex-direction: column; overflow: hidden; }
-  .device.desktop { width: min(1080px, 100%); height: min(860px, calc(100vh - 140px)); display: grid; grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr; }
+  .stage { flex: 1; min-height: 0; padding: 12px 0; display: flex; justify-content: center; }
+  .device { width: 390px; max-width: 100%; flex: none; height: 100%; max-height: 760px; background: var(--paper); border: 1px solid #c5d4d8; display: flex; flex-direction: column; overflow: hidden; }
+  .device.desktop { width: min(1080px, 100%); height: 100%; max-height: 860px; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr; }
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--line); }
   .device.desktop .top { grid-column: 1 / -1; }
   .brand { display: flex; align-items: center; min-height: 44px; }
   .brand img { width: min(168px, 46vw); height: auto; }
-  .who { text-align: right; font-size: 13px; }
+  .who { text-align: right; font-size: 13px; max-width: 46%; overflow-wrap: anywhere; }
   .who strong { display: block; }
   .who span { color: var(--muted); }
   .side { display: none; }
@@ -58,15 +59,15 @@
   .device.desktop .main { padding: 28px 36px 40px; max-width: 760px; }
   .back { align-self: flex-start; border: 0; background: transparent; color: var(--teal-dark); font-weight: 700; min-height: 44px; padding: 0; }
   .kicker { margin: 0; font-size: 13px; color: var(--muted); }
-  h1 { margin: 0; font-family: "Barlow Condensed", Arial, sans-serif; font-weight: 800; font-size: 40px; line-height: .95; letter-spacing: -.01em; text-transform: uppercase; }
-  .device.desktop h1 { font-size: 52px; }
+  h1 { margin: 0; font-family: "Barlow Condensed", Arial, sans-serif; font-weight: 800; font-size: 32px; line-height: 1; letter-spacing: -.01em; text-transform: uppercase; overflow-wrap: anywhere; }
+  h2 { margin: 8px 0 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .device.desktop h1 { font-size: 40px; }
   .lead { margin: 0; font-size: 16px; line-height: 1.45; }
   .muted { color: var(--muted); font-size: 14px; line-height: 1.45; margin: 0; }
   .next { display: grid; gap: 8px; }
-  .primary, .stop, .quiet { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 64px; padding: 14px 16px; border-radius: 12px; font-size: 17px; font-weight: 800; text-align: center; }
+  .primary, .quiet { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 64px; padding: 14px 16px; border-radius: 12px; font-size: 17px; font-weight: 800; text-align: center; line-height: 1.25; white-space: normal; }
   .primary { background: var(--teal); color: #fff; border: 2px solid var(--teal-dark); }
   .primary:hover { background: var(--teal-dark); }
-  .stop { background: var(--stop); color: #fff; border: 0; min-height: 52px; font-size: 15px; }
   .quiet { background: #fff; color: var(--ink); border: 1px solid var(--ink); min-height: 52px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; }
   .row .quiet, .row .stop { width: auto; flex: 1; }
@@ -74,7 +75,7 @@
   .item, .note, .choice { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; text-align: left; }
   .item, .choice { width: 100%; display: grid; gap: 6px; justify-items: start; }
   .choice { min-height: 72px; }
-  .choice strong, .item strong { font-size: 16px; }
+  .choice strong, .item strong, dd { font-size: 16px; overflow-wrap: anywhere; }
   .choice span, .item span { color: var(--muted); font-size: 13px; }
   .tag { display: inline-flex; align-items: center; width: fit-content; min-height: 22px; padding: 0 8px; border-radius: 4px; font-size: 11px; font-weight: 800; letter-spacing: .02em; }
   .tag.gate { background: var(--stop-bg); color: var(--stop); }
@@ -100,6 +101,11 @@
   .device.desktop .tabbar { display: none; }
   .tabbar button { text-align: center; font-size: 12px; border-radius: 0; }
   .fine { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 0; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; }
+  .textlink { border: 0; background: transparent; color: var(--teal-dark); font-weight: 700; min-height: 44px; padding: 0; text-decoration: underline; text-align: left; }
+  .alert { padding: 14px; border-radius: 12px; background: var(--stop-bg); border: 1px solid #e5b7ad; }
+  .alert strong { display: block; margin-bottom: 4px; }
+  .alert p { margin: 0; }
   .split { display: grid; gap: 8px; }
   .device.desktop .split.two { grid-template-columns: 1fr 1fr; }
   dl { margin: 0; display: grid; gap: 10px; }
@@ -109,68 +115,96 @@
 </head>
 <body>
 <header class="review">
-  <p><strong>Review only.</strong> This prototype does not save, approve, or change records. It uses the TileSPEC logo and the existing ink and teal. Sample job “Riverside Retail” shows the shape of saved records. It is not a live site.</p>
+  <p><strong>Review only.</strong> The phone frame is 390px wide. Sample records drive every list. Saving here updates that sample, not the live database. Safety stops and other gates stay above the remaining work.</p>
   <div class="controls">
-    <button type="button" data-role="owner" aria-pressed="false">Owner</button>
-    <button type="button" data-role="office" aria-pressed="false">Office</button>
+    <button type="button" data-role="owner">Owner</button>
+    <button type="button" data-role="office">Office</button>
     <button type="button" data-role="supervisor" aria-pressed="true">Supervisor</button>
-    <button type="button" data-role="sub" aria-pressed="false">Subcontractor</button>
-    <button type="button" data-device="phone" aria-pressed="true">Phone</button>
-    <button type="button" data-device="desktop" aria-pressed="false">Desktop</button>
+    <button type="button" data-role="sub">Subcontractor</button>
+    <button type="button" data-device="phone" aria-pressed="true">Phone 390</button>
+    <button type="button" data-device="desktop">Desktop</button>
+    <label>Situation <select id="scenario" aria-label="Saved situation">
+      <option value="several">Several things open</option>
+      <option value="long">Long job name</option>
+      <option value="empty">Nothing outstanding</option>
+      <option value="missing">Records missing</option>
+      <option value="error">Save failed</option>
+    </select></label>
     <label>Screen <select id="jump" aria-label="Jump to a screen"></select></label>
   </div>
   <details class="saved" id="saved">
-    <summary>Saved records on Riverside — these change the supervisor’s one button</summary>
+    <summary>Saved records that feed the one supervisor rule list</summary>
     <fieldset>
-    <label><input type="checkbox" data-flag="safety"> Safety stop active</label>
-    <label><input type="checkbox" data-flag="release"> Restart requested</label>
-    <label><input type="checkbox" data-flag="qualityHold"> Quality hold active</label>
-    <label><input type="checkbox" data-flag="failedMandatory"> Failed required check</label>
-    <label><input type="checkbox" data-flag="critical"> Serious snag</label>
-    <label><input type="checkbox" data-flag="reinspect"> Repair waiting to be checked</label>
-    <label><input type="checkbox" data-flag="checks" checked> Morning checks saved</label>
-    <label><input type="checkbox" data-flag="unconfirmed" checked> People not confirmed</label>
-    <label><input type="checkbox" data-flag="qa" checked> Office asked for a check</label>
-    <label><input type="checkbox" data-flag="inspectionsDue"> Required inspection still due</label>
+      <label><input type="checkbox" data-flag="safety"> Safety stop active</label>
+      <label><input type="checkbox" data-flag="release"> Restart requested</label>
+      <label><input type="checkbox" data-flag="qualityHold"> Quality hold active</label>
+      <label><input type="checkbox" data-flag="failedMandatory"> Failed required check</label>
+      <label><input type="checkbox" data-flag="critical"> Serious snag</label>
+      <label><input type="checkbox" data-flag="reinspect"> Repair waiting to be checked</label>
+      <label><input type="checkbox" data-flag="disputed"> Responsibility disputed</label>
+      <label><input type="checkbox" data-flag="overdue"> Repair overdue</label>
+      <label><input type="checkbox" data-flag="checks"> Morning checks saved</label>
+      <label><input type="checkbox" data-flag="unconfirmed"> People not confirmed</label>
+      <label><input type="checkbox" data-flag="qaWaiting"> Inspection request waiting</label>
+      <label><input type="checkbox" data-flag="ackWaiting"> Instruction waiting for acknowledgement</label>
+      <label><input type="checkbox" data-flag="inspectionsDue"> Required inspection still due</label>
     </fieldset>
   </details>
 </header>
 <div class="stage"><div class="device" id="device"></div></div>
 <script>
 const logo = "../../public/tilespec-logo-animated.svg";
-const flags = { safety: false, release: false, qualityHold: false, failedMandatory: false, critical: false, reinspect: false, checks: true, earlier: false, unconfirmed: true, qa: true, openSnags: true, inspectionsDue: false };
-const state = { role: "supervisor", device: "phone", screen: "today", answers: {} };
-
+const state = { role: "supervisor", device: "phone", screen: "today", answers: {}, failedFrom: "today" };
+const world = {};
 const nav = {
   owner: [["today", "Today"], ["jobs", "Jobs"], ["money", "Money"], ["people", "People"]],
   office: [["today", "Today"], ["jobs", "Jobs"], ["labour", "Labour"], ["money", "Money"]],
   supervisor: [["today", "Today"], ["checks", "Checks"], ["people", "People"], ["snags", "Snags"]],
-  sub: [["today", "Today"], ["snag", "My snag"], ["papers", "Papers"], ["done", "Update"]],
+  sub: [["today", "Today"], ["snag", "My snag"], ["papers", "Papers"], ["update", "Update"]],
 };
 const titles = {
-  owner: { today: "Today", jobs: "Jobs", job: "Riverside Retail", money: "Money", people: "People", hold: "Stopped work" },
-  office: { today: "Today", jobs: "Jobs", job: "Set up Riverside", labour: "Labour", money: "Money", ask: "Ask the supervisor" },
-  supervisor: { today: "Today", checks: "Morning checks", people: "Who is here", snags: "Snags", finish: "Finish today", stop: "Stop work", inspect: "Inspect work", hold: "Stopped work" },
-  sub: { today: "Today", snag: "Your repair", papers: "Papers", done: "Update" },
+  today: "Today", jobs: "Jobs", job: "Job", money: "Money", people: "People", hold: "Stopped work",
+  confirm: "Confirm a person", labour: "Labour", ask: "Send to site", request: "Inspection request",
+  instruction: "Instruction", checks: "Morning checks", snags: "Snags", finish: "Finish today",
+  stop: "Stop affected work", inspect: "Inspect", newsnag: "New snag", failed: "Not saved",
+  snag: "Your repair", papers: "Papers", update: "Update", dispute: "Not our repair", drawing: "Drawing",
 };
-const roots = { owner: "today", office: "today", supervisor: "today", sub: "today" };
-
-function supervisorAction() {
-  if (flags.safety) return { to: "hold", label: "Review stopped work", detail: "A safety stop is saved for the shop floor. Checks and a finished day do not restart it.", kind: "Blocked" };
-  if (flags.release) return { to: "hold", label: "Review the request to restart", detail: "A repair has been sent to the office. Opening this does not restart the work.", kind: "Blocked" };
-  if (flags.qualityHold) return { to: "hold", label: "Review the quality hold", detail: "Tiling at the shop floor is held. Only an authorised release restarts that work.", kind: "Blocked" };
-  if (flags.failedMandatory) return { to: "checks", label: "Review the failed check", detail: "A required inspection failed. The affected work stays blocked.", kind: "Blocked" };
-  if (flags.critical) return { to: "snags", label: "Review the serious snag", detail: "A serious snag needs the office. It does not stop work until someone records a stop.", kind: "Pending" };
-  if (flags.reinspect) return { to: "snags", label: "Check the repair", detail: "Photos of a repair are saved. They are not an acceptance until a new inspection is saved.", kind: "Pending" };
-  if (!flags.checks) return { to: "checks", label: "Start morning checks", detail: "No morning check is saved for Riverside today.", kind: "Pending" };
-  if (flags.earlier) return { to: "people", label: "Finish yesterday’s times", detail: "Earlier work is still open. Finish those times before confirming today.", kind: "Pending" };
-  if (flags.unconfirmed) return { to: "people", label: "Who is here?", detail: "South gang is booked and not confirmed yet.", kind: "Pending" };
-  if (flags.qa) return { to: "inspect", label: "Inspect the shop floor", detail: "The office asked you to check the tiling. Sending a result does not approve payment or lift a stop.", kind: "Pending" };
-  if (flags.openSnags) return { to: "snags", label: "Look at open snags", detail: "One snag is still open on this site.", kind: "Pending" };
-  if (flags.inspectionsDue) return { to: "inspect", label: "Inspect the shop floor", detail: "A required check is still outstanding. Work stays blocked until the result is saved.", kind: "Blocked" };
-  return { to: "people", label: "Keep today’s record current", detail: "Everyone booked is accounted for. Record arrivals, moves and leaving times as they happen.", kind: "Saved" };
+function jobName() {
+  return world.scenario === "long"
+    ? "Riverside Retail and Leisure Park, Unit 4 West Mall — Northbank Developments Phase 2 Shop Floor Porcelain"
+    : "Riverside Retail";
 }
-
+function loadScenario(name) {
+  const open = name === "several" || name === "long" || name === "error";
+  const empty = name === "empty";
+  Object.assign(world, {
+    scenario: name,
+    safety: false, release: false, qualityHold: false, failedMandatory: false,
+    critical: open, reinspect: false, disputed: false, overdue: false, checks: true, earlier: false, unconfirmed: open,
+    openSnags: open, inspectionsDue: false, locations: empty || name === "missing" ? 3 : 0,
+    provisional: open, insuranceDays: open ? 12 : 90, enquiry: open, belowMargin: !empty,
+    messagesAvailable: name !== "missing", restrictionsAvailable: name !== "missing",
+    bookingAvailable: name !== "missing", planToday: !empty, hasPackage: !empty, drawing: !empty,
+    snagAssigned: open, snagSubmitted: false, jobFromEnquiry: false,
+    qa: open ? { title: "Check the first bay", location: "Shop floor", stage: "Tile installation", sentAt: "08:10", submittedAt: null, hasIssues: null } : null,
+    instruction: open ? { title: "Grout delivery", body: "20 bags are coming this afternoon. Keep the entrance clear.", ackRequired: true, sentAt: "07:55", acknowledgedAt: null } : null,
+    handover: empty || name === "missing" ? null : { at: "Yesterday, 17:10", actor: "Supervisor", work: "First bay laid.", problems: "Grout is short.", materials: "20 bags for tomorrow.", areas: "Entrance lippage." },
+  });
+  state.screen = "today";
+  state.answers = {};
+  syncFlags();
+}
+function syncFlags() {
+  const values = {
+    safety: world.safety, release: world.release, qualityHold: world.qualityHold, failedMandatory: world.failedMandatory,
+    critical: world.critical, reinspect: world.reinspect, disputed: world.disputed, overdue: world.overdue, checks: world.checks, unconfirmed: world.unconfirmed,
+    inspectionsDue: world.inspectionsDue, qaWaiting: !!(world.qa && !world.qa.submittedAt),
+    ackWaiting: !!(world.instruction && world.instruction.ackRequired && !world.instruction.acknowledgedAt),
+  };
+  document.querySelectorAll("[data-flag]").forEach(input => { input.checked = !!values[input.getAttribute("data-flag")]; });
+  const scenario = document.getElementById("scenario");
+  if (scenario && world.scenario) scenario.value = world.scenario;
+}
 function el(tag, attrs, children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs || {})) {
@@ -184,250 +218,371 @@ function el(tag, attrs, children) {
 }
 function txt(tag, className, text) { return el(tag, { class: className, text }); }
 function go(screen) { return () => { state.screen = screen; draw(); }; }
-function primary(label, screen) { return el("button", { class: "primary", type: "button", onclick: go(screen), text: label }); }
+function commit(mutator, from) {
+  if (world.scenario === "error") { state.failedFrom = from; state.screen = "failed"; draw(); return; }
+  mutator();
+  syncFlags();
+  state.screen = "today";
+  draw();
+}
 function tag(kind) {
-  const map = { Blocked: "blocked", Pending: "pending", Saved: "saved", Done: "saved", Gate: "gate", Reminder: "remind", Waiting: "wait" };
-  return el("span", { class: "tag " + (map[kind] || "remind"), text: kind });
+  const map = { Blocked: "blocked", Pending: "pending", Saved: "saved", Waiting: "wait", Gate: "gate" };
+  return el("span", { class: "tag " + (map[kind] || "pending"), text: kind });
+}
+function button(className, label, action) { return el("button", { class: className, type: "button", onclick: action, text: label }); }
+function field(label, control) { return el("label", { class: "field" }, [el("span", { text: label }), control]); }
+
+function supervisorQueue() {
+  const job = jobName();
+  const rules = [
+    () => world.restrictionsAvailable && world.safety ? item("safety", true, "Blocked", "hold", "Review stopped work", "Shop floor tiling is stopped. Morning checks and a handover do not restart it.", "Supervisor keeps it stopped. An authorised office user releases it on the existing hold.", "A release saved on that hold.") : null,
+    () => world.restrictionsAvailable && world.release ? item("release", true, "Blocked", "hold", "Review the request to restart", "A repair has been sent for a decision. Opening it does not restart the work.", "The office user allowed to release.", "The existing release decision, with a note.") : null,
+    () => world.restrictionsAvailable && world.qualityHold ? item("quality", true, "Blocked", "hold", "Review the quality hold", "Tiling at the shop floor stays held until an authorised release.", "Supervisor keeps it stopped. Office releases it.", "A release saved on that hold.") : null,
+    () => world.failedMandatory ? item("failed", true, "Blocked", "checks", "Review the failed check", "A required inspection failed. The affected work stays blocked.", "Supervisor", "A later saved inspection that meets the requirement.") : null,
+    () => world.critical ? item("critical", false, "Pending", "snags", "Review the serious snag", "A serious snag needs the office. It does not stop work until a stop is recorded.", "Office reviews it. Supervisor raised it.", "The snag review on the existing snag, or a hold if work must stop.") : null,
+    () => world.reinspect ? item("reinspect", true, "Blocked", "snags", "Check the repair", "Photos of a repair are saved. They are not an acceptance.", "Supervisor", "A new inspection that accepts or rejects the repair.") : null,
+    () => world.disputed ? item("disputed", false, "Pending", "snags", "Review who owns the repair", "Someone has disputed responsibility. The office reviews it on the snag.", "Office", "Responsibility confirmed, or marked unable to determine, on that snag.") : null,
+    () => world.overdue ? item("overdue", false, "Pending", "snags", "Review the overdue repair", "The target date has passed. The snag is still open.", "Supervisor, then the assigned gang", "A new target date, or the snag closed through the existing reinspection.") : null,
+    () => !world.checks ? item("checks", false, "Pending", "checks", "Start morning checks", "No morning check is saved for this site today.", "Supervisor", "Today’s morning check saved.") : null,
+    () => world.earlier ? item("earlier", true, "Blocked", "people", "Finish yesterday’s times", "Earlier work is still open.", "Supervisor", "An end time on those open periods.") : null,
+    () => world.unconfirmed ? item("people", false, "Pending", "people", "Who is here?", "The booked gang is not confirmed yet.", "Supervisor", "Each booked gang confirmed, marked absent, or recorded as a change.") : null,
+    () => world.messagesAvailable && world.instruction && world.instruction.ackRequired && !world.instruction.acknowledgedAt ? item("ack", false, "Pending", "instruction", "Read the office instruction", world.instruction.title + ". " + world.instruction.body, "Supervisor", "An acknowledgement saved for you on this message.") : null,
+    () => world.messagesAvailable && world.qa && !world.qa.submittedAt ? item("qa", true, "Pending", "inspect", "Inspect the shop floor", "The office asked you to check " + world.qa.stage.toLowerCase() + ". Sending the result does not lift a stop or approve money.", "Supervisor", "A submission saved on this inspection request.") : null,
+    () => world.openSnags ? item("snags", false, "Pending", "snags", "Look at open snags", "A snag is still open on this site.", "Supervisor, then the assigned gang", "The snag closed through the existing reinspection.") : null,
+    () => world.inspectionsDue ? item("due", true, "Blocked", "inspect", "Inspect the shop floor", "A required check is still outstanding. Work stays blocked until the result is saved.", "Supervisor", "The required inspection saved.") : null,
+  ];
+  const open = rules.map(rule => rule()).filter(Boolean);
+  if (!open.length) open.push(item("monitor", false, "Pending", "people", "Keep today’s record current", "Everyone booked is accounted for. Record arrivals and leaving times as they happen.", "Supervisor", "Attendance saved as people come and go."));
+  return open;
+  function item(id, gate, kind, to, label, detail, who, proof) {
+    return { id, gate, kind, to, label, what: label, detail, who, proof, job };
+  }
+}
+function officeQueue() {
+  const job = jobName();
+  const rows = [];
+  if (world.restrictionsAvailable && world.safety) rows.push(task("safety", "office", true, "hold", "Review the safety stop", "An authorised office user", "A release saved on that hold.", "The supervisor keeps the work stopped. Today does not release it."));
+  if (world.restrictionsAvailable && world.release) rows.push(task("release", "office", true, "hold", "Review the request to restart", "The office user allowed to release", "The existing release decision, with a note.", "A request is not a release."));
+  if (world.restrictionsAvailable && world.qualityHold) rows.push(task("quality", "office", true, "hold", "Review the quality hold", "An authorised office user", "A release saved on that hold.", "Tiling stays held until that release."));
+  if (world.locations === 0) rows.push(task("locations", "office", false, "job", "Add the locations", "Office", "At least one location saved on this job.", "No location is saved yet. Labour cannot be booked until one is."));
+  if (world.provisional) rows.push(task("provisional", "office", false, "confirm", "Confirm the person added on site", "Office", "That person’s status saved as active.", "They stay provisional until this is saved."));
+  if (world.messagesAvailable && world.qa && !world.qa.submittedAt) rows.push(task("qa", "supervisor", false, "request", "Inspect the shop floor and send the result", "Supervisor", "A submission saved on this inspection request.", "Waiting on the supervisor. The office cannot send the result."));
+  if (world.messagesAvailable && world.instruction && world.instruction.ackRequired && !world.instruction.acknowledgedAt) rows.push(task("ack", "supervisor", false, "instruction", "Read the instruction and acknowledge it", "Supervisor", "An acknowledgement saved by that supervisor on this message.", "Waiting on the supervisor. There is no read receipt."));
+  if (world.insuranceDays <= 30) rows.push(task("insurance", "office", false, "labour", "Record the public liability certificate", "Office", "An insurance row that still covers the booking.", "Cover is inside 30 days. This does not stop the job."));
+  if (world.enquiry) rows.push(task("enquiry", "office", false, "money", "Read the enquiry", "Office", "A job record, if you create one. There is no Declined status.", "Received. Reading it does not create a job."));
+  return rows;
+  function task(id, actor, gate, to, what, who, proof, detail) {
+    return { id, actor, gate, waiting: actor !== "office", to, what, label: what, who, proof, detail, job, kind: gate ? "Blocked" : actor === "office" ? "Pending" : "Waiting" };
+  }
+}
+function subQueue() {
+  const job = jobName();
+  const rows = [];
+  if (world.snagAssigned && !world.snagSubmitted) rows.push({ id: "snag", gate: true, kind: "Pending", to: "snag", label: "Send photos of the lippage repair", what: "Send photos of the lippage repair", detail: "This snag is assigned to your gang. Sending it does not close the snag.", who: "Subcontractor", proof: "A repair submission saved on this snag.", job });
+  if (world.hasPackage && !world.drawing) rows.push({ id: "drawing", gate: false, kind: "Pending", to: "papers", label: "Open the papers for your area", what: "No drawing is saved on your area", detail: "Ask the supervisor on site. There is no message inbox on this login.", who: "Office uploads the drawing", proof: "An operational drawing saved on your area.", job });
+  return rows;
 }
 
-function list(rows) {
-  return el("ul", { class: "list" }, rows.map(row => el("li", { class: "item" }, [
-    row.kind ? tag(row.kind) : null,
-    el("strong", { text: row.title }),
-    row.detail ? el("span", { text: row.detail }) : null,
-    row.to ? el("button", { class: "quiet", type: "button", onclick: go(row.to), text: row.action || "Open" }) : null,
+function taskList(items, labelFor) {
+  if (!items.length) return txt("p", "muted", "Nothing else is open.");
+  return el("ul", { class: "list" }, items.map(item => el("li", { class: "item" }, [
+    tag(item.kind),
+    el("strong", { text: item.what || item.label }),
+    el("span", { text: "Job: " + item.job }),
+    el("span", { text: "Who: " + item.who }),
+    el("span", { text: "Done when: " + item.proof }),
+    button("quiet", labelFor(item), go(item.to)),
   ])));
+}
+function primaryFor(item) {
+  if (!item) return [txt("p", "lead", "Nothing needs you right now.")];
+  return [el("div", { class: "next" }, [tag(item.kind), button("primary", item.label, go(item.to)), txt("p", "muted", item.detail || item.proof)])];
+}
+function evidence() {
+  const blocks = [txt("h2", "", "What the site has saved")];
+  if (!world.messagesAvailable) {
+    blocks.push(el("div", { class: "alert" }, [el("strong", { text: "Messages could not be read" }), txt("p", "", "Nothing is marked done. Ask the supervisor directly if you were expecting a reply.")]));
+    return blocks;
+  }
+  if (world.qa && world.qa.submittedAt) blocks.push(el("div", { class: "item" }, [tag("Saved"), el("strong", { text: "Inspection result saved at " + world.qa.submittedAt }), el("span", { text: world.qa.hasIssues ? "The supervisor found problems. This is the submission. There is no read receipt, and the snag or stop is unchanged." : "The supervisor sent a result. There is no read receipt." })]));
+  else if (world.qa) blocks.push(txt("p", "muted", "The inspection request was sent at " + world.qa.sentAt + ". No result is saved yet."));
+  if (world.instruction && world.instruction.acknowledgedAt) blocks.push(el("div", { class: "item" }, [tag("Saved"), el("strong", { text: "Instruction acknowledged at " + world.instruction.acknowledgedAt }), el("span", { text: "Proof is the acknowledgement row. The office does not mark it read." })]));
+  else if (world.instruction) blocks.push(txt("p", "muted", "The instruction was sent at " + world.instruction.sentAt + ". No acknowledgement is saved yet."));
+  if (world.handover) blocks.push(el("div", { class: "item" }, [tag("Saved"), el("strong", { text: "Handover · " + world.handover.at }), el("span", { text: world.handover.actor + " · Done: " + world.handover.work + " Problems: " + world.handover.problems + " Materials: " + world.handover.materials })]));
+  else blocks.push(txt("p", "muted", "No handover is saved."));
+  blocks.push(txt("p", "fine", "The office knows what happened because these rows exist. There is no read receipt to tick."));
+  return blocks;
 }
 
 function screenBody() {
-  const role = state.role, id = state.screen, action = supervisorAction();
-  if (role === "owner" && id === "today") return [
-    txt("p", "kicker", "Thursday 15 October"),
-    txt("h1", "", "Two decisions"),
-    txt("p", "lead", "Everything else can wait. You are not asked to set up jobs or confirm labour."),
-    el("div", { class: "next" }, [tag("Blocked"), primary("Review stopped work at Riverside", "hold"), txt("p", "muted", "Safety stop, shop floor tiling. You can read it here. Restarting work stays on the existing release, with a note and the right permission.")]),
-    list([
-      { kind: "Reminder", title: "Riverside price is under the company target", detail: "18% after reserve, target 30%. There is no saved acceptance, so this is not an Approve button.", to: "money", action: "Review the price" },
-      { kind: "Reminder", title: "New enquiry waiting", detail: "Received, with drawings. Nobody is assigned. Pricing it does not create a job.", to: "money", action: "Read the enquiry" },
-    ]),
+  const role = state.role, id = state.screen, job = jobName();
+  if (id === "failed") return [
+    el("div", { class: "alert", role: "alert" }, [el("strong", { text: "Not saved" }), txt("p", "", "The connection dropped. The previous record is unchanged. Try the same action again.")]),
+    button("primary", "Try again", go(state.failedFrom)),
   ];
-  if (role === "owner" && id === "jobs") return [
+  if (role === "owner") return ownerScreen(id, job);
+  if (role === "office") return officeScreen(id, job);
+  if (role === "supervisor") return supervisorScreen(id, job);
+  return subScreen(id, job);
+}
+function ownerScreen(id, job) {
+  const queue = [];
+  if (world.restrictionsAvailable && world.safety) queue.push({ kind: "Blocked", label: "Review stopped work", to: "hold", detail: "Shop floor tiling is stopped. This screen does not release it.", what: "Review the safety stop", job, who: "An authorised office user, on the existing hold", proof: "A release saved on that hold." });
+  if (world.belowMargin) queue.push({ kind: "Pending", label: "Review the price", to: "money", detail: "18% after reserve, target 30%. There is no acceptance record, so this does not approve the price.", what: "Review the price", job, who: "Owner", proof: "No acceptance record exists." });
+  if (world.enquiry) queue.push({ kind: "Pending", label: "Read the enquiry", to: "money", detail: "Received, with drawings. Reading it does not create a job.", what: "Read the enquiry", job: "Not a job yet", who: "Office can create the job", proof: "A job record, if someone creates one." });
+  if (id === "today") return [
+    txt("p", "kicker", "Thursday 15 October"), txt("h1", "", queue.length ? "Needs a decision" : "Nothing to decide"),
+    txt("p", "lead", "Setup and labour stay with the office."),
+    ...primaryFor(queue[0]),
+    txt("h2", "", "Still open"),
+    taskList(queue.slice(1), () => "Open"),
+  ];
+  if (id === "jobs") return [
     txt("h1", "", "Jobs"),
-    txt("p", "lead", "Open a job only when it needs a decision."),
-    el("button", { class: "choice", type: "button", onclick: go("job") }, [el("strong", { text: "Riverside Retail" }), el("span", { text: "Unit 4, Riverside Park, Warrington · Shop floor held" })]),
-    el("div", { class: "item" }, [tag("Saved"), el("strong", { text: "Birchwood Offices" }), el("span", { text: "No stop, no price warning, no enquiry. Nothing for you today." })]),
+    (world.safety || world.belowMargin) ? el("button", { class: "choice", type: "button", onclick: go("job") }, [el("strong", { text: job }), el("span", { text: "Unit 4, Riverside Park, Warrington" })]) : txt("p", "lead", "No job needs a decision."),
+    world.jobFromEnquiry ? el("div", { class: "item" }, [tag("Pending"), el("strong", { text: "Job created from the enquiry" }), el("span", { text: "Draft. Locations are not saved yet. That is the existing new-job result." })]) : null,
   ];
-  if (role === "owner" && id === "job") return [
-    txt("h1", "", "Riverside Retail"),
-    txt("p", "muted", "Northbank Developments · Unit 4, Riverside Park, Warrington"),
-    el("div", { class: "banner" }, [el("strong", { text: "Shop floor tiling is stopped" }), txt("p", "", "Safety. The supervisor recorded it. Other areas are not stopped by this record.")]),
-    primary("Review the stop", "hold"),
-    el("details", {}, [el("summary", { text: "Price, scope and people" }), el("dl", {}, [
-      el("dt", { text: "Recorded price" }), el("dd", { text: "£186,000" }),
-      el("dt", { text: "Margin after reserve" }), el("dd", { text: "18% · target 30%" }),
-      el("dt", { text: "Supervisor" }), el("dd", { text: "Assigned on the job" }),
-    ])]),
-    txt("p", "fine", "Actual spend, variations and payment claims are not recorded yet. These figures are the original budget only."),
+  if (id === "job") return [
+    txt("h1", "", job), txt("p", "muted", "Unit 4, Riverside Park, Warrington"),
+    world.safety ? el("div", { class: "banner" }, [el("strong", { text: "Shop floor tiling is stopped" }), txt("p", "", "Other areas are not stopped by this record.")]) : null,
+    world.safety ? button("primary", "Review the stop", go("hold")) : null,
+    world.belowMargin ? txt("p", "lead", "Recorded price £186,000. Margin after reserve 18%, target 30%.") : txt("p", "lead", "No price warning is saved."),
+    txt("p", "fine", "These are the original budget figures. Actual spend, variations and payment claims are not recorded."),
   ];
-  if (role === "owner" && id === "money") return [
+  if (id === "money") return [
     txt("h1", "", "Money"),
-    txt("p", "lead", "Original budgets only. Nothing here is a valuation or a payment."),
-    el("div", { class: "next" }, [primary("Review Riverside’s price", "job"), txt("p", "muted", "Below the company target. Saving a reason is not built, so this review does not pretend to accept the price.")]),
-    list([
-      { kind: "Reminder", title: "Enquiry · shop refurbishment", detail: "Drawings received. The estimator on the current site is an unsaved calculator. Copying numbers into a job budget is a separate save." },
-      { kind: "Saved", title: "Birchwood Offices", detail: "Budget on target. No action." },
-    ]),
+    world.belowMargin ? txt("p", "lead", job + " is under the company target. This page does not approve it.") : txt("p", "lead", "No budget needs a decision."),
+    world.enquiry ? el("div", { class: "item" }, [tag("Pending"), el("strong", { text: "Enquiry received" }), el("span", { text: "Shop refurbishment · drawings attached. The estimator on the current site is unsaved and is not this budget." })]) : txt("p", "muted", "No enquiry is waiting."),
+    world.enquiry ? button("primary", "Create a job from this enquiry", () => commit(() => { world.enquiry = false; world.jobFromEnquiry = true; }, "money")) : null,
+    txt("p", "fine", "Creating a job uses the existing new-job page. There is no payment claim on this screen."),
   ];
-  if (role === "owner" && id === "people") return [
-    txt("h1", "", "People"),
-    txt("p", "lead", "Who can sign in, and who can see prices."),
-    list([
-      { kind: "Pending", title: "Confirm a person added on site", detail: "A supervisor added a provisional name at Riverside. They cannot be treated as active until you or the office confirm them.", to: "today", action: "Leave this to the office" },
-      { kind: "Saved", title: "Access", detail: "Owner, office, supervisor, lead installer, subcontract installer. Prices stay with the owner unless the office is explicitly allowed." },
-    ]),
-    txt("p", "fine", "This screen replaces User access for the owner. It does not add a role."),
+  if (id === "people") return [
+    txt("h1", "", "People"), txt("p", "lead", "Who can sign in, and who can see prices."),
+    world.provisional ? button("primary", "Confirm the person added on site", go("confirm")) : txt("p", "muted", "No provisional person is waiting."),
+    txt("p", "fine", "Prices stay with the owner unless the office is explicitly allowed."),
   ];
-  if (role === "owner" && id === "hold") return [
-    txt("h1", "", "Shop floor is stopped"),
-    el("dl", {}, [
-      el("dt", { text: "Job" }), el("dd", { text: "Riverside Retail · Unit 4" }),
-      el("dt", { text: "What is stopped" }), el("dd", { text: "Tiling on the shop floor" }),
-      el("dt", { text: "Why" }), el("dd", { text: "Open edge at the stair. Follow the principal contractor’s site safety rules." }),
-      el("dt", { text: "Who must act" }), el("dd", { text: "Supervisor keeps the work stopped. An authorised office user releases it later, in the existing hold record." }),
-    ]),
-    txt("p", "fine", "There is no Release button on purpose. Release stays on the current hold page, with a note, evidence and permission."),
+  if (id === "hold") return holdScreen(false);
+  if (id === "confirm") return confirmScreen();
+  return [txt("p", "", "Back to Today for this role.")];
+}
+function officeScreen(id, job) {
+  const queue = officeQueue();
+  const mine = queue.find(item => item.actor === "office");
+  const rest = queue.filter(item => item !== mine);
+  if (id === "today") return [
+    txt("p", "kicker", "Office · Thursday"), txt("h1", "", "Today"),
+    !world.restrictionsAvailable ? el("div", { class: "alert" }, [el("strong", { text: "Stops could not be checked" }), txt("p", "", "This page cannot say that work may go ahead.")]) : null,
+    ...primaryFor(mine),
+    txt("h2", "", "Still open"),
+    taskList(rest, item => item.actor === "office" ? "Open" : "See what was sent"),
+    txt("p", "fine", "Waiting items stay open until the named person saves the record. They are not cleared by the button above."),
+    ...evidence(),
+    el("p", { class: "links" }, [button("textlink", "Send a message or ask for a check", go("ask"))]),
   ];
-
-  if (role === "office" && id === "today") return [
-    txt("p", "kicker", "Office · Thursday"),
-    txt("h1", "", "Chase these"),
-    txt("p", "lead", "One thing to do, then the list. Site setup, labour and paperwork stay behind Jobs, Labour and Money."),
-    el("div", { class: "next" }, [tag("Waiting"), primary("Ask the supervisor to check the shop floor", "ask"), txt("p", "muted", "No inspection request is saved yet. Sending one uses the existing office message. It does not approve the work.")]),
-    list([
-      { kind: "Gate", title: "Riverside still needs locations", detail: "No locations are saved, so labour cannot be booked. Same three steps as site setup today.", to: "job", action: "Set up the job" },
-      { kind: "Reminder", title: "Public liability for South gang expires in 12 days", detail: "They are booked next week. Record the new certificate in Workforce. This is not a stop." },
-      { kind: "Waiting", title: "Yesterday’s handover", detail: "Grout short, 20 bags asked for. There is no read receipt, so this stays visible until you deal with it or the next handover replaces the need." },
-      { kind: "Reminder", title: "New enquiry", detail: "Received. Open it under Money. It is not a job until you create one.", to: "money", action: "Open enquiries" },
-    ]),
-  ];
-  if (role === "office" && id === "jobs") return [
+  if (id === "jobs") return [
     txt("h1", "", "Jobs"),
-    el("button", { class: "choice", type: "button", onclick: go("job") }, [el("strong", { text: "Riverside Retail" }), el("span", { text: "Next: add locations, then book labour" })]),
-    el("div", { class: "item" }, [tag("Saved"), el("strong", { text: "Birchwood Offices" }), el("span", { text: "Locations, teams and this week’s plan are saved." })]),
+    el("button", { class: "choice", type: "button", onclick: go("job") }, [el("strong", { text: job }), el("span", { text: world.locations ? "Locations saved" : "Next: add locations" })]),
+    world.jobFromEnquiry ? el("div", { class: "item" }, [el("strong", { text: "Job created from the enquiry" }), el("span", { text: "Draft. No locations yet." })]) : null,
   ];
-  if (role === "office" && id === "job") return [
-    txt("h1", "", "Riverside Retail"),
-    txt("p", "muted", "Unit 4, Riverside Park, Warrington · Northbank Developments"),
-    txt("p", "lead", "Do the first unfinished step. The job record, drawings and messages are already on this job."),
-    list([
-      { kind: "Pending", title: "1. Locations", detail: "None saved. Add the shop floor, then the rooms.", action: "This preview does not create locations" },
-      { kind: "Pending", title: "2. Teams", detail: "South gang exists. Booking them waits until a location exists." },
-      { kind: "Pending", title: "3. This week’s plan", detail: "Which team, which place, which stage, which days." },
+  if (id === "job") return [
+    txt("h1", "", job), txt("p", "muted", "Unit 4, Riverside Park, Warrington"),
+    txt("p", "lead", "The first unfinished step is the one to do."),
+    el("ul", { class: "list" }, [
+      step("Locations", world.locations > 0, world.locations ? world.locations + " saved" : "None saved.", world.locations ? null : () => commit(() => { world.locations = 1; }, "job"), "Save the shop floor"),
+      step("Teams", world.locations > 0, world.locations ? "The gang can be booked." : "Add a location first.", world.locations ? go("labour") : null, "Open labour"),
+      step("This week", world.locations > 0, "Which gang, which place, which days.", world.locations ? go("labour") : null, "Open the week"),
     ]),
-    el("details", {}, [el("summary", { text: "Drawings, scope and messages" }), txt("p", "muted", "Upload stays on the current job page. Supervisors should get a link to the same file, which the site list does not give them today.")]),
-    txt("p", "fine", "Variations and payment claims are not recorded. Do not start extra work in the software. Tell the supervisor in a message, and keep your current office process."),
+    txt("p", "fine", "There is no variation or payment-claim form. Extra work goes in a message or the handover."),
   ];
-  if (role === "office" && id === "labour") return [
-    txt("h1", "", "Labour this week"),
-    txt("p", "lead", "Booked, not yet confirmed on site."),
-    list([
-      { kind: "Waiting", title: "Monday · Riverside · South gang", detail: "Cannot book until the shop floor location exists.", to: "job", action: "Finish job setup" },
-      { kind: "Pending", title: "Provisional name added on Birchwood", detail: "The supervisor recorded someone who is not confirmed. Confirm them in the existing workforce record before they count as active." },
-      { kind: "Reminder", title: "South gang insurance", detail: "Expires in 12 days. Record the certificate. Do not invent a block on the plan." },
-    ]),
-    txt("p", "fine", "The week board already exists on each job. This screen is the office view of what is unfinished."),
+  if (id === "labour") return [
+    txt("h1", "", "Labour"),
+    world.locations ? txt("p", "lead", "Monday · " + job + " · your gang · shop floor · tiling.") : txt("p", "lead", "Nothing can be booked until a location exists."),
+    world.locations ? null : button("primary", "Add the locations", go("job")),
+    world.provisional ? button("primary", "Confirm the person added on site", go("confirm")) : txt("p", "muted", "No provisional person is waiting."),
+    world.insuranceDays <= 30 ? txt("p", "muted", "Public liability expires in " + world.insuranceDays + " days. Record the certificate on the existing workforce page. The booking stays.") : null,
   ];
-  if (role === "office" && id === "money") return [
+  if (id === "money") return [
     txt("h1", "", "Money"),
-    txt("p", "lead", "Enquiries in, original budgets, and an unsaved price calculator."),
-    list([
-      { kind: "Reminder", title: "1 enquiry received", detail: "Open the drawings. There is no Priced or Declined status. Creating a job is the existing new-contract step, done by a person." },
-      { kind: "Saved", title: "Riverside original budget", detail: "Visible only if this office user is allowed to see prices. Otherwise this row is hidden." },
+    world.enquiry ? el("div", { class: "item" }, [el("strong", { text: "Enquiry received" }), el("span", { text: "Shop refurbishment. Drawings are on the existing enquiry. There is no Priced or Declined status." })]) : txt("p", "muted", "No enquiry is waiting."),
+    world.enquiry ? button("primary", "Create a job", () => commit(() => { world.enquiry = false; world.jobFromEnquiry = true; world.locations = 0; }, "money")) : null,
+    txt("p", "fine", "Budgets show here only when this office user is allowed to see prices. Payment claims are not a screen."),
+  ];
+  if (id === "ask") return [
+    txt("h1", "", "Send to the site"),
+    txt("p", "muted", "Same fields as the existing message: person, place, stage, and the note."),
+    field("What are you sending?", el("select", { name: "kind" }, [el("option", { value: "instruction", text: "Instruction" }), el("option", { value: "qa", text: "Ask for a check" })])),
+    field("Title", el("input", { name: "title", value: "Check the first bay" })),
+    field("Note", el("textarea", { name: "body", text: "Look at the first bay before the gang continues." })),
+    button("primary", "Send to the supervisor", () => {
+      const kind = document.querySelector("[name=kind]").value;
+      const title = document.querySelector("[name=title]").value.trim() || "Message";
+      const body = document.querySelector("[name=body]").value;
+      commit(() => {
+        world.messagesAvailable = true;
+        if (kind === "qa") world.qa = { title, location: "Shop floor", stage: "Tile installation", sentAt: "Just now", submittedAt: null, hasIssues: null };
+        else world.instruction = { title, body, ackRequired: true, sentAt: "Just now", acknowledgedAt: null };
+      }, "ask");
+    }),
+  ];
+  if (id === "request") return world.qa ? [
+    txt("h1", "", world.qa.title), txt("p", "muted", job + " · " + world.qa.location + " · " + world.qa.stage),
+    txt("p", "lead", world.qa.submittedAt ? "Result saved at " + world.qa.submittedAt + "." : "Sent at " + world.qa.sentAt + ". No result is saved yet."),
+    txt("p", "fine", "The office cannot acknowledge this for the supervisor, and cannot mark it read."),
+  ] : [txt("p", "lead", "No inspection request is saved."), button("primary", "Ask for a check", go("ask"))];
+  if (id === "instruction") return world.instruction ? [
+    txt("h1", "", world.instruction.title), txt("p", "lead", world.instruction.body),
+    txt("p", "muted", world.instruction.acknowledgedAt ? "Acknowledged at " + world.instruction.acknowledgedAt + "." : "Sent at " + world.instruction.sentAt + ". No acknowledgement is saved yet."),
+  ] : [txt("p", "lead", "No instruction is saved."), button("primary", "Send an instruction", go("ask"))];
+  if (id === "confirm") return confirmScreen();
+  if (id === "hold") return holdScreen(true);
+  return [txt("p", "", "Back to Today.")];
+}
+function step(title, done, detail, action, label) {
+  return el("li", { class: "item" }, [tag(done ? "Saved" : "Pending"), el("strong", { text: title }), el("span", { text: detail }), action ? button("quiet", label, action) : null]);
+}
+function supervisorScreen(id, job) {
+  const queue = supervisorQueue();
+  if (id === "today") return [
+    txt("p", "kicker", "Thursday"), txt("h1", "", job), txt("p", "muted", "Unit 4, Riverside Park, Warrington"),
+    !world.restrictionsAvailable ? el("div", { class: "alert" }, [el("strong", { text: "Stops could not be checked" }), txt("p", "", "This page cannot say that work may go ahead.")]) : null,
+    world.restrictionsAvailable && world.safety ? el("div", { class: "banner" }, [el("strong", { text: "Shop floor tiling is stopped" }), txt("p", "", "The button does not clear it.")]) : null,
+    ...primaryFor(queue[0]),
+    txt("h2", "", "Still open"),
+    taskList(queue.slice(1), () => "Open"),
+    !world.messagesAvailable ? txt("p", "muted", "Office messages could not be read.") : null,
+    el("p", { class: "links" }, [
+      button("textlink", "Finish today", go("finish")),
+      button("textlink", "Stop affected work", go("stop")),
     ]),
-    txt("p", "fine", "Payment claims, notices and certificates are not built. This screen must not show a claim form."),
   ];
-  if (role === "office" && id === "ask") return [
-    txt("h1", "", "Ask for a check"),
-    txt("p", "muted", "Uses the existing inspection request: person, place, stage, and what to look at."),
-    el("label", { class: "field" }, [document.createTextNode("To"), el("select", {}, [el("option", { text: "Supervisor on Riverside" })])]),
-    el("label", { class: "field" }, [document.createTextNode("Where"), el("input", { value: "Shop floor", readonly: "readonly" })]),
-    el("label", { class: "field" }, [document.createTextNode("What to check"), el("select", {}, [el("option", { text: "Tile installation" })])]),
-    el("label", { class: "field" }, [document.createTextNode("Note"), el("textarea", { text: "Please check the first bay before the gang continues." })]),
-    el("button", { class: "primary", type: "button", text: "Preview only — nothing is sent" }),
-    txt("p", "fine", "A real send stays on the current office message form, with the same fields and the same permission check."),
-  ];
-
-  if (role === "supervisor" && id === "today") return [
-    txt("p", "kicker", "Morning · Riverside Retail"),
-    txt("h1", "", "Shop floor"),
-    txt("p", "muted", "Unit 4, Riverside Park, Warrington"),
-    flags.safety ? el("div", { class: "banner" }, [el("strong", { text: "Shop floor tiling is stopped" }), txt("p", "", "Keep that work stopped. The button below does not clear it.")]) : null,
-    el("div", { class: "next" }, [tag(action.kind), primary(action.label, action.to), txt("p", "muted", action.detail)]),
-    el("div", { class: "row" }, [
-      el("button", { class: "stop", type: "button", onclick: go("stop"), text: "Stop work" }),
-      el("button", { class: "quiet", type: "button", onclick: go("finish"), text: "Finish today" }),
-    ]),
-    txt("p", "fine", "Messages, history and site details open from the button that needs them. Variations and dayworks are not tiles: that recording does not exist."),
-  ];
-  if (role === "supervisor" && id === "checks") return [
+  if (id === "checks") return [
     txt("h1", "", "Morning checks"),
-    txt("p", "muted", "Yes, no, or not applicable. A yes on the last two questions is a problem. Saving this does not mean work may start."),
-    el("div", { class: "checks" }, ["People", "Materials", "Site"].map(title => el("section", { class: "group" }, [
-      txt("h2", "", title),
+    txt("p", "muted", "Yes, no, or not applicable. Saving this does not mean work may start, and it does not clear a stop."),
+    el("div", { class: "checks" }, ["People", "Materials", "Site"].map(group => el("section", { class: "group" }, [
+      txt("h2", "", group),
       el("div", { class: "q" }, [
-        txt("p", "", title === "People" ? "Has everyone had the site safety briefing?" : title === "Materials" ? "Are the tiles and adhesive here?" : "Is anything blocking the area?"),
-        el("div", { class: "yn" }, ["Yes", "No", "N/A"].map(label => {
-          const key = title;
-          const pressed = state.answers[key] === label;
-          return el("button", { type: "button", "aria-pressed": pressed ? "true" : "false", onclick: () => { state.answers[key] = label; draw(); }, text: label });
-        })),
+        txt("p", "", group === "People" ? "Has everyone had the site safety briefing?" : group === "Materials" ? "Are the tiles and adhesive here?" : "Is anything blocking the area?"),
+        el("div", { class: "yn" }, ["Yes", "No", "N/A"].map(label => button("", label, () => { state.answers[group] = label; draw(); }))),
       ]),
     ]))),
-    txt("p", "fine", "The live form still has all eleven questions. Who is actually here is confirmed under People, not in this list."),
-    el("button", { class: "primary", type: "button", text: "Preview only — checks are not saved" }),
+    button("primary", "Save morning checks", () => commit(() => { world.checks = true; }, "checks")),
+    txt("p", "fine", "The live form still has all eleven questions. Who is here is confirmed under People."),
   ];
-  if (role === "supervisor" && id === "people") return [
+  if (id === "people") return [
     txt("h1", "", "Who is here?"),
-    txt("p", "lead", "South gang · Shop floor · Tiling"),
-    list([
-      { kind: flags.unconfirmed ? "Pending" : "Saved", title: "South gang", detail: flags.unconfirmed ? "Booked today. Not confirmed." : "Confirmed on site." },
-    ]),
-    el("div", { class: "row" }, [
-      el("button", { class: "primary", type: "button", style: "flex:1", onclick: () => { flags.unconfirmed = false; state.screen = "today"; draw(); }, text: "They are here as booked" }),
-    ]),
-    txt("p", "fine", "Confirm, change, move and finish times stay on the current workforce day. This button only demonstrates the next action clearing."),
+    txt("p", "lead", "Shop floor · tiling · " + job),
+    el("div", { class: "item" }, [tag(world.unconfirmed ? "Pending" : "Saved"), el("strong", { text: "Booked gang" }), el("span", { text: world.unconfirmed ? "Not confirmed." : "Confirmed on site." })]),
+    world.unconfirmed ? button("primary", "They are here as booked", () => commit(() => { world.unconfirmed = false; }, "people")) : txt("p", "muted", "Confirmed. Record a move or a leaving time on the same workforce day."),
   ];
-  if (role === "supervisor" && id === "snags") return [
+  if (id === "snags") return [
     txt("h1", "", "Snags"),
-    list([
-      { kind: "Pending", title: "Lippage at the entrance", detail: "Shop floor · tiling · assigned to South gang. You raised it. They send repair photos. You do not close it from their phone." },
-    ]),
-    primary("Add a snag", "snags"),
-    txt("p", "fine", "A new snag still needs a place, a category, a photo and a short note, on the current form."),
+    world.critical || world.openSnags ? el("div", { class: "item" }, [tag(world.critical ? "Blocked" : "Pending"), el("strong", { text: "Lippage at the entrance" }), el("span", { text: "Shop floor · tiling · assigned to your gang. Their photos do not close it." })]) : txt("p", "lead", "No open snag on this site."),
+    button("primary", "Add a snag", go("newsnag")),
   ];
-  if (role === "supervisor" && id === "finish") return [
-    txt("h1", "", "Finish today"),
-    ...["What got done", "Problems", "Materials for tomorrow", "Areas that need attention", "Note for the office"].map(label => el("label", { class: "field" }, [document.createTextNode(label), el("textarea", {})])),
-    el("button", { class: "primary", type: "button", text: "Preview only — handover is not saved" }),
-    txt("p", "fine", "Extra work is written in the note. It is not a variation and it does not approve a rate. Optional finish times use the existing workforce finish."),
+  if (id === "newsnag") return [
+    txt("h1", "", "New snag"),
+    field("Where", el("input", { value: "Shop floor", readonly: "readonly" })),
+    field("What is wrong", el("input", { value: "Lippage" })),
+    field("Note", el("textarea", { text: "Entrance bay, along the threshold." })),
+    button("primary", "Save the snag", () => commit(() => { world.openSnags = true; }, "newsnag")),
+    txt("p", "fine", "Place, category, photo and note are the existing snag form."),
   ];
-  if (role === "supervisor" && id === "stop") return [
-    txt("h1", "", "Stop the affected work"),
-    el("label", { class: "field" }, [document.createTextNode("Safety or quality"), el("select", {}, [el("option", { text: "Safety stop" }), el("option", { text: "Quality hold" })])]),
-    el("label", { class: "field" }, [document.createTextNode("Where"), el("input", { value: "Shop floor", readonly: "readonly" })]),
-    el("label", { class: "field" }, [document.createTextNode("What to stop"), el("input", { value: "Tile installation", readonly: "readonly" })]),
-    el("label", { class: "field" }, [document.createTextNode("Why"), el("textarea", { text: "Open edge at the stair." })]),
-    el("button", { class: "stop", type: "button", text: "Preview only — work is not stopped" }),
-    txt("p", "fine", "The live Stop work form still requires the reason, the corrective action, and the existing permission check."),
-  ];
-  if (role === "supervisor" && id === "inspect") return [
+  if (id === "inspect") return [
     txt("h1", "", "Inspect the shop floor"),
-    txt("p", "muted", "Tile installation · asked for by the office"),
-    txt("p", "lead", "Save what you actually see. A pass does not lift a stop or approve money."),
-    primary("Open the workmanship check", "checks"),
-    txt("p", "fine", "The result goes back on the existing inspection request. Findings with problems stay findings."),
+    txt("p", "muted", world.qa ? world.qa.title + " · " + world.qa.stage : "No office request is saved."),
+    world.qa && !world.qa.submittedAt ? button("primary", "Send what I saw", () => commit(() => { world.qa.submittedAt = "Just now"; world.qa.hasIssues = true; }, "inspect")) : null,
+    world.qa && world.qa.submittedAt ? txt("p", "lead", "Result saved at " + world.qa.submittedAt + ". Problems stay problems. The stop and the price are unchanged.") : null,
+    !world.qa ? button("primary", "Back to today", go("today")) : null,
   ];
-  if (role === "supervisor" && id === "hold") return [
-    txt("h1", "", "This work stays stopped"),
-    txt("p", "lead", "Shop floor · tiling · Riverside Retail"),
-    txt("p", "muted", "You can read the reason and add evidence. You cannot release it."),
-    el("button", { class: "quiet", type: "button", onclick: go("today"), text: "Back to today" }),
+  if (id === "instruction") return world.instruction ? [
+    txt("h1", "", world.instruction.title), txt("p", "lead", world.instruction.body),
+    world.instruction.acknowledgedAt ? txt("p", "muted", "You acknowledged this at " + world.instruction.acknowledgedAt + ".") : button("primary", "I have read this", () => commit(() => { world.instruction.acknowledgedAt = "Just now"; }, "instruction")),
+  ] : [txt("p", "lead", "No instruction is waiting.")];
+  if (id === "finish") return [
+    txt("h1", "", "Finish today"),
+    ...["What got done", "Problems", "Materials for tomorrow", "Areas that need attention", "Note for the office"].map(label => field(label, el("textarea", { name: label }))),
+    button("primary", "Save the handover", () => commit(() => {
+      world.handover = { at: "Today, just now", actor: "Supervisor", work: "As written.", problems: "As written.", materials: "As written.", areas: "As written." };
+    }, "finish")),
+    txt("p", "fine", "A note about extra work is not a variation and does not approve a rate."),
   ];
-
-  if (role === "sub" && id === "today") return [
-    txt("p", "kicker", "Thursday · your work only"),
-    txt("h1", "", "Shop floor"),
-    txt("p", "lead", "Riverside Retail"),
-    el("dl", {}, [
+  if (id === "stop") return [
+    txt("h1", "", "Stop affected work"),
+    field("Safety or quality", el("select", {}, [el("option", { text: "Safety stop" }), el("option", { text: "Quality hold" })])),
+    field("Where", el("input", { value: "Shop floor", readonly: "readonly" })),
+    field("Why", el("textarea", { text: "Open edge at the stair." })),
+    button("primary", "Save the stop", () => commit(() => { world.safety = true; world.restrictionsAvailable = true; }, "stop")),
+    txt("p", "fine", "Reason and the required correction stay on the existing hold form. The activity note does not shrink the stop."),
+  ];
+  if (id === "hold") return holdScreen(false);
+  return [txt("p", "", "Back to Today.")];
+}
+function subScreen(id, job) {
+  const queue = subQueue();
+  if (id === "today") return [
+    txt("p", "kicker", "Thursday · your work only"), txt("h1", "", world.planToday && world.bookingAvailable ? "Shop floor" : job),
+    !world.hasPackage ? txt("p", "lead", "The office has not given you a package.") : null,
+    world.hasPackage && !world.bookingAvailable ? el("div", { class: "alert" }, [el("strong", { text: "Today’s booking could not be read" }), txt("p", "", "Your package is listed below from the assignment you can already see.")]) : null,
+    world.hasPackage ? el("dl", {}, [
       el("dt", { text: "Address" }), el("dd", { text: "Unit 4, Riverside Park, Warrington" }),
+      el("dt", { text: "Site contact" }), el("dd", { text: "Site manager, as saved on the job" }),
       el("dt", { text: "Your package" }), el("dd", { text: "Shop floor porcelain · 420 m²" }),
-      el("dt", { text: "Site contact" }), el("dd", { text: "As recorded on the job" }),
-    ]),
-    el("div", { class: "next" }, [tag("Pending"), primary("Send photos of the lippage repair", "snag"), txt("p", "muted", "This snag is assigned to your gang. Other snags, prices and other gangs are not shown.")]),
-    txt("p", "fine", "Who is on site today is confirmed by the supervisor. Your login cannot read the labour plan. This screen does not invent one."),
+      el("dt", { text: "Today" }), el("dd", { text: world.bookingAvailable ? (world.planToday ? "Shop floor · tile installation" : "Nothing is booked for you today.") : "Not available" }),
+    ]) : null,
+    world.snagSubmitted ? txt("p", "lead", "Repair sent. The supervisor still has to check it. The snag is not closed.") : null,
+    ...primaryFor(queue[0]),
+    txt("h2", "", "Still open"),
+    queue.length > 1 ? taskList(queue.slice(1), () => "Open") : txt("p", "muted", queue.length ? "Nothing else is open." : world.snagSubmitted ? "Nothing else is open." : "No repair is assigned to you."),
+    world.hasPackage ? txt("p", "fine", "Address, contact and drawings on your package are already permitted. Today’s place needs the narrow read described in the audit. Other gangs, prices and other jobs stay off this screen.") : null,
   ];
-  if (role === "sub" && id === "snag") return [
-    txt("h1", "", "Lippage at the entrance"),
-    txt("p", "muted", "Shop floor · tiling · assigned to your gang"),
-    txt("p", "lead", "Photograph the repair and say it is ready to be checked. That does not close the snag."),
-    primary("Add repair photos", "done"),
-    el("button", { class: "quiet", type: "button", text: "The repair is not ours" }),
-    txt("p", "fine", "Accept, dispute and submit repair are the only snag actions your role already has. Closing and reinspecting stay with the supervisor."),
+  if (id === "snag") return world.snagAssigned ? [
+    txt("h1", "", "Lippage at the entrance"), txt("p", "muted", "Shop floor · tiling · assigned to your gang"),
+    world.snagSubmitted ? txt("p", "lead", "Repair sent. The supervisor still has to check it. The snag is not closed.") : button("primary", "Send repair photos", go("update")),
+    !world.snagSubmitted ? button("quiet", "This repair is not ours", go("dispute")) : null,
+  ] : [txt("p", "lead", "No snag is assigned to you.")];
+  if (id === "update") return [
+    txt("h1", "", "Repair photos"),
+    txt("p", "lead", "Add the photos, then send them for a check."),
+    button("primary", "Send the repair", () => commit(() => { world.snagSubmitted = true; }, "update")),
+    txt("p", "fine", "This is the existing repair submission. It does not close the snag."),
   ];
-  if (role === "sub" && id === "papers") return [
+  if (id === "dispute") return [
+    txt("h1", "", "Not our repair"),
+    field("Why", el("textarea", { text: "This bay was laid by another gang." })),
+    button("primary", "Send the dispute", () => commit(() => { world.snagAssigned = false; }, "dispute")),
+    txt("p", "fine", "Dispute is an existing snag action. The office reviews responsibility."),
+  ];
+  if (id === "papers") return [
     txt("h1", "", "Papers for your area"),
-    list([
-      { kind: "Saved", title: "Shop floor drawing · Rev 2", detail: "You can open this file. It is the same private download as on the job." },
-      { kind: "Pending", title: "No setting-out drawing on your area", detail: "Ask the supervisor. You are not shown contract prices or other packages." },
+    world.drawing ? button("primary", "Open the shop floor drawing, rev 2", go("drawing")) : txt("p", "lead", "No drawing is saved on your area."),
+    txt("p", "fine", "Commercial files and other packages are not listed."),
+  ];
+  if (id === "drawing") return [
+    txt("h1", "", "Shop floor drawing"),
+    txt("p", "lead", "Revision 2. This is the existing private download for your area."),
+    button("quiet", "Back to papers", go("papers")),
+  ];
+  return [txt("p", "", "Back to Today.")];
+}
+function holdScreen(office) {
+  return [
+    txt("h1", "", "Shop floor is stopped"),
+    el("dl", {}, [
+      el("dt", { text: "Job" }), el("dd", { text: jobName() }),
+      el("dt", { text: "What is stopped" }), el("dd", { text: "Tiling on the shop floor" }),
+      el("dt", { text: "Why" }), el("dd", { text: "Open edge at the stair." }),
+      el("dt", { text: "Who" }), el("dd", { text: office ? "You can release this only on the existing hold page, if you are allowed." : "You can read this. You cannot release it." }),
     ]),
+    txt("p", "fine", "There is no release button here. Release stays on the current hold, with a note, evidence and the existing permission."),
   ];
-  if (role === "sub" && id === "done") return [
-    txt("h1", "", "Update"),
-    txt("p", "lead", "Add the repair photos, then send them for a check."),
-    el("button", { class: "primary", type: "button", text: "Preview only — photos are not uploaded" }),
-    txt("p", "fine", "A real upload uses the existing snag photo path. There is no separate progress percentage."),
+}
+function confirmScreen() {
+  return [
+    txt("h1", "", "Confirm this person"),
+    txt("p", "lead", "Added on site at " + jobName() + ". They stay provisional until this is saved."),
+    button("primary", "Confirm", () => commit(() => { world.provisional = false; }, "confirm")),
+    txt("p", "fine", "This is the existing confirm action. It does not book them onto another gang."),
   ];
-  return [txt("p", "", "This screen is not on this role’s path.")];
 }
 
 function draw() {
@@ -435,49 +590,53 @@ function draw() {
   device.className = "device" + (state.device === "desktop" ? " desktop" : "");
   device.replaceChildren();
   const items = nav[state.role];
-  const root = roots[state.role];
-  const currentNav = items.some(([id]) => id === state.screen) ? state.screen : root;
-
+  const current = items.some(([id]) => id === state.screen) ? state.screen : "today";
   const top = el("div", { class: "top" }, [
-    el("a", { class: "brand", href: "#", ariaLabel: "TileSPEC" }, [el("img", { src: logo, alt: "TileSPEC — Wall & Floor Tiling Contractors", width: "280", height: "75" })]),
-    el("div", { class: "who" }, [el("strong", { text: { owner: "Owner", office: "Office", supervisor: "Supervisor", sub: "Subcontractor" }[state.role] }), el("span", { text: "Riverside Retail" })]),
+    el("a", { class: "brand", href: "#", "aria-label": "TileSPEC" }, [el("img", { src: logo, alt: "TileSPEC — Wall & Floor Tiling Contractors", width: "280", height: "75" })]),
+    el("div", { class: "who" }, [el("strong", { text: { owner: "Owner", office: "Office", supervisor: "Supervisor", sub: "Subcontractor" }[state.role] }), el("span", { text: jobName() })]),
   ]);
-  const side = el("nav", { class: "side", ariaLabel: "Primary" }, items.map(([id, label]) => el("button", { type: "button", ariaCurrent: currentNav === id ? "page" : null, onclick: go(id), text: label })));
+  const side = el("nav", { class: "side", "aria-label": "Primary" }, items.map(([id, label]) => el("button", { type: "button", "aria-current": current === id ? "page" : null, onclick: go(id), text: label })));
   const main = el("main", { class: "main" });
-  if (state.screen !== root && !items.some(([id]) => id === state.screen)) {
-    main.append(el("button", { class: "back", type: "button", onclick: go(root), text: "Back" }));
-  }
+  if (state.screen !== "today") main.append(button("back", "Back", go("today")));
   for (const node of screenBody()) if (node) main.append(node);
-  const tabs = el("nav", { class: "tabbar", ariaLabel: "Primary" }, items.map(([id, label]) => el("button", { type: "button", ariaCurrent: currentNav === id ? "page" : null, onclick: go(id), text: label })));
+  const tabs = el("nav", { class: "tabbar", "aria-label": "Primary" }, items.map(([id, label]) => el("button", { type: "button", "aria-current": current === id ? "page" : null, onclick: go(id), text: label })));
   device.append(top, side, main, tabs);
-
   const jump = document.getElementById("jump");
-  const options = Object.entries(titles[state.role]);
-  jump.replaceChildren(...options.map(([id, label]) => el("option", { value: id, text: label, selected: id === state.screen ? "selected" : null })));
+  const options = [...items.map(([id]) => id), ...Object.keys(titles).filter(id => !items.some(([navId]) => navId === id))];
+  jump.replaceChildren(...options.map(id => el("option", { value: id, text: titles[id] || id, selected: id === state.screen ? "selected" : null })));
   document.getElementById("saved").classList.toggle("open", state.role === "supervisor");
-  document.querySelectorAll("[data-role]").forEach(button => button.setAttribute("aria-pressed", button.getAttribute("data-role") === state.role ? "true" : "false"));
-  document.querySelectorAll("[data-device]").forEach(button => button.setAttribute("aria-pressed", button.getAttribute("data-device") === state.device ? "true" : "false"));
+  document.querySelectorAll("[data-role]").forEach(buttonNode => buttonNode.setAttribute("aria-pressed", buttonNode.getAttribute("data-role") === state.role ? "true" : "false"));
+  document.querySelectorAll("[data-device]").forEach(buttonNode => buttonNode.setAttribute("aria-pressed", buttonNode.getAttribute("data-device") === state.device ? "true" : "false"));
+  document.querySelectorAll(".q").forEach(block => {
+    const group = block.parentElement.querySelector("h2").textContent;
+    block.querySelectorAll("button").forEach(choice => choice.setAttribute("aria-pressed", state.answers[group] === choice.textContent ? "true" : "false"));
+  });
 }
-
-document.querySelectorAll("[data-role]").forEach(button => button.addEventListener("click", () => {
-  state.role = button.getAttribute("data-role");
-  state.screen = "today";
-  draw();
-}));
-document.querySelectorAll("[data-device]").forEach(button => button.addEventListener("click", () => {
-  state.device = button.getAttribute("data-device");
-  draw();
-}));
+document.querySelectorAll("[data-role]").forEach(buttonNode => buttonNode.addEventListener("click", () => { state.role = buttonNode.getAttribute("data-role"); state.screen = "today"; draw(); }));
+document.querySelectorAll("[data-device]").forEach(buttonNode => buttonNode.addEventListener("click", () => { state.device = buttonNode.getAttribute("data-device"); draw(); }));
+document.getElementById("scenario").addEventListener("change", event => loadScenario(event.target.value));
 document.getElementById("jump").addEventListener("change", event => { state.screen = event.target.value; draw(); });
 document.querySelectorAll("[data-flag]").forEach(input => input.addEventListener("change", () => {
-  flags[input.getAttribute("data-flag")] = input.checked;
+  const key = input.getAttribute("data-flag");
+  if (key === "qaWaiting") {
+    if (input.checked) world.qa = { title: "Check the first bay", location: "Shop floor", stage: "Tile installation", sentAt: "08:10", submittedAt: null, hasIssues: null };
+    else world.qa = null;
+    world.messagesAvailable = true;
+  } else if (key === "ackWaiting") {
+    if (input.checked) world.instruction = { title: "Grout delivery", body: "20 bags are coming this afternoon. Keep the entrance clear.", ackRequired: true, sentAt: "07:55", acknowledgedAt: null };
+    else world.instruction = null;
+    world.messagesAvailable = true;
+  } else world[key] = input.checked;
+  if (state.role === "supervisor") state.screen = "today";
   draw();
 }));
 const params = new URLSearchParams(location.search);
+loadScenario(params.get("scenario") || "several");
 if (["owner", "office", "supervisor", "sub"].includes(params.get("role"))) state.role = params.get("role");
 if (params.get("device") === "desktop" || params.get("device") === "phone") state.device = params.get("device");
 if (params.get("screen")) state.screen = params.get("screen");
-if (params.get("safety") === "1") { flags.safety = true; document.querySelector("[data-flag=safety]").checked = true; }
+if (params.get("safety") === "1") { world.safety = true; world.restrictionsAvailable = true; }
+syncFlags();
 draw();
 </script>
 </body>
