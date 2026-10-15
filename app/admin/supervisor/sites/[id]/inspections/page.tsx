@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import { requireSite } from "../../../site-access";
-import { createInspectionTemplateAction, recordLocationInspectionAction } from "../../../inspection-actions";
+import { createInspectionTemplateAction, recordLocationInspectionAction, configureInspectionRequirementAction } from "../../../inspection-actions";
 import { OperationsForm } from "@/components/operations/operations-form";
 import { checkDatabase, locationsFor } from "@/lib/operations/data";
-import { applicableChecks, currentTemplates, type InspectionTemplate, type LocationInspection } from "@/lib/operations/inspections";
+import { applicableChecks, inspectionHasBlockingFailure, currentTemplates, type InspectionTemplate, type LocationInspection, type InspectionRequirement, type RequirementStatus } from "@/lib/operations/inspections";
 import { indexLocations, locationPath, orderLocations } from "@/lib/operations/locations";
 import { installationStages } from "@/lib/operations/types";
 import styles from "../../../../admin.module.css";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 type WorkforceSnapshot = { team_name: string | null; company_name: string | null; allocation: { work_date: string; started_at: string; ended_at: string | null; lead_operative_id: string | null }; attendance: { id: string; operative_id: string; display_name: string; joined_at: string; left_at: string | null }[] };
 type WorkPeriod = { actual_allocation_id: string; team_name: string | null; contractor_name: string | null; stage: string; work_date: string; started_at: string; ended_at: string | null; operative_names: string[]; location_relation: string };
 export default async function LocationInspections({ params, searchParams }: {
-  params: Promise<{ id: string }>; searchParams: Promise<{ location?: string; template?: string; page?: string }>;
+  params: Promise<{ id: string }>; searchParams: Promise<{ location?: string; template?: string; page?: string; stage?: string; inspection?: string }>;
 }) {
   const { id } = await params;
   const query = await searchParams;
@@ -23,19 +23,39 @@ export default async function LocationInspections({ params, searchParams }: {
   const index = indexLocations(locations);
   const location = locations.find(item => item.id === query.location);
   const page = /^\d+$/.test(query.page || "") ? Math.min(Number(query.page), 10000) : 0;
+  const selectedInspection = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query.inspection || "") ? query.inspection : undefined;
   let historyQuery = supabase.from("location_inspections").select("*").eq("contract_id", id);
   if (location) historyQuery = historyQuery.eq("work_area_id", location.id);
-  const [templateResult, recordsResult] = await Promise.all([
+  if (selectedInspection) historyQuery = historyQuery.eq("id", selectedInspection);
+  const [templateResult, recordsResult, requirementResult, documentResult, packageResult] = await Promise.all([
     supabase.from("location_inspection_templates").select("*").eq("contract_id", id).order("created_at", { ascending: false }),
-    historyQuery.order("created_at", { ascending: false }).order("id").range(page * 50, page * 50 + 50),
+    historyQuery.order("created_at", { ascending: false }).order("id").range(selectedInspection ? 0 : page * 50, selectedInspection ? 0 : page * 50 + 50),
+    supabase.from("location_inspection_requirements").select("*").eq("contract_id", id).order("created_at", { ascending: false }),
+    supabase.from("document_revisions").select("id,title,document_reference,revision,work_area_id").eq("contract_id", id).eq("classification", "operational").not("uploaded_at", "is", null).order("created_at", { ascending: false }),
+    supabase.from("work_packages").select("id,name,work_area_id").eq("contract_id", id),
   ]);
   // Fail closed on missing migration, rather than presenting fictitious records.
-  checkDatabase(templateResult.error); checkDatabase(recordsResult.error);
+  [templateResult, recordsResult, requirementResult, documentResult, packageResult].forEach(result => checkDatabase(result.error));
   const templates = (templateResult.data || []) as InspectionTemplate[];
   const hasMore = (recordsResult.data || []).length > 50;
   const records = (recordsResult.data || []).slice(0, 50) as LocationInspection[];
-  const available = location ? currentTemplates(templates, location.path_ids) : [];
-  const selected = available.find(item => item.id === query.template);
+  const activity = (installationStages as readonly string[]).includes(query.stage || "") ? query.stage : undefined;
+  const available = location ? currentTemplates(templates, location.path_ids).filter(item => !activity || item.stage === activity) : [];
+  const selected = available.find(item => item.id === query.template) || (activity && available.length === 1 ? available[0] : undefined);
+  const requirements = (requirementResult.data || []) as InspectionRequirement[];
+  const revisedRequirements = new Set(requirements.map(item => item.supersedes_id));
+  const currentRequirements = location ? requirements.filter(item => location.path_ids.includes(item.work_area_id) && !revisedRequirements.has(item.id)) : [];
+  const documents = (documentResult.data || []).filter(doc => !doc.work_area_id || location?.path_ids.includes(doc.work_area_id));
+  const packages = (packageResult.data || []).filter(item => location?.path_ids.includes(item.work_area_id));
+  const statusResult = location && selected ? await supabase.rpc("inspection_requirements", { p_contract: id, p_area: location.id, p_package: null, p_stage: selected.stage }) : { data: null, error: null };
+  checkDatabase(statusResult.error);
+  const requirementStatus = statusResult.data as RequirementStatus | null;
+  const issuesResult = location && selected ? await supabase.from("supervisor_issues").select("id,repair_cycle").eq("contract_id", id).eq("work_area_id", location.id).eq("stage", selected.stage).not("snag_status", "is", null).not("snag_status", "in", "(draft,cancelled)") : { data: [], error: null };
+  checkDatabase(issuesResult.error);
+  const issueIds = (issuesResult.data || []).map(item => item.id);
+  const photosResult = issueIds.length ? await supabase.from("supervisor_issue_photos").select("id,issue_id,purpose,created_at,repair_cycle").in("issue_id", issueIds).not("uploaded_at", "is", null).not("event_id", "is", null).order("created_at", { ascending: false }) : { data: [], error: null };
+  checkDatabase(photosResult.error);
+  const photos = (photosResult.data || []).filter(photo => photo.purpose === "original" || photo.repair_cycle === (issuesResult.data || []).find(issue => issue.id === photo.issue_id)?.repair_cycle);
   const workResult = location ? await supabase.rpc("location_work_history", { p_area: location.id }) : { data: [], error: null };
   checkDatabase(workResult.error);
   const periods = ((workResult.data || []) as WorkPeriod[]).filter(item => item.stage === selected?.stage && item.started_at <= new Date().toISOString());
@@ -45,21 +65,29 @@ export default async function LocationInspections({ params, searchParams }: {
   const base = `/admin/supervisor/sites/${id}/inspections`;
   return <>
     <h2>Location inspections</h2>
-    <p>Choose the location and the office&apos;s specification checklist. Saved answers and work-period links are permanent observations. They do not grant work release or establish responsibility for a defect. Issue answers remain in this history. Choose Create linked snag to record a defect explicitly; formal QA holds are Phase 3C.</p>
+    <p>Choose the location and the office&apos;s specification checklist. Saved answers, evidence and work-period links are permanent. A passing inspection does not authorise work while relevant holds or other mandatory checks remain unresolved.</p>
     <form className={styles.form} method="get"><label>Location<select name="location" defaultValue={location?.id || ""} required>
       <option value="">Choose location</option>{orderLocations(locations).map(item => <option key={item.id} value={item.id}>{locationPath(index, item.id)}{item.archived_at ? " (archived — history only)" : ""}</option>)}
-    </select></label><button className={styles.button}>Open location</button></form>
+    </select></label>{activity && <input type="hidden" name="stage" value={activity} />}<button className={styles.button}>Open location</button></form>
     {location && <section className={styles.panel}><h3>{locationPath(index, location.id)}</h3>
-      <ul>{available.map(template => <li key={template.id}><Link href={`${base}?location=${location.id}&template=${template.id}`}>
+      <ul>{available.map(template => <li key={template.id}><Link href={`${base}?location=${location.id}&template=${template.id}${activity ? `&stage=${activity}` : ""}`}>
         {template.title} · {template.stage} · {template.specification_reference} rev {template.specification_revision}</Link></li>)}</ul>
       {!available.length && <p>No current template applies. Ask the office to record the specification and checklist.</p>}
+      {requirementStatus && <p role="status"><strong>Mandatory inspection: {requirementStatus.unknown ? "Applicability not configured — work is not assessed" : requirementStatus.failed ? "Failed — affected work is blocked" : requirementStatus.passed ? "Configured requirements passed; review holds and release authorisation" : "Awaiting required inspection"}.</strong></p>}
       {selected && !location.archived_at && <OperationsForm key={`${location.id}-${selected.id}`} action={recordLocationInspectionAction} submitLabel="Save inspection">
         <input type="hidden" name="request_key" value={randomUUID()} /><input type="hidden" name="contract_id" value={id} />
         <input type="hidden" name="work_area_id" value={location.id} /><input type="hidden" name="template_id" value={selected.id} />
         <input type="hidden" name="check_count" value={applicableChecks(selected).length} />
         <h3>{selected.title}</h3><p>{selected.specification_reference} · Revision {selected.specification_revision} · {selected.wet_area ? "Wet-area checks apply" : "Wet-area checks do not apply"}</p>
-        {applicableChecks(selected).map((check, i) => <div key={i}><label>{check.label}<select name={`status_${i}`} required defaultValue=""><option value="">Choose answer</option><option value="pass">Pass</option><option value="issue">Issue</option><option value="na">N/A</option></select></label>
-          <label>Reason / observation for check {i + 1} (required for Issue or N/A)<textarea name={`note_${i}`} maxLength={2000} /></label></div>)}
+        <label>Work package (where applicable)<select name="work_package_id" defaultValue=""><option value="">Location / no specific package</option>{packages.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        {applicableChecks(selected).map((check, i) => <div key={i}><label>{check.label}{check.hold_point ? " · Mandatory hold point" : check.mandatory ? " · Mandatory" : ""}{check.evidence_required ? " · Evidence required for Pass" : ""}<select name={`status_${i}`} required defaultValue=""><option value="">Choose answer</option><option value="pass">Pass</option><option value="issue">Issue</option><option value="na">N/A</option></select></label>
+          {(check.mandatory || check.hold_point) && <p>Issue or N/A cannot satisfy this requirement. Assess against the approved specification and manufacturer instructions.</p>}
+          <label>Reason / observation for check {i + 1} (required for Issue or N/A)<textarea name={`note_${i}`} maxLength={2000} /></label>
+          <fieldset><legend>Supporting evidence for check {i + 1}</legend>
+            {documents.map(doc => <label className={styles.checkboxRow} key={doc.id}><input type="checkbox" name={`document_ids_${i}`} value={doc.id} />{doc.title} · {doc.document_reference} rev {doc.revision} · <Link href={`/admin/documents/${doc.id}`}>View</Link></label>)}
+            {photos.map(photo => <label className={styles.checkboxRow} key={photo.id}><input type="checkbox" name={`photo_ids_${i}`} value={photo.id} />Verified {photo.purpose} photograph · {photo.created_at} · <Link href={`/admin/snags/photos/${photo.id}`}>View</Link></label>)}
+            {!documents.length && !photos.length && <p>No verified evidence is available. Upload a supporting operational document or record verified photographs on a linked snag. An Issue can be saved immediately; an evidence-required Pass needs verified evidence.</p>}
+          </fieldset></div>)}
         <h4>Actual work to link</h4><p>Recorded attendance at this location, within it or in a containing location, for this stage. Plans do not prove attendance. Leave empty if attribution is unknown.</p>
         {periods.map(period => <label className={styles.checkboxRow} key={period.actual_allocation_id}><input type="checkbox" name="allocation_ids" value={period.actual_allocation_id} />
           {period.team_name || "No team"} · {period.contractor_name || "Company not recorded"} · {period.work_date} · {period.started_at} to {period.ended_at || "open"} · {period.location_relation} · {period.operative_names.join(", ")}</label>)}
@@ -74,17 +102,37 @@ export default async function LocationInspections({ params, searchParams }: {
           <label>Specification reference<input name="specification_reference" required maxLength={160} /></label>
           <label>Specification revision<input name="specification_revision" required maxLength={80} /></label>
           <label className={styles.checkboxRow}><input type="checkbox" name="wet_area" />Specification requires wet-area checks at this location</label>
-          <label>Checklist (one check per line; prefix conditional checks with [wet])<textarea name="checklist" required maxLength={26000} /></label>
-          <p>This template applies here and to descendant locations. Recording a specification reference does not approve it.</p>
+          <label>Checklist (one check per line; optional prefixes [wet], [mandatory], [hold], [evidence])<textarea name="checklist" required maxLength={26000} /></label>
+          <p>Example: [hold] [evidence] Waterproofing test meets approved system requirements. Hold points require Pass; N/A does not release work. Use project requirements, without invented tolerances. This template applies here and to descendants. Configure and approve applicability separately below.</p>
         </OperationsForm></details>}
+      {(["owner", "contracts_manager"] as string[]).includes(member.role) && !location.archived_at && <details className={styles.details}><summary>Configure mandatory inspection applicability</summary>
+        <OperationsForm action={configureInspectionRequirementAction} submitLabel="Approve and save applicability revision">
+          <input type="hidden" name="request_key" value={randomUUID()} /><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="work_area_id" value={location.id} />
+          <label>Revision of<select name="supersedes_id" defaultValue=""><option value="">New applicability decision</option>{currentRequirements.filter(item => item.work_area_id === location.id).map(item => <option key={item.id} value={item.id}>{item.stage} · {item.applicability} · {item.created_at}</option>)}</select></label>
+          <label>Affected activity<select name="stage" defaultValue={selected?.stage || "preparation"}>{installationStages.map(stage => <option key={stage} value={stage}>{stage}</option>)}</select></label>
+          <label>Work package<select name="work_package_id" defaultValue=""><option value="">All work packages at this branch</option>{packages.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label>Applicability<select name="applicability"><option value="required">Mandatory inspection required</option><option value="not_required">No mandatory inspection required by the approved documents</option></select></label>
+          <label>Current mandatory template (required when applicable)<select name="template_id" defaultValue={selected?.id || ""}><option value="">No template / not required</option>{available.map(item => <option key={item.id} value={item.id}>{item.title} · {item.stage} · rev {item.specification_revision}</option>)}</select></label>
+          <fieldset><legend>Approve exact specification / manufacturer document revisions</legend>{documents.map(doc => <label className={styles.checkboxRow} key={doc.id}><input type="checkbox" name="approved_document_ids" value={doc.id} />{doc.title} · {doc.document_reference} rev {doc.revision} · <Link href={`/admin/documents/${doc.id}`}>View</Link></label>)}</fieldset>
+          {!documents.length && <p>Upload a verified operational specification or manufacturer document through site documents before configuring applicability.</p>}
+          <label>Approval basis and applicable evidence requirements<textarea name="basis" required minLength={5} maxLength={2000} /></label>
+          <label className={styles.checkboxRow}><input type="checkbox" name="approve_specification" required />I approve the selected revisions as the basis for this location branch and activity.</label>
+          <p>Unknown applicability never grants release. Ancestor mandatory requirements remain in force; a narrower not-required decision cannot clear them. Revising a template requires a new applicability decision and new inspection.</p>
+        </OperationsForm>
+      </details>}
+      {currentRequirements.length > 0 && <details className={styles.details}><summary>Current office applicability decisions</summary>{currentRequirements.map(item => <div key={item.id}><p><strong>{item.stage} · {item.applicability}</strong> · {locationPath(index, item.work_area_id)} · {item.work_package_id ? packages.find(p => p.id === item.work_package_id)?.name || "Specified work package" : "All work packages"}</p><p>{item.basis} · approved {item.created_at}</p>{item.approved_document_ids.map(doc => <Link key={doc} href={`/admin/documents/${doc}`}>Approved document revision · </Link>)}</div>)}</details>}
     </section>}
     <section className={styles.panel}><h3>Saved inspection history</h3>
+      {selectedInspection && <p><Link href={`${base}${location ? `?location=${location.id}` : ""}`}>View all inspection history for this location</Link></p>}
       {records.filter(record => !location || record.work_area_id === location.id).map(record => {
         const template = templates.find(item => item.id === record.template_id);
         const allocations = (links.data || []).filter(link => link.inspection_id === record.id);
-        return <details className={styles.details} key={record.id}><summary>{record.location_path.join(" › ")} · {template?.title} · {record.created_at} · {record.issues_count} issues</summary>
+        return <details className={styles.details} id={`inspection-${record.id}`} open={record.id === selectedInspection} key={record.id}><summary>{record.location_path.join(" › ")} · {template?.title} · {record.created_at} · {record.issues_count} issues</summary>
           <p>Record {record.id} · Recorded by {record.actor_name} · {template?.specification_reference} rev {template?.specification_revision}</p>
-          <ul>{record.answers.map((answer, i) => <li key={i}>{answer.item}: {answer.status}{answer.note && ` — ${answer.note}`}</li>)}</ul>
+          <ul>{record.answers.map((answer, i) => <li key={i}>{answer.item}: {answer.status}{answer.hold_point ? " · mandatory hold point" : answer.mandatory ? " · mandatory" : ""}{answer.note && ` — ${answer.note}`}
+            {answer.document_ids?.map(doc => <span key={doc}> · <Link href={`/admin/documents/${doc}`}>Recorded document evidence</Link></span>)}
+            {answer.photo_ids?.map(photo => <span key={photo}> · <Link href={`/admin/snags/photos/${photo}`}>Recorded photograph evidence</Link></span>)}
+          </li>)}</ul>
           <p>{allocations.length} linked actual work periods. These links record presence, not blame.</p>
           {allocations.map(link => {
             const snapshot = link.workforce_snapshot as WorkforceSnapshot;
@@ -95,11 +143,12 @@ export default async function LocationInspections({ params, searchParams }: {
             </details>;
           })}
           {record.issues_count>0&&<p><Link className={styles.button} href={`/admin/snags/new?contract=${id}&inspection=${record.id}`}>Create linked snag</Link></p>}
+          {inspectionHasBlockingFailure(record)&&<p><Link className={styles.button} href={`/admin/holds/new?contract=${id}&inspection=${record.id}`}>Stop affected work — linked hold</Link></p>}
           <Link href={`/admin/supervisor/sites/${id}/history`}>Review workforce history</Link>{" · "}<Link href={`/admin/snags?contract_id=${id}`}>Review site snags and evidence</Link>
         </details>;
       })}
       <div className={styles.rowActions}>
-        {page > 0 && <Link className={styles.secondaryButton} href={`${base}?${location ? `location=${location.id}&` : ""}page=${page - 1}`}>Newer inspections</Link>}
+        {!selectedInspection && page > 0 && <Link className={styles.secondaryButton} href={`${base}?${location ? `location=${location.id}&` : ""}page=${page - 1}`}>Newer inspections</Link>}
         {hasMore && <Link className={styles.secondaryButton} href={`${base}?${location ? `location=${location.id}&` : ""}page=${page + 1}`}>Earlier inspections</Link>}
       </div>
       {!records.length && <p>No location inspections recorded. Earlier morning checks remain in the existing register.</p>}
