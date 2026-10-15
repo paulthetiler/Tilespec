@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TileSPEC — proposed daily workflow (review only)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f2a3a;
+    --teal: #326e67;
+    --teal-dark: #245c55;
+    --paper: #f4f7f8;
+    --line: #d7e2e5;
+    --muted: #536b77;
+    --card: #fff;
+    --warn-bg: #fff9ec;
+    --warn: #80500b;
+    --stop: #9b3527;
+    --stop-bg: #fff6f3;
+    --ok: #1f6b45;
+    --ok-bg: #eef7f2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e7eef0; color: var(--ink); font-family: "DM Sans", Arial, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .review { position: sticky; top: 0; z-index: 5; background: var(--ink); color: #fff; padding: 14px 16px 12px; }
+  .review p { margin: 0 0 10px; font-size: 13px; line-height: 1.45; color: #d5e4e8; max-width: 78ch; }
+  .review strong { color: #fff; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .controls button, .controls select { min-height: 40px; border-radius: 8px; border: 1px solid #3d6270; background: transparent; color: #fff; padding: 0 12px; }
+  .controls button[aria-pressed="true"] { background: #fff; color: var(--ink); border-color: #fff; }
+  .controls select { background: var(--ink); }
+  .saved { display: none; margin-top: 10px; }
+  .saved.open { display: block; }
+  .saved summary { cursor: pointer; font-size: 13px; color: #d5e4e8; }
+  .saved fieldset { border: 1px solid #2c4a58; margin: 8px 0 0; }
+  .saved legend { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #b7cdd4; }
+  .saved label { display: inline-flex; align-items: center; gap: 6px; margin: 6px 14px 0 0; font-size: 13px; min-height: 32px; }
+  .stage { padding: 20px 12px 48px; display: flex; justify-content: center; }
+  .device { width: min(390px, 100%); height: min(780px, calc(100vh - 150px)); background: var(--paper); border: 1px solid #c5d4d8; display: flex; flex-direction: column; overflow: hidden; }
+  .device.desktop { width: min(1080px, 100%); height: min(860px, calc(100vh - 140px)); display: grid; grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+  .device.desktop .top { grid-column: 1 / -1; }
+  .brand { display: flex; align-items: center; min-height: 44px; }
+  .brand img { width: min(168px, 46vw); height: auto; }
+  .who { text-align: right; font-size: 13px; }
+  .who strong { display: block; }
+  .who span { color: var(--muted); }
+  .side { display: none; }
+  .device.desktop .side { display: flex; flex-direction: column; gap: 4px; padding: 16px 12px; background: #fff; border-right: 1px solid var(--line); }
+  .side button, .tabbar button { border: 0; background: transparent; text-align: left; min-height: 48px; padding: 8px 12px; border-radius: 8px; font-weight: 700; }
+  .side button[aria-current="page"], .tabbar button[aria-current="page"] { background: #e7f3f1; color: var(--teal-dark); }
+  .main { padding: 20px 16px 24px; display: flex; flex-direction: column; gap: 16px; overflow: auto; flex: 1; min-height: 0; }
+  .device.desktop .main { padding: 28px 36px 40px; max-width: 760px; }
+  .back { align-self: flex-start; border: 0; background: transparent; color: var(--teal-dark); font-weight: 700; min-height: 44px; padding: 0; }
+  .kicker { margin: 0; font-size: 13px; color: var(--muted); }
+  h1 { margin: 0; font-family: "Barlow Condensed", Arial, sans-serif; font-weight: 800; font-size: 40px; line-height: .95; letter-spacing: -.01em; text-transform: uppercase; }
+  .device.desktop h1 { font-size: 52px; }
+  .lead { margin: 0; font-size: 16px; line-height: 1.45; }
+  .muted { color: var(--muted); font-size: 14px; line-height: 1.45; margin: 0; }
+  .next { display: grid; gap: 8px; }
+  .primary, .stop, .quiet { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 64px; padding: 14px 16px; border-radius: 12px; font-size: 17px; font-weight: 800; text-align: center; }
+  .primary { background: var(--teal); color: #fff; border: 2px solid var(--teal-dark); }
+  .primary:hover { background: var(--teal-dark); }
+  .stop { background: var(--stop); color: #fff; border: 0; min-height: 52px; font-size: 15px; }
+  .quiet { background: #fff; color: var(--ink); border: 1px solid var(--ink); min-height: 52px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row .quiet, .row .stop { width: auto; flex: 1; }
+  .list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .item, .note, .choice { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; text-align: left; }
+  .item, .choice { width: 100%; display: grid; gap: 6px; justify-items: start; }
+  .choice { min-height: 72px; }
+  .choice strong, .item strong { font-size: 16px; }
+  .choice span, .item span { color: var(--muted); font-size: 13px; }
+  .tag { display: inline-flex; align-items: center; width: fit-content; min-height: 22px; padding: 0 8px; border-radius: 4px; font-size: 11px; font-weight: 800; letter-spacing: .02em; }
+  .tag.gate { background: var(--stop-bg); color: var(--stop); }
+  .tag.remind { background: var(--warn-bg); color: var(--warn); }
+  .tag.wait { background: #eef3f5; color: #35515c; }
+  .tag.saved { background: var(--ok-bg); color: var(--ok); }
+  .tag.pending { background: var(--warn-bg); color: var(--warn); }
+  .tag.blocked { background: var(--stop-bg); color: var(--stop); }
+  .banner { padding: 14px; border-radius: 12px; background: var(--stop-bg); border: 1px solid #e5b7ad; }
+  .banner strong { display: block; margin-bottom: 4px; }
+  .banner p { margin: 0; font-size: 14px; }
+  .checks { display: grid; gap: 14px; }
+  .group h2 { margin: 0 0 8px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+  .q p { margin: 0; font-weight: 700; }
+  .yn { display: flex; gap: 8px; }
+  .yn button { flex: 1; min-height: 48px; border-radius: 8px; border: 1px solid #aabdc5; background: #fff; font-weight: 800; }
+  .yn button[aria-pressed="true"] { background: #d5eee5; outline: 2px solid var(--teal); }
+  .field { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+  .field input, .field select, .field textarea { font-weight: 500; min-height: 48px; border: 1px solid #aabdc5; border-radius: 8px; padding: 10px 12px; background: #fff; }
+  .field textarea { min-height: 88px; }
+  .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: #fff; flex: none; }
+  .device.desktop .tabbar { display: none; }
+  .tabbar button { text-align: center; font-size: 12px; border-radius: 0; }
+  .fine { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 0; }
+  .split { display: grid; gap: 8px; }
+  .device.desktop .split.two { grid-template-columns: 1fr 1fr; }
+  dl { margin: 0; display: grid; gap: 10px; }
+  dt { font-size: 12px; color: var(--muted); }
+  dd { margin: 0; font-size: 16px; }
+</style>
+</head>
+<body>
+<header class="review">
+  <p><strong>Review only.</strong> This prototype does not save, approve, or change records. It uses the TileSPEC logo and the existing ink and teal. Sample job “Riverside Retail” shows the shape of saved records. It is not a live site.</p>
+  <div class="controls">
+    <button type="button" data-role="owner" aria-pressed="false">Owner</button>
+    <button type="button" data-role="office" aria-pressed="false">Office</button>
+    <button type="button" data-role="supervisor" aria-pressed="true">Supervisor</button>
+    <button type="button" data-role="sub" aria-pressed="false">Subcontractor</button>
+    <button type="button" data-device="phone" aria-pressed="true">Phone</button>
+    <button type="button" data-device="desktop" aria-pressed="false">Desktop</button>
+    <label>Screen <select id="jump" aria-label="Jump to a screen"></select></label>
+  </div>
+  <details class="saved" id="saved">
+    <summary>Saved records on Riverside — these change the supervisor’s one button</summary>
+    <fieldset>
+    <label><input type="checkbox" data-flag="safety"> Safety stop active</label>
+    <label><input type="checkbox" data-flag="release"> Restart requested</label>
+    <label><input type="checkbox" data-flag="qualityHold"> Quality hold active</label>
+    <label><input type="checkbox" data-flag="failedMandatory"> Failed required check</label>
+    <label><input type="checkbox" data-flag="critical"> Serious snag</label>
+    <label><input type="checkbox" data-flag="reinspect"> Repair waiting to be checked</label>
+    <label><input type="checkbox" data-flag="checks" checked> Morning checks saved</label>
+    <label><input type="checkbox" data-flag="unconfirmed" checked> People not confirmed</label>
+    <label><input type="checkbox" data-flag="qa" checked> Office asked for a check</label>
+    <label><input type="checkbox" data-flag="inspectionsDue"> Required inspection still due</label>
+    </fieldset>
+  </details>
+</header>
+<div class="stage"><div class="device" id="device"></div></div>
+<script>
+const logo = "../../public/tilespec-logo-animated.svg";
+const flags = { safety: false, release: false, qualityHold: false, failedMandatory: false, critical: false, reinspect: false, checks: true, earlier: false, unconfirmed: true, qa: true, openSnags: true, inspectionsDue: false };
+const state = { role: "supervisor", device: "phone", screen: "today", answers: {} };
+
+const nav = {
+  owner: [["today", "Today"], ["jobs", "Jobs"], ["money", "Money"], ["people", "People"]],
+  office: [["today", "Today"], ["jobs", "Jobs"], ["labour", "Labour"], ["money", "Money"]],
+  supervisor: [["today", "Today"], ["checks", "Checks"], ["people", "People"], ["snags", "Snags"]],
+  sub: [["today", "Today"], ["snag", "My snag"], ["papers", "Papers"], ["done", "Update"]],
+};
+const titles = {
+  owner: { today: "Today", jobs: "Jobs", job: "Riverside Retail", money: "Money", people: "People", hold: "Stopped work" },
+  office: { today: "Today", jobs: "Jobs", job: "Set up Riverside", labour: "Labour", money: "Money", ask: "Ask the supervisor" },
+  supervisor: { today: "Today", checks: "Morning checks", people: "Who is here", snags: "Snags", finish: "Finish today", stop: "Stop work", inspect: "Inspect work", hold: "Stopped work" },
+  sub: { today: "Today", snag: "Your repair", papers: "Papers", done: "Update" },
+};
+const roots = { owner: "today", office: "today", supervisor: "today", sub: "today" };
+
+function supervisorAction() {
+  if (flags.safety) return { to: "hold", label: "Review stopped work", detail: "A safety stop is saved for the shop floor. Checks and a finished day do not restart it.", kind: "Blocked" };
+  if (flags.release) return { to: "hold", label: "Review the request to restart", detail: "A repair has been sent to the office. Opening this does not restart the work.", kind: "Blocked" };
+  if (flags.qualityHold) return { to: "hold", label: "Review the quality hold", detail: "Tiling at the shop floor is held. Only an authorised release restarts that work.", kind: "Blocked" };
+  if (flags.failedMandatory) return { to: "checks", label: "Review the failed check", detail: "A required inspection failed. The affected work stays blocked.", kind: "Blocked" };
+  if (flags.critical) return { to: "snags", label: "Review the serious snag", detail: "A serious snag needs the office. It does not stop work until someone records a stop.", kind: "Pending" };
+  if (flags.reinspect) return { to: "snags", label: "Check the repair", detail: "Photos of a repair are saved. They are not an acceptance until a new inspection is saved.", kind: "Pending" };
+  if (!flags.checks) return { to: "checks", label: "Start morning checks", detail: "No morning check is saved for Riverside today.", kind: "Pending" };
+  if (flags.earlier) return { to: "people", label: "Finish yesterday’s times", detail: "Earlier work is still open. Finish those times before confirming today.", kind: "Pending" };
+  if (flags.unconfirmed) return { to: "people", label: "Who is here?", detail: "South gang is booked and not confirmed yet.", kind: "Pending" };
+  if (flags.qa) return { to: "inspect", label: "Inspect the shop floor", detail: "The office asked you to check the tiling. Sending a result does not approve payment or lift a stop.", kind: "Pending" };
+  if (flags.openSnags) return { to: "snags", label: "Look at open snags", detail: "One snag is still open on this site.", kind: "Pending" };
+  if (flags.inspectionsDue) return { to: "inspect", label: "Inspect the shop floor", detail: "A required check is still outstanding. Work stays blocked until the result is saved.", kind: "Blocked" };
+  return { to: "people", label: "Keep today’s record current", detail: "Everyone booked is accounted for. Record arrivals, moves and leaving times as they happen.", kind: "Saved" };
+}
+
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (key === "class") node.className = value;
+    else if (key === "text") node.textContent = value;
+    else if (key.startsWith("on") && typeof value === "function") node.addEventListener(key.slice(2), value);
+    else if (value !== undefined && value !== null) node.setAttribute(key, value);
+  }
+  for (const child of children || []) if (child) node.append(child);
+  return node;
+}
+function txt(tag, className, text) { return el(tag, { class: className, text }); }
+function go(screen) { return () => { state.screen = screen; draw(); }; }
+function primary(label, screen) { return el("button", { class: "primary", type: "button", onclick: go(screen), text: label }); }
+function tag(kind) {
+  const map = { Blocked: "blocked", Pending: "pending", Saved: "saved", Done: "saved", Gate: "gate", Reminder: "remind", Waiting: "wait" };
+  return el("span", { class: "tag " + (map[kind] || "remind"), text: kind });
+}
+
+function list(rows) {
+  return el("ul", { class: "list" }, rows.map(row => el("li", { class: "item" }, [
+    row.kind ? tag(row.kind) : null,
+    el("strong", { text: row.title }),
+    row.detail ? el("span", { text: row.detail }) : null,
+    row.to ? el("button", { class: "quiet", type: "button", onclick: go(row.to), text: row.action || "Open" }) : null,
+  ])));
+}
+
+function screenBody() {
+  const role = state.role, id = state.screen, action = supervisorAction();
+  if (role === "owner" && id === "today") return [
+    txt("p", "kicker", "Thursday 15 October"),
+    txt("h1", "", "Two decisions"),
+    txt("p", "lead", "Everything else can wait. You are not asked to set up jobs or confirm labour."),
+    el("div", { class: "next" }, [tag("Blocked"), primary("Review stopped work at Riverside", "hold"), txt("p", "muted", "Safety stop, shop floor tiling. You can read it here. Restarting work stays on the existing release, with a note and the right permission.")]),
+    list([
+      { kind: "Reminder", title: "Riverside price is under the company target", detail: "18% after reserve, target 30%. There is no saved acceptance, so this is not an Approve button.", to: "money", action: "Review the price" },
+      { kind: "Reminder", title: "New enquiry waiting", detail: "Received, with drawings. Nobody is assigned. Pricing it does not create a job.", to: "money", action: "Read the enquiry" },
+    ]),
+  ];
+  if (role === "owner" && id === "jobs") return [
+    txt("h1", "", "Jobs"),
+    txt("p", "lead", "Open a job only when it needs a decision."),
+    el("button", { class: "choice", type: "button", onclick: go("job") }, [el("strong", { text: "Riverside Retail" }), el("span", { text: "Unit 4, Riverside Park, Warrington · Shop floor held" })]),
+    el("div", { class: "item" }, [tag("Saved"), el("strong", { text: "Birchwood Offices" }), el("span", { text: "No stop, no price warning, no enquiry. Nothing for you today." })]),
+  ];
+  if (role === "owner" && id === "job") return [
+    txt("h1", "", "Riverside Retail"),
+    txt("p", "muted", "Northbank Developments · Unit 4, Riverside Park, Warrington"),
+    el("div", { class: "banner" }, [el("strong", { text: "Shop floor tiling is stopped" }), txt("p", "", "Safety. The supervisor recorded it. Other areas are not stopped by this record.")]),
+    primary("Review the stop", "hold"),
+    el("details", {}, [el("summary", { text: "Price, scope and people" }), el("dl", {}, [
+      el("dt", { text: "Recorded price" }), el("dd", { text: "£186,000" }),
+      el("dt", { text: "Margin after reserve" }), el("dd", { text: "18% · target 30%" }),
+      el("dt", { text: "Supervisor" }), el("dd", { text: "Assigned on the job" }),
+    ])]),
+    txt("p", "fine", "Actual spend, variations and payment claims are not recorded yet. These figures are the original budget only."),
+  ];
+  if (role === "owner" && id === "money") return [
+    txt("h1", "", "Money"),
+    txt("p", "lead", "Original budgets only. Nothing here is a valuation or a payment."),
+    el("div", { class: "next" }, [primary("Review Riverside’s price", "job"), txt("p", "muted", "Below the company target. Saving a reason is not built, so this review does not pretend to accept the price.")]),
+    list([
+      { kind: "Reminder", title: "Enquiry · shop refurbishment", detail: "Drawings received. The estimator on the current site is an unsaved calculator. Copying numbers into a job budget is a separate save." },
+      { kind: "Saved", title: "Birchwood Offices", detail: "Budget on target. No action." },
+    ]),
+  ];
+  if (role === "owner" && id === "people") return [
+    txt("h1", "", "People"),
+    txt("p", "lead", "Who can sign in, and who can see prices."),
+    list([
+      { kind: "Pending", title: "Confirm a person added on site", detail: "A supervisor added a provisional name at Riverside. They cannot be treated as active until you or the office confirm them.", to: "today", action: "Leave this to the office" },
+      { kind: "Saved", title: "Access", detail: "Owner, office, supervisor, lead installer, subcontract installer. Prices stay with the owner unless the office is explicitly allowed." },
+    ]),
+    txt("p", "fine", "This screen replaces User access for the owner. It does not add a role."),
+  ];
+  if (role === "owner" && id === "hold") return [
+    txt("h1", "", "Shop floor is stopped"),
+    el("dl", {}, [
+      el("dt", { text: "Job" }), el("dd", { text: "Riverside Retail · Unit 4" }),
+      el("dt", { text: "What is stopped" }), el("dd", { text: "Tiling on the shop floor" }),
+      el("dt", { text: "Why" }), el("dd", { text: "Open edge at the stair. Follow the principal contractor’s site safety rules." }),
+      el("dt", { text: "Who must act" }), el("dd", { text: "Supervisor keeps the work stopped. An authorised office user releases it later, in the existing hold record." }),
+    ]),
+    txt("p", "fine", "There is no Release button on purpose. Release stays on the current hold page, with a note, evidence and permission."),
+  ];
+
+  if (role === "office" && id === "today") return [
+    txt("p", "kicker", "Office · Thursday"),
+    txt("h1", "", "Chase these"),
+    txt("p", "lead", "One thing to do, then the list. Site setup, labour and paperwork stay behind Jobs, Labour and Money."),
+    el("div", { class: "next" }, [tag("Waiting"), primary("Ask the supervisor to check the shop floor", "ask"), txt("p", "muted", "No inspection request is saved yet. Sending one uses the existing office message. It does not approve the work.")]),
+    list([
+      { kind: "Gate", title: "Riverside still needs locations", detail: "No locations are saved, so labour cannot be booked. Same three steps as site setup today.", to: "job", action: "Set up the job" },
+      { kind: "Reminder", title: "Public liability for South gang expires in 12 days", detail: "They are booked next week. Record the new certificate in Workforce. This is not a stop." },
+      { kind: "Waiting", title: "Yesterday’s handover", detail: "Grout short, 20 bags asked for. There is no read receipt, so this stays visible until you deal with it or the next handover replaces the need." },
+      { kind: "Reminder", title: "New enquiry", detail: "Received. Open it under Money. It is not a job until you create one.", to: "money", action: "Open enquiries" },
+    ]),
+  ];
+  if (role === "office" && id === "jobs") return [
+    txt("h1", "", "Jobs"),
+    el("button", { class: "choice", type: "button", onclick: go("job") }, [el("strong", { text: "Riverside Retail" }), el("span", { text: "Next: add locations, then book labour" })]),
+    el("div", { class: "item" }, [tag("Saved"), el("strong", { text: "Birchwood Offices" }), el("span", { text: "Locations, teams and this week’s plan are saved." })]),
+  ];
+  if (role === "office" && id === "job") return [
+    txt("h1", "", "Riverside Retail"),
+    txt("p", "muted", "Unit 4, Riverside Park, Warrington · Northbank Developments"),
+    txt("p", "lead", "Do the first unfinished step. The job record, drawings and messages are already on this job."),
+    list([
+      { kind: "Pending", title: "1. Locations", detail: "None saved. Add the shop floor, then the rooms.", action: "This preview does not create locations" },
+      { kind: "Pending", title: "2. Teams", detail: "South gang exists. Booking them waits until a location exists." },
+      { kind: "Pending", title: "3. This week’s plan", detail: "Which team, which place, which stage, which days." },
+    ]),
+    el("details", {}, [el("summary", { text: "Drawings, scope and messages" }), txt("p", "muted", "Upload stays on the current job page. Supervisors should get a link to the same file, which the site list does not give them today.")]),
+    txt("p", "fine", "Variations and payment claims are not recorded. Do not start extra work in the software. Tell the supervisor in a message, and keep your current office process."),
+  ];
+  if (role === "office" && id === "labour") return [
+    txt("h1", "", "Labour this week"),
+    txt("p", "lead", "Booked, not yet confirmed on site."),
+    list([
+      { kind: "Waiting", title: "Monday · Riverside · South gang", detail: "Cannot book until the shop floor location exists.", to: "job", action: "Finish job setup" },
+      { kind: "Pending", title: "Provisional name added on Birchwood", detail: "The supervisor recorded someone who is not confirmed. Confirm them in the existing workforce record before they count as active." },
+      { kind: "Reminder", title: "South gang insurance", detail: "Expires in 12 days. Record the certificate. Do not invent a block on the plan." },
+    ]),
+    txt("p", "fine", "The week board already exists on each job. This screen is the office view of what is unfinished."),
+  ];
+  if (role === "office" && id === "money") return [
+    txt("h1", "", "Money"),
+    txt("p", "lead", "Enquiries in, original budgets, and an unsaved price calculator."),
+    list([
+      { kind: "Reminder", title: "1 enquiry received", detail: "Open the drawings. There is no Priced or Declined status. Creating a job is the existing new-contract step, done by a person." },
+      { kind: "Saved", title: "Riverside original budget", detail: "Visible only if this office user is allowed to see prices. Otherwise this row is hidden." },
+    ]),
+    txt("p", "fine", "Payment claims, notices and certificates are not built. This screen must not show a claim form."),
+  ];
+  if (role === "office" && id === "ask") return [
+    txt("h1", "", "Ask for a check"),
+    txt("p", "muted", "Uses the existing inspection request: person, place, stage, and what to look at."),
+    el("label", { class: "field" }, [document.createTextNode("To"), el("select", {}, [el("option", { text: "Supervisor on Riverside" })])]),
+    el("label", { class: "field" }, [document.createTextNode("Where"), el("input", { value: "Shop floor", readonly: "readonly" })]),
+    el("label", { class: "field" }, [document.createTextNode("What to check"), el("select", {}, [el("option", { text: "Tile installation" })])]),
+    el("label", { class: "field" }, [document.createTextNode("Note"), el("textarea", { text: "Please check the first bay before the gang continues." })]),
+    el("button", { class: "primary", type: "button", text: "Preview only — nothing is sent" }),
+    txt("p", "fine", "A real send stays on the current office message form, with the same fields and the same permission check."),
+  ];
+
+  if (role === "supervisor" && id === "today") return [
+    txt("p", "kicker", "Morning · Riverside Retail"),
+    txt("h1", "", "Shop floor"),
+    txt("p", "muted", "Unit 4, Riverside Park, Warrington"),
+    flags.safety ? el("div", { class: "banner" }, [el("strong", { text: "Shop floor tiling is stopped" }), txt("p", "", "Keep that work stopped. The button below does not clear it.")]) : null,
+    el("div", { class: "next" }, [tag(action.kind), primary(action.label, action.to), txt("p", "muted", action.detail)]),
+    el("div", { class: "row" }, [
+      el("button", { class: "stop", type: "button", onclick: go("stop"), text: "Stop work" }),
+      el("button", { class: "quiet", type: "button", onclick: go("finish"), text: "Finish today" }),
+    ]),
+    txt("p", "fine", "Messages, history and site details open from the button that needs them. Variations and dayworks are not tiles: that recording does not exist."),
+  ];
+  if (role === "supervisor" && id === "checks") return [
+    txt("h1", "", "Morning checks"),
+    txt("p", "muted", "Yes, no, or not applicable. A yes on the last two questions is a problem. Saving this does not mean work may start."),
+    el("div", { class: "checks" }, ["People", "Materials", "Site"].map(title => el("section", { class: "group" }, [
+      txt("h2", "", title),
+      el("div", { class: "q" }, [
+        txt("p", "", title === "People" ? "Has everyone had the site safety briefing?" : title === "Materials" ? "Are the tiles and adhesive here?" : "Is anything blocking the area?"),
+        el("div", { class: "yn" }, ["Yes", "No", "N/A"].map(label => {
+          const key = title;
+          const pressed = state.answers[key] === label;
+          return el("button", { type: "button", "aria-pressed": pressed ? "true" : "false", onclick: () => { state.answers[key] = label; draw(); }, text: label });
+        })),
+      ]),
+    ]))),
+    txt("p", "fine", "The live form still has all eleven questions. Who is actually here is confirmed under People, not in this list."),
+    el("button", { class: "primary", type: "button", text: "Preview only — checks are not saved" }),
+  ];
+  if (role === "supervisor" && id === "people") return [
+    txt("h1", "", "Who is here?"),
+    txt("p", "lead", "South gang · Shop floor · Tiling"),
+    list([
+      { kind: flags.unconfirmed ? "Pending" : "Saved", title: "South gang", detail: flags.unconfirmed ? "Booked today. Not confirmed." : "Confirmed on site." },
+    ]),
+    el("div", { class: "row" }, [
+      el("button", { class: "primary", type: "button", style: "flex:1", onclick: () => { flags.unconfirmed = false; state.screen = "today"; draw(); }, text: "They are here as booked" }),
+    ]),
+    txt("p", "fine", "Confirm, change, move and finish times stay on the current workforce day. This button only demonstrates the next action clearing."),
+  ];
+  if (role === "supervisor" && id === "snags") return [
+    txt("h1", "", "Snags"),
+    list([
+      { kind: "Pending", title: "Lippage at the entrance", detail: "Shop floor · tiling · assigned to South gang. You raised it. They send repair photos. You do not close it from their phone." },
+    ]),
+    primary("Add a snag", "snags"),
+    txt("p", "fine", "A new snag still needs a place, a category, a photo and a short note, on the current form."),
+  ];
+  if (role === "supervisor" && id === "finish") return [
+    txt("h1", "", "Finish today"),
+    ...["What got done", "Problems", "Materials for tomorrow", "Areas that need attention", "Note for the office"].map(label => el("label", { class: "field" }, [document.createTextNode(label), el("textarea", {})])),
+    el("button", { class: "primary", type: "button", text: "Preview only — handover is not saved" }),
+    txt("p", "fine", "Extra work is written in the note. It is not a variation and it does not approve a rate. Optional finish times use the existing workforce finish."),
+  ];
+  if (role === "supervisor" && id === "stop") return [
+    txt("h1", "", "Stop the affected work"),
+    el("label", { class: "field" }, [document.createTextNode("Safety or quality"), el("select", {}, [el("option", { text: "Safety stop" }), el("option", { text: "Quality hold" })])]),
+    el("label", { class: "field" }, [document.createTextNode("Where"), el("input", { value: "Shop floor", readonly: "readonly" })]),
+    el("label", { class: "field" }, [document.createTextNode("What to stop"), el("input", { value: "Tile installation", readonly: "readonly" })]),
+    el("label", { class: "field" }, [document.createTextNode("Why"), el("textarea", { text: "Open edge at the stair." })]),
+    el("button", { class: "stop", type: "button", text: "Preview only — work is not stopped" }),
+    txt("p", "fine", "The live Stop work form still requires the reason, the corrective action, and the existing permission check."),
+  ];
+  if (role === "supervisor" && id === "inspect") return [
+    txt("h1", "", "Inspect the shop floor"),
+    txt("p", "muted", "Tile installation · asked for by the office"),
+    txt("p", "lead", "Save what you actually see. A pass does not lift a stop or approve money."),
+    primary("Open the workmanship check", "checks"),
+    txt("p", "fine", "The result goes back on the existing inspection request. Findings with problems stay findings."),
+  ];
+  if (role === "supervisor" && id === "hold") return [
+    txt("h1", "", "This work stays stopped"),
+    txt("p", "lead", "Shop floor · tiling · Riverside Retail"),
+    txt("p", "muted", "You can read the reason and add evidence. You cannot release it."),
+    el("button", { class: "quiet", type: "button", onclick: go("today"), text: "Back to today" }),
+  ];
+
+  if (role === "sub" && id === "today") return [
+    txt("p", "kicker", "Thursday · your work only"),
+    txt("h1", "", "Shop floor"),
+    txt("p", "lead", "Riverside Retail"),
+    el("dl", {}, [
+      el("dt", { text: "Address" }), el("dd", { text: "Unit 4, Riverside Park, Warrington" }),
+      el("dt", { text: "Your package" }), el("dd", { text: "Shop floor porcelain · 420 m²" }),
+      el("dt", { text: "Site contact" }), el("dd", { text: "As recorded on the job" }),
+    ]),
+    el("div", { class: "next" }, [tag("Pending"), primary("Send photos of the lippage repair", "snag"), txt("p", "muted", "This snag is assigned to your gang. Other snags, prices and other gangs are not shown.")]),
+    txt("p", "fine", "Who is on site today is confirmed by the supervisor. Your login cannot read the labour plan. This screen does not invent one."),
+  ];
+  if (role === "sub" && id === "snag") return [
+    txt("h1", "", "Lippage at the entrance"),
+    txt("p", "muted", "Shop floor · tiling · assigned to your gang"),
+    txt("p", "lead", "Photograph the repair and say it is ready to be checked. That does not close the snag."),
+    primary("Add repair photos", "done"),
+    el("button", { class: "quiet", type: "button", text: "The repair is not ours" }),
+    txt("p", "fine", "Accept, dispute and submit repair are the only snag actions your role already has. Closing and reinspecting stay with the supervisor."),
+  ];
+  if (role === "sub" && id === "papers") return [
+    txt("h1", "", "Papers for your area"),
+    list([
+      { kind: "Saved", title: "Shop floor drawing · Rev 2", detail: "You can open this file. It is the same private download as on the job." },
+      { kind: "Pending", title: "No setting-out drawing on your area", detail: "Ask the supervisor. You are not shown contract prices or other packages." },
+    ]),
+  ];
+  if (role === "sub" && id === "done") return [
+    txt("h1", "", "Update"),
+    txt("p", "lead", "Add the repair photos, then send them for a check."),
+    el("button", { class: "primary", type: "button", text: "Preview only — photos are not uploaded" }),
+    txt("p", "fine", "A real upload uses the existing snag photo path. There is no separate progress percentage."),
+  ];
+  return [txt("p", "", "This screen is not on this role’s path.")];
+}
+
+function draw() {
+  const device = document.getElementById("device");
+  device.className = "device" + (state.device === "desktop" ? " desktop" : "");
+  device.replaceChildren();
+  const items = nav[state.role];
+  const root = roots[state.role];
+  const currentNav = items.some(([id]) => id === state.screen) ? state.screen : root;
+
+  const top = el("div", { class: "top" }, [
+    el("a", { class: "brand", href: "#", ariaLabel: "TileSPEC" }, [el("img", { src: logo, alt: "TileSPEC — Wall & Floor Tiling Contractors", width: "280", height: "75" })]),
+    el("div", { class: "who" }, [el("strong", { text: { owner: "Owner", office: "Office", supervisor: "Supervisor", sub: "Subcontractor" }[state.role] }), el("span", { text: "Riverside Retail" })]),
+  ]);
+  const side = el("nav", { class: "side", ariaLabel: "Primary" }, items.map(([id, label]) => el("button", { type: "button", ariaCurrent: currentNav === id ? "page" : null, onclick: go(id), text: label })));
+  const main = el("main", { class: "main" });
+  if (state.screen !== root && !items.some(([id]) => id === state.screen)) {
+    main.append(el("button", { class: "back", type: "button", onclick: go(root), text: "Back" }));
+  }
+  for (const node of screenBody()) if (node) main.append(node);
+  const tabs = el("nav", { class: "tabbar", ariaLabel: "Primary" }, items.map(([id, label]) => el("button", { type: "button", ariaCurrent: currentNav === id ? "page" : null, onclick: go(id), text: label })));
+  device.append(top, side, main, tabs);
+
+  const jump = document.getElementById("jump");
+  const options = Object.entries(titles[state.role]);
+  jump.replaceChildren(...options.map(([id, label]) => el("option", { value: id, text: label, selected: id === state.screen ? "selected" : null })));
+  document.getElementById("saved").classList.toggle("open", state.role === "supervisor");
+  document.querySelectorAll("[data-role]").forEach(button => button.setAttribute("aria-pressed", button.getAttribute("data-role") === state.role ? "true" : "false"));
+  document.querySelectorAll("[data-device]").forEach(button => button.setAttribute("aria-pressed", button.getAttribute("data-device") === state.device ? "true" : "false"));
+}
+
+document.querySelectorAll("[data-role]").forEach(button => button.addEventListener("click", () => {
+  state.role = button.getAttribute("data-role");
+  state.screen = "today";
+  draw();
+}));
+document.querySelectorAll("[data-device]").forEach(button => button.addEventListener("click", () => {
+  state.device = button.getAttribute("data-device");
+  draw();
+}));
+document.getElementById("jump").addEventListener("change", event => { state.screen = event.target.value; draw(); });
+document.querySelectorAll("[data-flag]").forEach(input => input.addEventListener("change", () => {
+  flags[input.getAttribute("data-flag")] = input.checked;
+  draw();
+}));
+const params = new URLSearchParams(location.search);
+if (["owner", "office", "supervisor", "sub"].includes(params.get("role"))) state.role = params.get("role");
+if (params.get("device") === "desktop" || params.get("device") === "phone") state.device = params.get("device");
+if (params.get("screen")) state.screen = params.get("screen");
+if (params.get("safety") === "1") { flags.safety = true; document.querySelector("[data-flag=safety]").checked = true; }
+draw();
+</script>
+</body>
+</html>
