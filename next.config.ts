@@ -1,5 +1,8 @@
 import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
+  // Authenticated acceptance uses a disposable backend and must not reuse the
+  // production or public-browser suite's compiled modules and runtime cache.
+  distDir: process.env.TILESPEC_E2E_OUTPUT === '1' ? '.next/e2e' : '.next',
   experimental: { serverActions: { bodySizeLimit: '4.4mb' } },
   async headers() {
     const headers = [

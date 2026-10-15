@@ -1,6 +1,8 @@
 // Test-only Supabase Storage HTTP protocol. File bytes live in this process;
 // metadata, insert/select/delete permissions and RLS use the migrated disposable
 // PostgreSQL database through PostgREST with the requesting user's signed JWT.
+// Snag and work-hold photographs share this private bucket and protocol; the
+// appropriate migrated reservation/read policies decide each object's scope.
 // There is no shortcut from this adapter to business RPCs or trusted SQL.
 import { randomBytes, randomUUID } from 'node:crypto';
 
