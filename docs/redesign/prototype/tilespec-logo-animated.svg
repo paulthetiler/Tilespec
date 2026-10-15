@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 300" role="img" aria-labelledby="title desc">
+  <title id="title">TileSPEC Wall &amp; Floor Tiling Contractors</title>
+  <desc id="desc">TileSPEC Wall &amp; Floor Tiling Contractors logo</desc>
+  <style>
+    .layer { opacity: 0; transform-box: fill-box; transform-origin: center; animation: layer-drop .38s cubic-bezier(.2,.78,.28,1.16) forwards; }
+    .layer-teal { animation-delay: .54s; }
+    .layer-grey { animation-delay: .72s; }
+    .layer-navy { animation-delay: .90s; }
+    .wordmark { opacity: 0; transform: translateX(-18px); animation: wordmark-in .30s ease-out 1.20s forwards; }
+    .flooring-letter { opacity: 0; animation: letter-in .35s ease-out 1.44s forwards; }
+    @keyframes layer-drop {
+      0% { opacity: 0; transform: translateY(-170px); }
+      70% { opacity: 1; transform: translateY(7px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes wordmark-in {
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes letter-in {
+      to { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .layer,.wordmark,.flooring-letter { animation: none !important; opacity: 1 !important; transform: none !important; }
+    }
+  </style>
+
+  <g transform="translate(10 18) scale(.46)">
+    <g class="layer layer-navy"><polygon points="268,52 496,160 268,268 40,160" fill="#0F2A3A"/></g>
+    <g class="layer layer-grey"><polygon points="40,221 268,329 496,221 496,289 268,397 40,289" fill="#7B8790"/></g>
+    <g class="layer layer-teal"><polygon points="40,350 268,458 496,350 496,418 268,526 40,418" fill="#7FB8B0"/></g>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <g class="wordmark">
+      <text x="275" y="128" font-size="112" font-weight="700" fill="#0F2A3A" letter-spacing="-3">Tile<tspan font-weight="400">SPEC</tspan></text>
+    </g>
+
+    <text class="flooring-letter" x="282" y="205" font-size="35" font-weight="700" fill="#596671" letter-spacing="1.2" textLength="810" lengthAdjust="spacingAndGlyphs">WALL &amp; FLOOR TILING CONTRACTORS</text>
+  </g>
+</svg>

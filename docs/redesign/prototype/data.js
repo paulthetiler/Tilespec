@@ -27,7 +27,7 @@
         { user_id: "u-marek", display_name: "Marek Kowalski", role: "lead_installer", financial_access: false },
       ],
       contracts: [
-        { id: "c1", reference: "RS-2041", name: "Riverside Quay, Block B", client: "Harbour Homes Ltd", address: "Block B, Riverside Quay, Anytown AB1 2CD",
+        { id: "c1", reference: "RS-2041", name: "Riverside Quay", client: "Harbour Homes Ltd", address: "Block B, Riverside Quay, Anytown AB1 2CD",
           site_contact: "Priti (site manager) 07700 900101", working_hours: "07:30 to 16:30", start_date: "2026-09-28", end_date: "2026-12-18",
           tile_specification: "600 x 600 matt porcelain floor, 300 x 600 gloss wall", installation_system: "Approved flexible adhesive and waterproofing system",
           access_restrictions: "Goods lift booked with the site manager", scope: "Bathroom floors and walls, levels 2 and 3" },

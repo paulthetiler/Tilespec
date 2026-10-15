@@ -228,3 +228,28 @@ test("nothing to do is reported honestly as nothing", () => {
   const marek = who(s, "Marek");
   assert.equal(Rules.nextAction(Rules.compute(s, marek)), null);
 });
+
+test("an ordinary snag nobody has been told to fix always has an owner (R13)", () => {
+  const s = Data.make("busy");
+  s.supervisor_issues.push({ id: "s9", contract_id: "c1", work_area_id: "l-f31-bath", stage: "installation", check_label: "Chipped tile", description: "Corner chip.",
+    severity: "minor", snag_status: "open", assigned_team_id: null, target_date: null, raised_by: "u-dave", rectified_by: null, escalated: false });
+  const dave = who(s, "Dave");
+  const a = Rules.compute(s, dave).find((x) => x.id === "snag-assign:s9");
+  assert.ok(a && a.state === "ready" && a.kind === "reminder");
+  s.supervisor_issues.find((i) => i.id === "s9").assigned_team_id = "t1";
+  const after = Rules.compute(s, dave);
+  assert.ok(!after.some((x) => x.id === "snag-assign:s9"));
+  assert.ok(after.some((x) => x.id === "snag-fix:s9"), "the gang now owns it");
+});
+
+test("once the office has given a critical defect to a gang it stops asking the office to review it", () => {
+  const s = Data.make("busy");
+  const sam = who(s, "Sam");
+  assert.ok(Rules.compute(s, sam).some((x) => x.id === "snag-critical:s3" && x.state === "ready"));
+  Object.assign(s.supervisor_issues.find((i) => i.id === "s3"), { snag_status: "assigned", assigned_team_id: "t1", target_date: "2026-10-18" });
+  const after = Rules.compute(s, sam);
+  assert.ok(!after.some((x) => x.id === "snag-critical:s3"));
+  const fix = after.find((x) => x.id === "snag-fix:s3");
+  assert.equal(fix.kind, "gate", "a critical repair is still a mandatory gate for the gang");
+  assert.equal(fix.state, "waiting");
+});

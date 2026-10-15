@@ -197,12 +197,21 @@
   });
 
   // G09 - critical snag.
-  rule("G09_critical_snag", (s, L) => s.supervisor_issues.filter((i) => i.severity === "critical" && !["closed", "cancelled", "draft"].includes(i.snag_status)).map((i) => ({
+  rule("G09_critical_snag", (s, L) => s.supervisor_issues.filter((i) => i.severity === "critical" && i.snag_status === "open" && !i.assigned_team_id).map((i) => ({
     id: `snag-critical:${i.id}`, rule: "G09", process: "snag", kind: "gate", priority: 1, order: 5, job: L.job(i.contract_id), location: L.path(i.work_area_id),
     responsible: { role: "office", who: null, label: "Office" }, title: "Review the critical defect",
     why: `${i.check_label}. ${i.description} A critical defect does not stop work by itself. If affected work must stop, raise a STOP WORK.`,
     due: i.target_date || null, requires: ["Who will fix it", "A target date"], doneWhen: "The defect is fixed, re-inspected and accepted by the office",
     next: "Assign a gang to fix it", audience: { office: "act", owner: "see", supervisor: "see" }, source: { table: "supervisor_issues", id: i.id },
+    route: { screen: "snag", id: i.id }, backend: "exists",
+  })));
+
+  // R13 - an ordinary snag nobody has been told to fix. Without this rule it would have no owner.
+  rule("R13_snag_needs_gang", (s, L) => s.supervisor_issues.filter((i) => i.snag_status === "open" && !i.assigned_team_id && i.severity !== "critical").map((i) => ({
+    id: `snag-assign:${i.id}`, rule: "R13", process: "snag", kind: "reminder", priority: 2, order: 8, job: L.job(i.contract_id), location: L.path(i.work_area_id),
+    responsible: { role: "supervisor", who: (L.supervisorOf(i.contract_id) || {}).display_name || null, label: "Site supervisor" }, title: "Say who will fix this snag",
+    why: `${i.check_label}. ${i.description}`, due: null, requires: ["Which gang", "A target date"], doneWhen: "A gang and a target date are saved on the snag",
+    next: "The gang fixes it and sends a photo", audience: { supervisor: "act", office: "act" }, source: { table: "supervisor_issues", id: i.id },
     route: { screen: "snag", id: i.id }, backend: "exists",
   })));
 
@@ -309,7 +318,7 @@
     responsible: { role: "supervisor", who: (L.supervisorOf(c.id) || {}).display_name || null, label: "Site supervisor" }, title: "Do the morning checks",
     why: "A two-minute check of people, materials and access before work starts. Problems go straight to the office.", due: s.today, requires: ["Yes, no or not applicable for each question"],
     doneWhen: "Morning checks are saved for today", next: "Confirm who is on site", audience: { supervisor: "act", office: s.now >= T.morningChecksOfficeSeesAfter ? "see" : null },
-    source: { table: "supervisor_inspections", id: null }, route: { screen: "checks" }, backend: "exists",
+    source: { table: "supervisor_inspections", id: null }, route: { screen: "morning" }, backend: "exists",
   })));
 
   rule("R02_earlier_work_open", (s, L) => {

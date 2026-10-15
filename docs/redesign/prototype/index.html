@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TileSpec Admin: simplified workflow prototype (Phase 1)</title>
+<link rel="icon" href="tilespec-logo-animated.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="review" aria-label="Review controls (not part of the product)">
+  <div><h1>Prototype review</h1><small>Fictional data. Nothing is saved anywhere.</small></div>
+  <div class="group"><label for="person">Signed in as</label>
+    <select id="person" style="min-height:40px;border-radius:10px;padding:6px 10px;font-size:14px;width:auto;border:0">
+      <option value="">Not signed in</option>
+      <optgroup label="Owner"><option value="u-alex">Alex Morgan, Owner</option></optgroup>
+      <optgroup label="Office"><option value="u-sam">Sam Patel, Office (sees money)</option><option value="u-jo">Jo Bennett, Office (no money)</option></optgroup>
+      <optgroup label="Supervisor"><option value="u-dave" selected>Dave Collins, Supervisor</option><option value="u-ellie">Ellie Ross, Supervisor</option></optgroup>
+      <optgroup label="Subcontractor"><option value="u-marek">Marek Kowalski, Subcontractor</option></optgroup>
+    </select></div>
+  <div class="group"><label>Screen</label><div class="seg" id="device-seg"><button data-v="mobile" aria-pressed="true">Phone</button><button data-v="desktop" aria-pressed="false">Desktop</button></div></div>
+  <div class="group"><label>Day</label><div class="seg" id="scenario-seg"><button data-v="start" aria-pressed="true">Quiet morning</button><button data-v="busy" aria-pressed="false">Busy day</button></div></div>
+  <label class="toggle"><input type="checkbox" id="hints"> Backend reality check</label>
+  <label class="toggle"><input type="checkbox" id="flaky"> Poor signal</label>
+  <button class="reset" id="reset">Reset</button>
+</header>
+<div id="stage" class="stage mobile"><div id="device" class="device" aria-live="polite"></div></div>
+<noscript>This prototype needs JavaScript.</noscript>
+<script src="data.js"></script>
+<script src="rules.js"></script>
+<script src="ui.js"></script>
+<script src="screens-site.js"></script>
+<script src="screens-office.js"></script>
+<script>
+(function () {
+  const q = new URLSearchParams(location.search), $ = (s) => document.querySelector(s);
+  if (q.get("role") !== null) P.ui.person = q.get("role");
+  if (q.get("device")) P.ui.device = q.get("device");
+  if (q.get("hints") === "1") P.ui.hints = true;
+  if (q.get("flaky") === "1") P.ui.flaky = true;
+  if (q.get("scenario")) { P.ui.scenario = q.get("scenario"); P.S = TSData.make(P.ui.scenario); }
+  if (q.get("now")) P.S.now = q.get("now");
+  if (q.get("clean") === "1") document.body.classList.add("clean");
+  const sync = () => {
+    $("#person").value = P.ui.person;
+    document.querySelectorAll("#device-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === P.ui.device)));
+    document.querySelectorAll("#scenario-seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === P.ui.scenario)));
+    $("#hints").checked = P.ui.hints; $("#flaky").checked = P.ui.flaky;
+  };
+  $("#person").addEventListener("change", (e) => { P.ui.person = e.target.value; location.hash = "#/today"; P.render(); });
+  $("#device-seg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; P.ui.device = b.dataset.v; sync(); P.render(); });
+  $("#scenario-seg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; location.hash = "#/today"; P.setScenario(b.dataset.v); sync(); });
+  $("#hints").addEventListener("change", (e) => { P.ui.hints = e.target.checked; P.render(); });
+  $("#flaky").addEventListener("change", (e) => { P.ui.flaky = e.target.checked; P.ui.failed = false; });
+  $("#reset").addEventListener("click", () => { location.hash = "#/today"; P.setScenario(P.ui.scenario); });
+  sync(); P.render();
+})();
+</script>
+</body>
+</html>
