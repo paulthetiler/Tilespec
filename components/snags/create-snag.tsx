@@ -14,8 +14,9 @@ import { restoreSnagForm, snapshotSnagForm, type SnagFormSnapshot } from "@/lib/
 import { MAX_FILE_BYTES } from "@/lib/operations/validation";
 import { installationStages, installationStageLabels } from "@/lib/operations/types";
 import styles from "@/app/admin/admin.module.css";
-export function CreateSnag({contractId,locations,packages,requestKey,submitKey,proposalKey,inspection,initialLocation}:{
+export function CreateSnag({contractId,locations,packages,requestKey,submitKey,proposalKey,inspection,initialLocation,simple=false}:{
  contractId:string;locations:Location[];packages:{id:string;label:string}[];requestKey:string;submitKey:string;proposalKey:string;initialLocation?:string;
+ simple?:boolean;
  inspection?:{id:string;locationId:string;stage:string;description:string};
 }) {
  const router=useRouter(),photos=usePhotos();
@@ -23,8 +24,19 @@ export function CreateSnag({contractId,locations,packages,requestKey,submitKey,p
  const [findingsLocked,setFindingsLocked]=useState(false),[submissionStarted,setSubmissionStarted]=useState(false),[submissionConfirmed,setSubmissionConfirmed]=useState(false);
  const [phase,setPhase]=useState<"creating"|"uploading"|"submitting"|"proposing">("creating");
  const [location,setLocation]=useState(inspection?.locationId||initialLocation||""),[stage,setStage]=useState(inspection?.stage||"installation"),[dirty,setDirty]=useState(false);
+ const [showDetails,setShowDetails]=useState(!simple);
  useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[dirty]);
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[draft,setDraft]=useState<string>();
+ const details=<>
+  <fieldset disabled={busy||findingsLocked} className={styles.fieldset}>
+   {!inspection&&<label>Installation stage<select name="stage" value={stage} onChange={event=>setStage(event.target.value)}>{installationStages.map(stage=><option key={stage} value={stage}>{installationStageLabels[stage]}</option>)}</select></label>}
+   <label>Severity<select name="severity" defaultValue="major">{Object.entries(severityLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+   <label>Required rectification<textarea name="required_rectification" required maxLength={2000} defaultValue={simple?"Investigate this finding against the approved project requirements and agree any corrective work with the office.":""}/></label>
+   <label>Relevant work package (optional)<select name="work_package_id" defaultValue=""><option value="">Not specified</option>{packages.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label>
+  </fieldset>
+  {showDetails&&<><WorkCandidates contract={contractId} location={location} stage={stage} disabled={busy||findingsLocked}/>
+   <p>No gang is automatically held responsible. Responsibility can be reviewed separately after submission.</p></>}
+ </>;
  return <form className={styles.form} onInput={()=>setDirty(true)} onSubmit={async event=>{
   event.preventDefault();setBusy(true);setError("");setDirty(true);
   const form=savedForm.current?restoreSnagForm(savedForm.current):new FormData(event.currentTarget);
@@ -78,24 +90,23 @@ export function CreateSnag({contractId,locations,packages,requestKey,submitKey,p
  }}>
   <input type="hidden" name="contract_id" value={contractId}/><input type="hidden" name="request_key" value={requestKey}/>
   {inspection&&<input type="hidden" name="inspection_id" value={inspection.id}/>}
+  {simple&&<p><Link className={styles.secondaryButton} href={`/admin/holds/new?contract=${contractId}${location?`&location=${location}`:""}`}>STOP WORK</Link> <span>Serious concern? Stop affected work and alert the office.</span></p>}
   {findingsLocked&&!draft&&!busy&&<p role="status">We could not confirm whether the original findings were recorded. Retry keeps the same findings and responsibility choices. <Link href={`/admin/snags?contract_id=${contractId}`}>Check saved snags</Link> before starting a different record.</p>}
   {draft&&!submissionConfirmed&&<p role="status">Draft findings saved; snag submission has not yet been confirmed. <Link href={`/admin/snags/${draft}`}>Review saved status and continue after a reload</Link>. {submissionStarted?"Retry sends the same verified photographs; selections are locked until the outcome is confirmed.":"Retry here to verify photographs and submit the snag."}</p>}
   {draft&&submissionConfirmed&&<p role="status">Snag submitted with verified photographs. The responsibility proposal has not yet been confirmed; retry records only that proposal. <Link href={`/admin/snags/${draft}`}>Open the submitted snag</Link>.</p>}
   <fieldset disabled={busy||findingsLocked} className={styles.fieldset}>
    {inspection?<><input type="hidden" name="work_area_id" value={inspection.locationId}/><input type="hidden" name="stage" value={inspection.stage}/>
-    <p>Linked inspection at {locationPath(indexLocations(locations),inspection.locationId)} · {inspection.stage}. The original result stays unchanged.</p></>
-    :<><LocationPicker name="work_area_id" label="Exact location" locations={locations} defaultValue={initialLocation||null} onChange={id=>setLocation(id||"")}/>
-     <label>Installation stage<select name="stage" value={stage} onChange={event=>setStage(event.target.value)}>{installationStages.map(stage=><option key={stage} value={stage}>{installationStageLabels[stage]}</option>)}</select></label></>}
-   <label>Defect category<select name="category" defaultValue="Excessive lippage">{defectCategories.map(category=><option key={category}>{category}</option>)}</select></label>
-   <label>Severity<select name="severity" defaultValue="major">{Object.entries(severityLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-   <label>Short description<textarea name="description" required maxLength={2000} defaultValue={inspection?.description||""}/></label>
-   <label>Required rectification<textarea name="required_rectification" required maxLength={2000}/></label>
-   <label>Relevant work package (optional)<select name="work_package_id" defaultValue=""><option value="">Not specified</option>{packages.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></label>
+    <p>{locationPath(indexLocations(locations),inspection.locationId)} · {installationStageLabels[inspection.stage as keyof typeof installationStageLabels]||inspection.stage}. Linked to your saved check.</p></>
+    :<LocationPicker name="work_area_id" label="Exact location" locations={locations} defaultValue={initialLocation||null} onChange={id=>setLocation(id||"")}/>}
+   <label>Defect category<select name="category" required defaultValue={simple?"":"Excessive lippage"}>{simple&&<option value="">Choose the problem</option>}{defectCategories.map(category=><option key={category}>{category}</option>)}</select></label>
   </fieldset>
-  <WorkCandidates contract={contractId} location={location} stage={stage} disabled={busy||findingsLocked}/>
-  <PhotoChoices entries={photos.entries} add={photos.add} remove={photos.remove} disabled={busy||submissionStarted}/>
-  <p>No gang is automatically held responsible. Use actual workforce history to propose responsibility or mark it unknown; your proposal is recorded separately for review.</p>
-  <button className={styles.bigButton} disabled={busy}>{busy?({creating:"Saving original findings…",uploading:"Uploading and verifying photographs…",submitting:"Confirming snag submission…",proposing:"Recording responsibility proposal…"}[phase]):submissionConfirmed?"Retry responsibility proposal":draft?"Retry verification and submission":findingsLocked?"Retry original findings":"Raise snag"}</button>
+  {simple&&<section aria-label="Defect photographs"><h2>Photograph</h2><p>Add at least one photograph so the office can see the problem.</p><PhotoChoices entries={photos.entries} add={photos.add} remove={photos.remove} disabled={busy||submissionStarted}/></section>}
+  <fieldset disabled={busy||findingsLocked} className={styles.fieldset}>
+   <label>Short description<textarea name="description" required maxLength={2000} defaultValue={inspection?.description||""}/></label>
+  </fieldset>
+  {simple?<details className={styles.details} onToggle={event=>{if(event.currentTarget.open)setShowDetails(true);}}><summary>More details</summary><p>Optional: change the type of work, urgency or repair instructions.</p>{details}</details>:details}
+  {!simple&&<PhotoChoices entries={photos.entries} add={photos.add} remove={photos.remove} disabled={busy||submissionStarted}/>}
+  <button className={styles.bigButton} disabled={busy}>{busy?({creating:"Saving original findings…",uploading:"Uploading and verifying photographs…",submitting:"Confirming snag submission…",proposing:"Recording responsibility proposal…"}[phase]):submissionConfirmed?"Retry responsibility proposal":draft?"Retry verification and submission":findingsLocked?"Retry original findings":simple?"Submit snag":"Raise snag"}</button>
   {error&&<p role="alert" className={styles.error}>{error}</p>}
  </form>;
 }

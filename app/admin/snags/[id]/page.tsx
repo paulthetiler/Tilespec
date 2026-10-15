@@ -24,11 +24,15 @@ function ActionPanel({snag,action,label,children,photos=[],purpose,userId,defaul
   {purpose&&<><h4>{purpose} evidence to attach to this action</h4>{ids.length?ids.map((id,index)=><label className={styles.checkboxRow} key={id}><input type="checkbox" name="photo_ids" value={id} defaultChecked/>Verified photograph {index+1}</label>):<p>No new verified photographs for this action. Upload them above{action==="accept"||action==="reject"||action==="start_reinspection"?" if needed":" before submitting"}.</p>}</>}
  </OperationsForm></details>;
 }
+function DetailedWorkflow({simple,children}:{simple:boolean;children:React.ReactNode}) {
+ return simple?<details className={styles.details}><summary>Repair, responsibility and history</summary>{children}</details>:<>{children}</>;
+}
 export default async function SnagDetail({params}:{params:Promise<{id:string}>}) {
  const {id}=await params;if(!/^[0-9a-f-]{36}$/i.test(id)) notFound();
  const {supabase,member}=await requireActor(),context=await snagContextFor(supabase,id);if(!context)notFound();
  const {snag,permissions,events,photos}=context;
  const open=!["closed","cancelled"].includes(snag.snag_status||snag.state),draft=snag.snag_status==="draft";
+ const simple=member.role==="supervisor";
  const original=photos.filter(photo=>photo.purpose==="original"&&photo.uploaded_at&&photo.event_id!==null);
  const [teams,operatives,historyResult]=await Promise.all([
   permissions.supervise?supabase.from("teams").select("id,name").eq("active",true).order("name"):Promise.resolve({data:[],error:null}),
@@ -37,15 +41,19 @@ export default async function SnagDetail({params}:{params:Promise<{id:string}>})
  ]);checkRpc(teams.error);checkRpc(operatives.error);checkRpc(historyResult.error);
  const history=((historyResult.data||[]) as WorkHistoryEntry[]).filter(period=>period.stage===snag.stage);
  const panel=(action:string,label:string,children?:React.ReactNode,purpose?:NonNullable<SnagPhoto["purpose"]>,defaultNote="")=><ActionPanel key={action} snag={snag} action={action} label={label} photos={photos} purpose={purpose} userId={member.user_id} defaultNote={defaultNote}>{children}</ActionPanel>;
- return <><ConnectionStatus/><p><Link href={`/admin/snags?contract_id=${snag.contract_id}`}>← Snag register</Link></p>
+ return <><ConnectionStatus/><p><Link href={simple?`/admin/supervisor/sites/${snag.contract_id}`:`/admin/snags?contract_id=${snag.contract_id}`}>{simple?"← Today":"← Snag register"}</Link></p>
   <h1 className={styles.title}>{snag.check_label}</h1><p>{snag.contract_reference} · {snag.contract_name} · {snag.location_path?.join(" › ")||"Legacy morning-check finding"}</p>
+  {simple&&!draft&&snag.snag_status&&<p role="status" className={styles.success}>Snag saved. The office can review this report.</p>}
   <div className={css.badges}><span>{statusLabels[snag.snag_status||snag.state]}</span>{snag.severity&&<span>{snag.severity}</span>}{isSnagOverdue(snag)&&<span>Overdue</span>}</div>
   {(snag.severity==="critical"||snag.escalated)&&open&&!draft&&<div className={css.critical} role="status"><strong>{snag.severity==="critical"?"Critical defect — immediate office review":"Escalated to office"}</strong><p>{snag.escalation_reason}</p><p>This is an escalation, not a formal stop-work hold.</p></div>}
-  {permissions.supervise&&open&&!draft&&<div className={styles.rowActions}><Link className={styles.bigButton} href={`/admin/holds/new?contract=${snag.contract_id}&snag=${snag.id}`}>STOP AFFECTED WORK — linked hold</Link><Link className={styles.secondaryButton} href={`/admin/holds?contract_id=${snag.contract_id}${snag.work_area_id?`&location_id=${snag.work_area_id}`:""}`}>Review location holds</Link></div>}
-  <section className={styles.panel}><h2>Original finding</h2><p>{snag.description}</p>{snag.required_rectification&&<p><strong>Required rectification:</strong> {snag.required_rectification}</p>}
-   <p>{snag.stage&&`${snag.stage} · `}Recorded {new Date(snag.created_at).toLocaleString("en-GB",{timeZone:"Europe/London"})}{snag.inspector_name&&` by ${snag.inspector_name}`}</p>
+  {permissions.supervise&&open&&!draft&&<div className={styles.rowActions}><Link className={styles.bigButton} href={`/admin/holds/new?contract=${snag.contract_id}&snag=${snag.id}`}>{simple?"STOP WORK":"STOP AFFECTED WORK — linked hold"}</Link><Link className={styles.secondaryButton} href={`/admin/holds?contract_id=${snag.contract_id}${snag.work_area_id?`&location_id=${snag.work_area_id}`:""}`}>Review location holds</Link></div>}
+  <section className={styles.panel}><h2>Original finding</h2><p>{snag.description}</p>{!simple&&snag.required_rectification&&<p><strong>Required rectification:</strong> {snag.required_rectification}</p>}
+   <p>{!simple&&snag.stage&&`${snag.stage} · `}Recorded {new Date(snag.created_at).toLocaleString("en-GB",{timeZone:"Europe/London"})}{snag.inspector_name&&` by ${snag.inspector_name}`}</p>
    {snag.location_inspection_id&&<p>Linked to a failed inspection. <Link href={`/admin/supervisor/sites/${snag.contract_id}/inspections?location=${snag.work_area_id}`}>Review original inspection</Link></p>}
   </section>
+  {simple&&!draft&&snag.snag_status&&<p><Link className={styles.bigButton} href={`/admin/supervisor/sites/${snag.contract_id}`}>Back to today</Link></p>}
+  <DetailedWorkflow simple={simple&&!draft&&!!snag.snag_status}>
+  {simple&&snag.required_rectification&&<p><strong>Required rectification:</strong> {snag.required_rectification}</p>}
   {!snag.snag_status?<><p>This legacy morning-check issue retains its original workflow and history. No location, severity or responsibility has been invented for it.</p><IssueQueue initial={[{id:snag.id,contract_id:snag.contract_id,inspection_id:snag.inspection_id!,check_label:snag.check_label,description:snag.description,state:snag.state,created_at:snag.created_at,rectified_by:snag.rectified_by}]} role={member.role} userId={member.user_id}/></>:<>
    {draft&&<section className={styles.panel}><h2>Finish recording this draft</h2><p>The snag has not been submitted. Upload and verify original photographs, then submit. Drafts do not count as completed defects.</p></section>}
    {open&&permissions.supervise&&<SnagPhotoUploader key={`original-${snag.repair_cycle}`} issue={id} purpose="original"/>}
@@ -112,5 +120,6 @@ export default async function SnagDetail({params}:{params:Promise<{id:string}>})
    </details>}
    {photos.some(photo=>photo.event_id===event.id)&&<p>{photos.filter(photo=>photo.event_id===event.id).length} verified photographs linked to this event.</p>}
   </li>;})}</ol>{!events.length&&<p>No lifecycle events recorded yet.</p>}</section>
+  </DetailedWorkflow>
  </>;
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { canManageContracts, requireActor } from "@/lib/auth";
-import { checkRpc, contractsFor, locationsFor } from "@/lib/operations/data";
+import { checkDatabase, checkRpc, contractsFor, locationsFor } from "@/lib/operations/data";
 import { qualityOverviewFor } from "@/lib/operations/quality-data";
 import { qualityFilters, qualityStatusLabel } from "@/lib/operations/quality";
 import { holdStatusLabels, holdTypes } from "@/lib/operations/holds";
@@ -24,6 +24,11 @@ export default async function QualityControl({ searchParams }: { searchParams: P
     filters.contract_id ? locationsFor(supabase, filters.contract_id) : Promise.resolve([]),
   ]);
   checkRpc(teams.error);
+  const blockers = filters.contract_id ? await supabase.from("supervisor_issues")
+    .select("id,inspection_id,check_label,description,created_at")
+    .eq("contract_id", filters.contract_id).is("snag_status", null).neq("state", "closed")
+    .order("created_at", { ascending: false }).limit(20) : { data: [], error: null };
+  checkDatabase(blockers.error);
   const index = indexLocations(locations);
   const pageHref = (next: number) => { const query = new URLSearchParams(filters); query.set("page", String(next)); return `/admin/quality?${query}`; };
   return <>
@@ -43,6 +48,11 @@ export default async function QualityControl({ searchParams }: { searchParams: P
       <label className={styles.checkboxRow}><input type="checkbox" name="rejected" defaultChecked={filters.rejected === "true"} />Release requests returned for further work</label>
       <div className={styles.rowActions}><button className={styles.button}>Apply filters</button><Link className={styles.secondaryButton} href="/admin/quality">Clear filters</Link></div>
     </form></details>
+    <section className={styles.panel} aria-labelledby="daily-updates-heading"><h2 id="daily-updates-heading">Daily site updates</h2>
+      <p>Send site instructions, request inspections and read the supervisors’ permanent handovers.</p>
+      <div className={styles.rowActions}>{contracts.filter(contract => !filters.contract_id || contract.id === filters.contract_id).map(contract => <Link key={contract.id} className={styles.secondaryButton} href={`/admin/supervisor/sites/${contract.id}/messages`}>{contract.name} — office messages</Link>)}<Link className={styles.secondaryButton} href={`/admin/snags${filters.contract_id ? `?contract_id=${filters.contract_id}` : ""}`}>View site snags</Link></div>
+      {!!blockers.data?.length && <><h3>Morning blockers needing attention</h3><p className={styles.small}>Latest 20 open morning findings for the selected site.</p><div className={styles.cardList}>{blockers.data.map(issue => <article className={styles.card} key={issue.id}><h4>{issue.check_label}</h4><p>{issue.description}</p><Link href={`/admin/supervisor/sites/${filters.contract_id}/checks?inspection=${issue.inspection_id}#morning-${issue.inspection_id}`}>View saved morning check</Link></article>)}</div><Link href={`/admin/snags?contract_id=${filters.contract_id}`}>View all site issues</Link></>}
+    </section>
     {!overview ? <p className={styles.warning}>Quality holds and work-release status are unavailable until the reviewed Phase 3C migration is applied. No permission to proceed is implied.</p> : <>
       <section aria-label="Office quality counts" className={styles.metrics}>{[
         ["Safety stops", overview.counts.active_safety], ["Quality holds", overview.counts.active_quality], ["Awaiting release", overview.counts.awaiting_release],

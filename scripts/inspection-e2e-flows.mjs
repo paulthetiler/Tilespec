@@ -18,14 +18,15 @@ export async function inspect({ manager, page, site, sql, pass }) {
   pass('Phase 3A: office creates a specification template on a containing location through the real server action');
   const url = `${site}/inspections?location=${bathroom}&template=${template}`;
   await page.goto(url);
-  const form = page.locator('form').filter({ has: page.getByRole('button', { name: 'Save inspection', exact: true }) });
+  const form = page.locator('form').filter({ has: page.locator('input[name=template_id]') });
   assert.equal(await form.getByLabel('Wet-area grout specified', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Create or revise a location template', { exact: true }).count(), 0, 'supervisor has no template editing controls');
   await form.locator('select[name=status_0]').selectOption('issue');
-  await form.getByRole('button', { name: 'Save inspection', exact: true }).click();
+  await form.getByRole('button', { name: /SUBMIT RESULT$/ }).click();
   await form.getByRole('alert').filter({ hasText: 'Issue and N/A need a reason' }).waitFor();
   assert.equal(sql('select count(*) from public.location_inspections'), '0');
   await form.getByLabel('Reason / observation for check 1', { exact: false }).fill('Joint beside doorway incomplete');
+  await form.getByText('Who did this work? (optional)', { exact: true }).click();
   await form.locator('input[name=allocation_ids]').first().check();
   let savedRequest;
   // Lose the response after the database saved, then retry the same form/key.
@@ -36,19 +37,25 @@ export async function inspect({ manager, page, site, sql, pass }) {
     const response = await route.fetch();
     await route.fulfill({ response, body: '' });
   });
-  await form.getByRole('button', { name: 'Save inspection', exact: true }).click();
+  await form.getByRole('button', { name: /SUBMIT RESULT$/ }).click();
   await form.getByRole('alert').filter({ hasText: 'could not confirm this was saved' }).waitFor();
   assert.equal(sql('select count(*) from public.location_inspections'), '1');
   await page.unroute('**/*');
-  await form.getByRole('button', { name: 'Save inspection', exact: true }).click();
+  await form.getByRole('button', { name: /SUBMIT RESULT$/ }).click();
   await form.getByRole('status').filter({ hasText: 'Inspection saved' }).waitFor();
   assert.equal(sql('select count(*) from public.location_inspections'), '1');
   assert.equal(sql('select count(*) from public.location_inspection_allocations'), '1');
   assert.equal(sql("select workforce_snapshot->'attendance'->0->>'display_name' is not null from public.location_inspection_allocations"), 't');
   await page.reload();
   await page.getByText('Saved inspection history', { exact: true }).waitFor();
+  const savedInspection = sql('select id from public.location_inspections order by created_at limit 1');
+  const openHistory = async () => {
+    const history = page.locator('details').filter({ has: page.locator('summary').getByText('Saved inspection history', { exact: true }) }).first();
+    if (!await history.evaluate(element => element.open)) await history.locator('summary').first().click();
+  };
   const openObservation = async () => {
-    const record = page.locator('details').filter({ has: page.getByText('Grout joints filled: issue — Joint beside doorway incomplete', { exact: true }) }).first();
+    await openHistory();
+    const record = page.locator(`#inspection-${savedInspection}`);
     if (!await record.evaluate(element => element.open)) await record.locator('summary').first().click();
   };
   await openObservation();
@@ -62,6 +69,7 @@ export async function inspect({ manager, page, site, sql, pass }) {
       'work_area_id','${bathroom}','template_id','${template}', 'answers','[{"status":"pass","note":"Later observation"}]'::jsonb,
       'allocation_ids','[]'::jsonb)) from generate_series(1,50); commit;`);
   await page.reload();
+  await openHistory();
   await page.getByRole('link', { name: 'Earlier inspections', exact: true }).click();
   await openObservation();
   await page.getByText('Grout joints filled: issue — Joint beside doorway incomplete', { exact: true }).waitFor();

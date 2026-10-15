@@ -20,6 +20,17 @@ export type RequirementStatus = { configured: boolean; unknown: boolean; passed:
 export function applicableChecks(template: Pick<InspectionTemplate, "checklist" | "wet_area">) {
   return template.checklist.filter(check => !check.wet_only || template.wet_area);
 }
+// An office starter, published through the existing versioned-template action.
+// It never replaces an approved checklist or changes saved observations.
+export const everydayWorkmanshipChecks = [
+  "Setting out and alignment", "Lippage", "Quality of cuts", "Tile bedding and adhesion",
+  "Hollow-sounding floor tiles", "Grout joints and adhesive contamination", "Movement joints",
+  "Trims and edges", "General workmanship",
+] as const;
+export const hollowInvestigationNote = "Hollow-sounding tile found. Investigate against the installation system and project requirements.";
+export function isHollowSoundCheck(label: string) {
+  return /\bhollow\b|\bdrummy\b/i.test(label);
+}
 export function inspectionHasBlockingFailure(record: Pick<LocationInspection, "issues_count" | "answers">) {
   return record.issues_count > 0 || record.answers.some(answer => (answer.mandatory || answer.hold_point) && answer.status !== "pass");
 }
@@ -54,10 +65,13 @@ export function inspectionInput(form: FormData) {
   const count = Number(countText);
   if (!/^\d+$/.test(countText) || count < 1 || count > 50) throw new ValidationError("Refresh the inspection checklist.");
   const answers = Array.from({ length: count }, (_, i) => {
-    const status = text(form, `status_${i}`, 10, true), note = text(form, `note_${i}`, 2000);
+    let status = text(form, `status_${i}`, 10, true), note = text(form, `note_${i}`, 2000);
+    const hollow = form.get(`hollow_found_${i}`);
+    if (hollow !== null && hollow !== "true" && hollow !== "false") throw new ValidationError("Choose whether a hollow sound was found.");
+    if (hollow === "true") { status = "issue"; note = note || hollowInvestigationNote; }
     if (!["pass", "issue", "na"].includes(status) || (status !== "pass" && !note)) throw new ValidationError("Answer every check; Issue and N/A need a reason.");
     const document_ids = uuidList(form, `document_ids_${i}`, 12), photo_ids = uuidList(form, `photo_ids_${i}`, 12);
-    return { status, note, ...(document_ids.length ? { document_ids } : {}), ...(photo_ids.length ? { photo_ids } : {}) };
+    return { status, note, ...(hollow !== null ? { hollow_found: hollow === "true" } : {}), ...(document_ids.length ? { document_ids } : {}), ...(photo_ids.length ? { photo_ids } : {}) };
   });
   const allocation_ids = form.getAll("allocation_ids").map(value => {
     const single = new FormData(); single.set("id", value); return uuid(single, "id");

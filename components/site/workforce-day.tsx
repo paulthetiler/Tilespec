@@ -102,7 +102,7 @@ function ConfirmControls({ card, context, actions }: { card: TeamCard; context: 
   const teamOthers = usable(context.operatives).filter(person => !card.expected.includes(person.id));
   return <div className={styles.cardButtons}>
     {confirmable.length > 0
-      ? <OperationsForm key={confirmKey} action={actions.confirmAsPlanned} submitLabel={card.status === "not_on_site" ? "Arrived: confirm as planned" : "Confirm as planned"}
+      ? <OperationsForm freezeOnFailure key={confirmKey} action={actions.confirmAsPlanned} submitLabel={card.status === "not_on_site" ? "Arrived: confirm as planned" : "Confirm as planned"}
         submitClassName={styles.bigButton} plain footer={<details className={styles.details}><summary>Started before now?</summary><TimeField name="started_time" label="Start time" /></details>}>
         <Hidden values={{ ...base, request_key: confirmKey }} />
         {confirmable.map(id => <input key={id} type="hidden" name="operative_ids" value={id} />)}
@@ -111,7 +111,7 @@ function ConfirmControls({ card, context, actions }: { card: TeamCard; context: 
       : <p className={styles.small}>Nobody is named for this team. Use Make changes to record who is here.</p>}
     <details className={styles.disclosure}>
       <summary aria-label={`Make changes for ${card.team?.name ?? "team"}`}>Make changes</summary>
-      <OperationsForm key={changeKey} action={actions.confirmChanges} submitLabel="Save what happened">
+      <OperationsForm freezeOnFailure key={changeKey} action={actions.confirmChanges} submitLabel="Save what happened">
         <div className={`${styles.stack} ${styles.splitForm}`}>
           <Hidden values={{ ...base, request_key: changeKey }} />
           <p className={styles.small}>Mark each person. Only differences from the plan need a reason; an absence reason is enough when someone is missing.</p>
@@ -156,14 +156,14 @@ function ConfirmControls({ card, context, actions }: { card: TeamCard; context: 
     </details>
     {card.status === "unconfirmed" && <details className={styles.disclosure}>
       <summary aria-label={`Not on site: ${card.team?.name ?? "team"}`}>Not on site</summary>
-      <OperationsForm key={absentKey} action={actions.notOnSite} submitLabel="Record not on site">
+      <OperationsForm freezeOnFailure key={absentKey} action={actions.notOnSite} submitLabel="Record not on site">
         <Hidden values={{ ...base, request_key: absentKey }} />
         <ReasonChoices name="reason" legend="Why is the team not on site?" reasons={notOnSiteReasons} required />
       </OperationsForm>
     </details>}
     {card.teamAbsence && <details className={styles.disclosure}>
       <summary>Recorded by mistake?</summary>
-      <OperationsForm action={actions.undoNotOnSite} submitLabel="Remove not on site">
+      <OperationsForm freezeOnFailure action={actions.undoNotOnSite} submitLabel="Remove not on site">
         <Hidden values={{ contract_id: context.contractId, record_id: card.teamAbsence.id }} />
         <label className={styles.field}>Why remove it? *<input name="reason_other" required minLength={5} maxLength={2000} placeholder="Recorded against the wrong team" /></label>
       </OperationsForm>
@@ -201,7 +201,7 @@ export function PeriodView({ period, context, card }: { period: Period; context:
     {period.open && actions && <div className={styles.rowActions}>
       <details className={styles.disclosure}>
         <summary aria-label={`Move or split from ${period.location}`}>Move or split</summary>
-        <OperationsForm key={moveKey} action={actions.move} submitLabel="Record move">
+        <OperationsForm freezeOnFailure key={moveKey} action={actions.move} submitLabel="Record move">
           <div className={`${styles.stack} ${styles.splitForm}`}>
             <Hidden values={{ ...base, request_key: moveKey }} />
             <p className={styles.small}>Everyone here moves unless you split them. The time here is kept as it was.</p>
@@ -232,7 +232,7 @@ export function PeriodView({ period, context, card }: { period: Period; context:
       </details>
       <details className={styles.disclosure}>
         <summary aria-label={`Someone arrived at ${period.location}`}>Someone arrived</summary>
-        <OperationsForm action={actions.arrival} submitLabel="Record arrival">
+        <OperationsForm freezeOnFailure action={actions.arrival} submitLabel="Record arrival">
           <Hidden values={base} />
           <PersonSelect name="operative_id" label="Who arrived? *" groups={[["Expected on this team", expectedAway], ["Everyone else", others]]} />
           <TimeField name="at_time" label="Arrived at" />
@@ -241,7 +241,7 @@ export function PeriodView({ period, context, card }: { period: Period; context:
       </details>
       {presentOperatives.length > 0 && <details className={styles.disclosure}>
         <summary aria-label={`Someone left ${period.location}`}>Someone left</summary>
-        <OperationsForm action={actions.departure} submitLabel="Record departure">
+        <OperationsForm freezeOnFailure action={actions.departure} submitLabel="Record departure">
           <Hidden values={base} />
           <PersonSelect name="operative_id" label="Who left? *" groups={[["Here now", presentOperatives]]} />
           <TimeField name="at_time" label="Left at" />
@@ -250,21 +250,21 @@ export function PeriodView({ period, context, card }: { period: Period; context:
       </details>}
       {!allocation.lead_operative_id && presentOperatives.length > 0 && <details className={styles.disclosure}>
         <summary aria-label={`Acting lead at ${period.location}`}>Acting lead</summary>
-        <OperationsForm action={actions.setLead} submitLabel="Record acting lead">
+        <OperationsForm freezeOnFailure action={actions.setLead} submitLabel="Record acting lead">
           <Hidden values={base} />
           <PersonSelect name="operative_id" label="Who is leading here today? *" groups={[["Here now", presentOperatives]]} />
         </OperationsForm>
       </details>}
       <details className={styles.disclosure}>
         <summary aria-label={`Finish work at ${period.location}`}>Finish here</summary>
-        <OperationsForm action={actions.finishPeriod} submitLabel="Finish work here">
+        <OperationsForm freezeOnFailure action={actions.finishPeriod} submitLabel="Finish work here">
           <Hidden values={base} />
           <TimeField name="at_time" label="Finished at" />
         </OperationsForm>
       </details>
       {canVoid && <details className={styles.disclosure}>
         <summary aria-label={`Entered in error: ${period.location}`}>Entered in error</summary>
-        <OperationsForm action={actions.voidPeriod} submitLabel="Mark as entered in error">
+        <OperationsForm freezeOnFailure action={actions.voidPeriod} submitLabel="Mark as entered in error">
           <Hidden values={{ contract_id: context.contractId, record_id: allocation.id }} />
           <p className={styles.small}>Use this only for a record made by mistake. It stays in the history with your reason.</p>
           <label className={styles.field}>What was wrong? *<input name="reason_other" required minLength={5} maxLength={2000} placeholder="Recorded against the wrong team" /></label>

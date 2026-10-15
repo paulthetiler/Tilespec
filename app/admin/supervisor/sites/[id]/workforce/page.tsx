@@ -55,7 +55,7 @@ export default async function TodaysWorkforce({ params }: { params: Promise<{ id
         const items = stale.filter(item => item.work_date === staleDay);
         return <div key={staleDay} className={styles.stack}>
           <p><strong>{dayLabel(staleDay, "long")}:</strong> {items.map(item => `${locationPath(index, item.work_area_id)} from ${londonClock(item.started_at)}`).join("; ")}</p>
-          <OperationsForm action={finishDayAction} submitLabel={`Finish ${dayLabel(staleDay, "long")}`}>
+          <OperationsForm freezeOnFailure action={finishDayAction} submitLabel={`Finish ${dayLabel(staleDay, "long")}`}>
             <input type="hidden" name="contract_id" value={id} />
             <input type="hidden" name="day" value={staleDay} />
             <input type="hidden" name="earlier" value="true" />
@@ -85,10 +85,10 @@ export default async function TodaysWorkforce({ params }: { params: Promise<{ id
     <section className={styles.panel} aria-labelledby="finish-heading">
       <h2 id="finish-heading">End of the day</h2>
       <p className={styles.muted}>Finish every period of work still open today at the time work stopped.</p>
-      <OperationsForm action={finishDayAction} submitLabel="Finish today's work">
+      <OperationsForm freezeOnFailure action={finishDayAction} submitLabel="Finish today's work">
         <input type="hidden" name="contract_id" value={id} />
         <input type="hidden" name="day" value={day} />
-        <label className={`${styles.field} ${styles.timeField}`}>Work finished at<input type="time" name="at_time" /><small>Leave blank to finish now.</small></label>
+        <label className={`${styles.field} ${styles.timeField}`}>Work finished at<input type="time" name="at_time" required defaultValue={londonClock(new Date().toISOString())} /><small>Check the time work finished. Retries keep this same time.</small></label>
       </OperationsForm>
     </section>
   </>;
