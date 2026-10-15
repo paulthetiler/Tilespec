@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { emptySnagCounts, type SnagRegister } from "@/lib/operations/snags";
+import { holdScope, holdStatusLabels, holdTypes } from "@/lib/operations/holds";
 import css from "@/components/snags/snags.module.css";
 import { insuranceSummary } from "@/lib/operations/companies";
 import { checkDatabase, companyRecordsFor, siteDayFor, siteStatusFor } from "@/lib/operations/data";
@@ -7,6 +8,8 @@ import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
 import { buildSiteDay, nextAction } from "@/lib/operations/site-day";
 import { insuranceTypeLabels } from "@/lib/operations/types";
 import { ExceptionList } from "@/components/site/workforce-day";
+import { WorkReleaseList } from "@/components/site/work-release-list";
+import { qualityOverviewFor, holdNotificationsFor } from "@/lib/operations/quality-data";
 import { requireSite } from "../../site-access";
 import styles from "../../../admin.module.css";
 
@@ -21,19 +24,29 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   const day = londonDate();
   const base = `/admin/supervisor/sites/${id}`;
   const issuesHref = `/admin/snags?contract_id=${id}`;
-  const [{ records, stale }, status, cover, details, documents, snagResult] = await Promise.all([
+  const holdsHref = `/admin/holds?contract_id=${id}`;
+  const [{ records, stale }, status, cover, details, documents, snagResult, quality, alerts] = await Promise.all([
     siteDayFor(supabase, id, day), siteStatusFor(supabase, id, day), companyRecordsFor(supabase),
     supabase.from("contracts").select("client,site_contact,scope,exclusions,tile_specification,installation_system,access_restrictions,working_hours").eq("id", id).maybeSingle(),
     supabase.from("document_revisions").select("id,title,document_reference,revision,classification").eq("contract_id", id).eq("classification", "operational").not("uploaded_at", "is", null),
     supabase.rpc("snag_register", { p_filters: { contract_id: id }, p_page: 0 }),
+    qualityOverviewFor(supabase, { contract_id: id }), holdNotificationsFor(supabase, id, true),
   ]);
   checkDatabase(details.error);
   checkDatabase(documents.error);
+  // Select active rows independently of the register's mixed-status page: old
+  // released safety records must never hide a current quality restriction.
+  const activeHolds = quality ? await supabase.from("work_holds")
+    .select("id,hold_type,reason,activity,location_path,stage,status,work_package_id,work_packages(name)")
+    .eq("contract_id", id).in("status", ["active", "correction_submitted", "awaiting_release"])
+    .order("raised_at", { ascending: false }).limit(10) : { data: [], error: null };
+  checkDatabase(activeHolds.error);
   const snagUnavailable = !!snagResult.error && ["PGRST202", "42883"].includes(snagResult.error.code);
   if (!snagUnavailable) checkDatabase(snagResult.error);
   const snagCounts = snagUnavailable ? emptySnagCounts : (snagResult.data as SnagRegister).counts;
   const site = buildSiteDay(records);
-  const next = nextAction({ siteHref: base, issuesHref, checksDone: status.lastCheck !== null, staleOpen: stale.length, openIssues: snagUnavailable ? status.openIssues : snagCounts.open, day: site, snags: snagCounts });
+  const next = nextAction({ siteHref: base, issuesHref, checksDone: status.lastCheck !== null, staleOpen: stale.length, openIssues: snagUnavailable ? status.openIssues : snagCounts.open, day: site, snags: snagCounts,
+    holds: quality ? { href: holdsHref, ...quality.counts, ...quality.quality_counts } : undefined });
 
   // Warnings worth acting on today, most urgent first.
   const companiesOnSite = new Set([...site.cards.flatMap(card => card.periods), ...site.unplanned].filter(period => period.open && period.company).map(period => period.company!.id));
@@ -56,12 +69,39 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     { title: "Outstanding snags", done: snagCounts.open === 0, status: `${snagCounts.open} open · ${snagCounts.awaiting_reinspection} awaiting reinspection`, href: issuesHref, label: "Open snag register" },
   ];
   return <>
-    <section className={styles.panel} aria-label="Snag actions">
-      <div className={styles.rowActions}><Link className={styles.bigButton} href={`/admin/snags/new?contract=${id}`}>Raise snag</Link><Link className={styles.secondaryButton} href={issuesHref}>Open snag register</Link><Link className={styles.secondaryButton} href={`${issuesHref}&awaiting_reinspection=true`}>Reinspect repairs</Link></div>
-      <p>Report urgent findings immediately; morning checks never block snag reporting.</p>
+    <section className={styles.panel} aria-label="Site actions">
+      <div className={styles.cardButtons}>
+        <Link className={styles.bigButton} href={`/admin/holds/new?contract=${id}`}>Stop work</Link>
+        <Link className={`${styles.bigButton} ${styles.quietButton}`} href={`/admin/snags/new?contract=${id}`}>Raise snag</Link>
+      </div>
+      <div className={`${styles.rowActions} ${styles.cardActions}`}>
+        <Link className={styles.secondaryButton} href={`${base}/checks`}>Start today&apos;s checks</Link>
+        <Link className={styles.secondaryButton} href={`${base}/workforce`}>Confirm workforce</Link>
+        <Link className={styles.secondaryButton} href={`${base}/inspections`}>Inspect location</Link>
+        <Link className={styles.secondaryButton} href={holdsHref}>Review holds</Link>
+        <Link className={styles.secondaryButton} href={`${base}/workforce#finish-heading`}>Finish today</Link>
+      </div>
+      <p>Stop affected work or raise a snag immediately. Earlier checklist steps do not block urgent reporting. Only a confirmed database save records a hold.</p>
       {snagUnavailable && <p>The snag workflow needs the reviewed Phase 3B migration before it can be used. Existing morning checks and workforce records remain available.</p>}
-      {!!snagCounts.critical && <div className={css.critical}><strong>{snagCounts.critical} critical defects require immediate office review.</strong><p>Escalation does not authorise a formal hold or release.</p></div>}
+      {!quality && <p className={styles.warning}>Hold and work-release status are unavailable until the reviewed Phase 3C migration is applied. This screen cannot confirm permission to proceed.</p>}
+      {!!quality?.counts.active_safety && <div className={css.critical} role="status"><strong>{quality.counts.active_safety} active safety stop{quality.counts.active_safety === 1 ? "" : "s"}.</strong><p>Affected work must remain stopped. Review each recorded location and activity; follow the principal contractor&apos;s site-safety procedures.</p><Link className={styles.button} href={`${holdsHref}&hold_type=safety`}>Review safety stops</Link></div>}
+      {!!snagCounts.critical && <div className={css.critical}><strong>{snagCounts.critical} critical defects require immediate office review.</strong><p>Raise a linked, scoped hold where affected work must stop.</p></div>}
+      {!!activeHolds.data?.length && <section aria-label="Active work restrictions"><h2>Affected work — active restrictions</h2>
+        {activeHolds.data.map(hold => {
+          const relation = hold.work_packages as unknown as { name: string } | { name: string }[] | null;
+          const packageName = (Array.isArray(relation) ? relation[0] : relation)?.name;
+          return <article key={hold.id} className={hold.hold_type === "safety" ? css.critical : css.card}>
+            <h3>{holdTypes[hold.hold_type as keyof typeof holdTypes]}</h3>
+            <strong>{holdScope({ ...hold, activity: hold.activity || "", work_package_name: packageName || null })}</strong>
+            <p>{hold.reason}</p><p>{holdStatusLabels[hold.status]}</p>
+            <Link className={styles.button} href={`/admin/holds/${hold.id}`}>Review this restriction</Link>
+          </article>;
+        })}
+        {(quality!.counts.active_quality + quality!.counts.active_safety) > 10 && <p>Showing the ten most recent active restrictions. <Link href={holdsHref}>Review every hold and its scope</Link>.</p>}
+      </section>}
+      {quality && <div className={styles.metrics} aria-label="Quality and release counts">{[["Active quality holds",quality.counts.active_quality],["Active safety stops",quality.counts.active_safety],["Pending release authorisations",quality.counts.awaiting_release],["Inspections due",quality.quality_counts.inspections_due],["Failed inspections",quality.quality_counts.failed_inspections],["Failed mandatory inspections",quality.quality_counts.failed_mandatory]].map(([label,count])=><div className={styles.metric} key={label}><span className={styles.metricLabel}>{label}</span><strong className={styles.metricValue}>{count}</strong></div>)}</div>}
       <div className={styles.metrics}>{[["Outstanding snags",snagCounts.open],["Critical defects",snagCounts.critical],["Awaiting reinspection",snagCounts.awaiting_reinspection],["Disputed responsibility",snagCounts.disputed],["Overdue repairs",snagCounts.overdue]].map(([label,count])=><div className={styles.metric} key={label}><span className={styles.metricLabel}>{label}</span><strong className={styles.metricValue}>{count}</strong></div>)}</div>
+      <div className={styles.rowActions}><Link className={styles.secondaryButton} href={issuesHref}>Open snag register</Link><Link className={styles.secondaryButton} href={`${issuesHref}&awaiting_reinspection=true`}>Reinspect repairs</Link><Link className={styles.secondaryButton} href={`/admin/alerts?contract_id=${id}`}>{alerts ? `Site alerts (${alerts.unread} unread)` : "Site alerts"}</Link></div>
     </section>
     <section className={styles.nextAction} aria-labelledby="next-heading">
       <h2 id="next-heading">Next: {dayLabel(day, "long")}</h2>
@@ -92,13 +132,16 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
           <Link className={styles.secondaryButton} href={step.href}>{step.label}</Link>
         </li>)}
         <li className={styles.step}><div><span className={styles.stepTitle}>4. Location inspections</span><p>Record checks against a location and its actual workforce history.</p></div><Link className={styles.secondaryButton} href={`${base}/inspections`}>Location inspections</Link></li>
-        <li className={`${styles.step} ${styles.comingLater}`}><div><span className={styles.stepTitle}>5. Daily handover</span><p>Not available yet.</p></div></li>
+        <li className={styles.step}><div><span className={styles.stepTitle}>5. Review holds and release requests</span><p>{quality ? `${quality.counts.active_quality} quality holds · ${quality.counts.active_safety} safety stops · ${quality.counts.awaiting_release} awaiting independent release` : "Hold status is not available."}</p></div><Link className={styles.secondaryButton} href={holdsHref}>Review holds</Link></li>
+        <li className={styles.step}><div><span className={styles.stepTitle}>6. Finish today</span><p>Record when today&apos;s work stopped; outstanding defects and holds stay in their own history.</p></div><Link className={styles.secondaryButton} href={`${base}/workforce#finish-heading`}>Finish today</Link></li>
       </ol>
       <div className={`${styles.rowActions} ${styles.cardActions}`}>
         <Link className={styles.secondaryButton} href={`${base}/history`}>Workforce history</Link>
         <p className={styles.small}>Who worked where and when, and who recorded it.</p>
       </div>
     </section>
+
+    {quality && <section className={styles.panel} aria-labelledby="release-heading"><h2 id="release-heading">Location and activity restrictions</h2><WorkReleaseList rows={quality.work_statuses} truncated={quality.work_statuses_truncated} /></section>}
 
     <section className={styles.panel} aria-labelledby="job-heading">
       <h2 id="job-heading">Job information</h2>

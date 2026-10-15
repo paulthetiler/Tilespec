@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { canManageContracts, canReadFinancial, requireActor } from "@/lib/auth";
 import { checkDatabase, contractsFor } from "@/lib/operations/data";
 import { budgetSummary, contractWarnings } from "@/lib/operations/summary";
@@ -8,6 +9,7 @@ import styles from "./admin.module.css";
 
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
   const { supabase, member } = await requireActor();
+  if (member.role === "supervisor") redirect("/admin/supervisor");
   const financial = canReadFinancial(member);
   const contracts = await contractsFor(supabase);
   const [areaResult, documentResult, budgetResult] = await Promise.all([
@@ -31,13 +33,13 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     {params.error === "permission" && <p className={styles.error} role="alert">Your account does not have permission to access that page.</p>}
     <div className={styles.metrics}>
       <div className={styles.metric}><span className={styles.metricLabel}>Available contracts</span><strong className={styles.metricValue}>{contracts.length}</strong><span className={styles.small}>Draft records within your access</span></div>
-      <div className={styles.metric}><span className={styles.metricLabel}>Installation release</span><strong className={styles.metricValue}>Blocked</strong><span className={styles.small}>Quality gates required before release</span></div>
+      <div className={styles.metric}><span className={styles.metricLabel}>Site operations</span><Link className={styles.secondaryButton} href="/admin/supervisor">Open site dashboard</Link><span className={styles.small}>Recorded workforce, inspections, defects and restrictions</span></div>
       {financial && <>
         <div className={styles.metric}><span className={styles.metricLabel}>Recorded contract values</span><strong className={styles.metricValue}>{budgets.length > 0 ? money(recordedValue) : "Not recorded"}</strong><span className={styles.small}>{budgets.length} of {contracts.length} original budgets recorded</span></div>
         <div className={styles.metric}><span className={styles.metricLabel}>Budgeted profit after reserve</span><strong className={styles.metricValue}>{budgets.length > 0 ? money(recordedProfit) : "Not recorded"}</strong><span className={styles.small}>Original budgets; actual costs not yet tracked</span></div>
       </>}
     </div>
-    <div className={styles.warning}><strong>Mobilisation and installation remain unreleased.</strong> The foundation records are ready for project setup. Supervisor approvals, stop-work controls and quality-gate decisions arrive in Phase 2.</div>
+    <section className={styles.panel}><h2>Quality and work restrictions</h2><p>Permission to proceed is assessed for a specified location and activity from saved requirements, inspections and hold decisions.</p><div className={styles.rowActions}>{canManageContracts(member) && <Link href="/admin/quality" className={styles.button}>Quality control</Link>}<Link href="/admin/holds" className={styles.secondaryButton}>Holds and releases</Link><Link href="/admin/alerts" className={styles.secondaryButton}>Site alerts</Link></div></section>
     <section className={styles.panel}>
       <div className={styles.panelHeader}><div><h2>Contracts requiring setup</h2><p className={styles.muted}>Missing information is shown explicitly. No project has been marked compliant.</p></div><Link href="/admin/contracts" className={styles.secondaryButton}>View register</Link></div>
       {contracts.length === 0
@@ -45,7 +47,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         : <div className={styles.stack}>{contracts.map(contract => {
           const warnings = contractWarnings(contract, areaCount(contract.id), documentCount(contract.id));
           return <article key={contract.id} className={styles.contractCard}>
-            <div className={styles.cardTop}><Link href={`/admin/contracts/${contract.id}`}><span className={styles.eyebrow}>{contract.reference}</span><h3>{contract.name}</h3></Link><span className={styles.warningBadge}>Draft · unreleased</span></div>
+            <div className={styles.cardTop}><Link href={`/admin/contracts/${contract.id}`}><span className={styles.eyebrow}>{contract.reference}</span><h3>{contract.name}</h3></Link><span className={styles.warningBadge}>Draft contract record</span></div>
             <p className={styles.muted}>{contract.client} · Programme starts {calendarDate(contract.start_date)}</p>
             <ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
             {financial && (() => {
@@ -59,6 +61,6 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           </article>;
         })}</div>}
     </section>
-    <section className={styles.panel}><h2>Next delivery phases</h2><p className={styles.muted}>Live progress, inspections, variations, payment deadlines and cash forecasts will appear as their workflows are implemented. There are no estimated or invented operational results here.</p></section>
+    <section className={styles.panel}><h2>Recorded site work</h2><p className={styles.muted}>Use the guided site dashboard for morning checks, actual workforce confirmation, location inspections, snags and scoped holds. Earlier records and decisions remain in their histories.</p><Link href="/admin/supervisor" className={styles.secondaryButton}>Choose site dashboard</Link></section>
   </>;
 }
