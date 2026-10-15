@@ -136,7 +136,7 @@
       id: `hold-release:${h.id}`, rule: "G05", process: "stop-work", kind: "gate", priority: h.hold_type === "safety" ? 0 : 1, order: 2,
       job: L.job(h.contract_id), location: L.path(h.work_area_id),
       responsible: { role: "office", who: null, label: "Office or owner. Not the person who raised it" },
-      independence: { forbiddenUserId: h.raised_by, reason: `${L.person(h.raised_by)} raised this stop, so someone else has to check it.` },
+      independence: { forbidden: [{ userId: h.raised_by, reason: `${L.person(h.raised_by)} raised this stop, so someone else has to check it.` }, ...(h.corrected_by ? [{ userId: h.corrected_by, reason: `${L.person(h.corrected_by)} submitted the fix, so someone else has to check it.` }] : [])] },
       title: `Check the fix and decide: ${holdLabel(h)}`, why: `${h.reason} The gang says it is fixed. Review their photos and the inspection results, then restart the work or send it back.`,
       due: null, requires: ["Photos of the fix", "Inspection results for this work", ...(h.hold_type === "safety" ? ["Principal contractor's name and reference"] : []), "A reason for your decision"],
       doneWhen: "A release or a send-back decision is saved", next: "Work restarts for this location only, or the gang is sent back",
@@ -221,7 +221,7 @@
     return {
       id: `snag-reinspect:${i.id}`, rule: "G10", process: "snag", kind: "gate", priority: 1, order: 6, job: L.job(i.contract_id), location: L.path(i.work_area_id),
       responsible: needsOffice ? { role: "office", who: null, label: "Office. Critical repairs need the office" } : { role: "supervisor", who: (L.supervisorOf(i.contract_id) || {}).display_name || null, label: "Site supervisor. Not the person who did the repair" },
-      independence: i.rectified_by ? { forbiddenUserId: i.rectified_by, reason: `${L.person(i.rectified_by)} did the repair, so someone else has to check it.` } : null,
+      independence: i.rectified_by ? { forbidden: [{ userId: i.rectified_by, reason: `${L.person(i.rectified_by)} did the repair, so someone else has to check it.` }] } : null,
       title: "Check the repair", why: `${i.check_label}. The gang says it is repaired. Look at it in person and add a photo, then accept or send it back.`,
       due: null, requires: ["A look at the repair", "A photo of the result", "A note"], doneWhen: "The repair is accepted or sent back, and saved", next: needsOffice ? "Closed once the office accepts" : "Closed once accepted",
       audience: needsOffice ? { office: "act", supervisor: "see", subcontractor: "see", owner: null } : { supervisor: "act", office: "act", subcontractor: "see" },
@@ -253,6 +253,16 @@
   })));
 
   // G13 - subcontractor insurance. Not blocked by the database today (see audit).
+  // Insurance records are append-only in the database: a renewal is a NEW entry, so only the
+  // latest entry of each type counts (same as insuranceSummary in lib/operations/companies.ts).
+  const latestCover = (s, companyId) => {
+    const latest = new Map();
+    for (const i of s.company_insurances.filter((x) => x.company_id === companyId)) {
+      const cur = latest.get(i.insurance_type);
+      if (!cur || i.expires_on > cur.expires_on) latest.set(i.insurance_type, i);
+    }
+    return [...latest.values()];
+  };
   rule("G13_insurance_expired", (s, L) => {
     const out = [];
     for (const co of s.companies) {
@@ -260,7 +270,7 @@
       const soon = s.planned_allocations.filter((p) => teamIds.includes(p.team_id) && p.planned_end >= s.today && p.planned_start <= addDays(s.today, T.planHorizonDays));
       const onSite = s.actual_allocations.some((a) => teamIds.includes(a.team_id) && !a.ended_at && !a.voided_at);
       if (!soon.length && !onSite) continue;
-      const covers = s.company_insurances.filter((i) => i.company_id === co.id);
+      const covers = latestCover(s, co.id);
       const expired = covers.filter((i) => i.expires_on < s.today);
       if (covers.length && !expired.length) continue;
       const kind = expired[0] ? expired[0].insurance_type.replaceAll("_", " ") : "insurance";
@@ -423,7 +433,7 @@
   rule("R11_insurance_expiring", (s, L) => {
     const out = [];
     for (const co of s.companies) {
-      const soon = s.company_insurances.filter((i) => i.company_id === co.id && i.expires_on >= s.today && dayDiff(i.expires_on, s.today) <= T.insuranceWarningDays);
+      const soon = latestCover(s, co.id).filter((i) => i.expires_on >= s.today && dayDiff(i.expires_on, s.today) <= T.insuranceWarningDays);
       for (const i of soon) out.push({
         id: `insurance-soon:${i.id}`, rule: "R11", process: "compliance", kind: "reminder", priority: 3, order: 23, job: { id: null, reference: "", name: co.name }, location: null,
         responsible: { role: "office", who: null, label: "Office" }, title: `${co.name}: ${i.insurance_type.replaceAll("_", " ")} runs out in ${dayDiff(i.expires_on, s.today)} days`,
@@ -464,7 +474,8 @@
     const a = { ...raw, viewerMode: mode, state: mode === "act" ? "ready" : "waiting", blockedBy: null };
     if (raw.actUsers && mode === "act" && !raw.actUsers.includes(viewer.user_id)) { a.state = "waiting"; a.viewerMode = "see"; }
     if (mode === "act" && raw.blockers && raw.blockers.length) { a.state = "blocked"; a.blockedBy = raw.blockers[0]; }
-    if (mode === "act" && raw.independence && raw.independence.forbiddenUserId === viewer.user_id) { a.state = "blocked"; a.blockedBy = raw.independence.reason; }
+    const barred = mode === "act" && raw.independence && raw.independence.forbidden.find((f) => f.userId === viewer.user_id);
+    if (barred) { a.state = "blocked"; a.blockedBy = barred.reason; }
     if (raw.informationOnly && a.state === "ready") a.state = "info";
     a.overdue = !!(a.due && a.due < s.today && a.kind !== "gate") || !!raw.overdue;
     return a;

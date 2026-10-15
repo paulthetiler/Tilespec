@@ -6,7 +6,9 @@
   const nav = (h) => P.nav(h);
   const kv = (rows) => `<dl class="kv">${rows.filter(Boolean).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
   const insuranceState = (co) => {
-    const covers = P.S.company_insurances.filter((i) => i.company_id === co.id);
+    const latest = new Map();
+    P.S.company_insurances.filter((i) => i.company_id === co.id).forEach((i) => { const c = latest.get(i.insurance_type); if (!c || i.expires_on > c.expires_on) latest.set(i.insurance_type, i); });
+    const covers = [...latest.values()];
     if (!covers.length) return P.chip("blocked", "No cover on file", "alert");
     const expired = covers.filter((i) => i.expires_on < P.S.today);
     if (expired.length) return P.chip("blocked", `${expired[0].insurance_type.replaceAll("_", " ")} expired`, "alert");
@@ -57,8 +59,8 @@
 
   // ---------------------------------------------------------------- tenders
   const TSTATUS = { received: ["pending", "New"], declined: ["done", "Declined"], replied: ["saved", "Replied"] };
-  P.screens.tenders = (r, ctx) => `<header class="gap-s"><h1 class="title">Tenders</h1><p class="sub">New enquiries first. ${P.hint("new", "New backend B5")}</p></header><div class="card flat list">${P.S.tender_enquiries.slice().sort((a, b) => (a.deadline < b.deadline ? -1 : 1)).map((t) => P.row({ href: "#/tender/" + t.id, icon: "inbox", title: esc(t.project), sub: esc(t.company + " · reply by " + P.fd(t.deadline)), chips: P.chip(TSTATUS[t.status][0], TSTATUS[t.status][1]) })).join("")}</div>
-    <p class="small muted">Today enquiries arrive from the website form. The app stores them, but office staff cannot yet list or update them in the app.</p>`;
+  P.screens.tenders = (r, ctx) => `<header class="gap-s"><h1 class="title">Tenders</h1><p class="sub">New enquiries first. ${P.hint("exists", "List and documents")} ${P.hint("new", "Status: New backend B5")}</p></header><div class="card flat list">${P.S.tender_enquiries.slice().sort((a, b) => (a.deadline < b.deadline ? -1 : 1)).map((t) => P.row({ href: "#/tender/" + t.id, icon: "inbox", title: esc(t.project), sub: esc(t.company + " · reply by " + P.fd(t.deadline)), chips: P.chip(TSTATUS[t.status][0], TSTATUS[t.status][1]) })).join("")}</div>
+    <p class="small muted">The app already lists new enquiries and opens their documents. It cannot yet record that one was replied to or declined, so the list never gets shorter (B5).</p>`;
   P.screens.tender = (r) => {
     const t = find(P.S.tender_enquiries, r.id);
     if (!t) return `${P.back("#/tenders", "Tenders")}${P.empty("Not found", "That enquiry does not exist.", "inbox")}`;
@@ -148,11 +150,12 @@
     } else if (a.rule === "G13") {
       if (!P.need(f.until > S.today, "The new cover must end after today.")) return;
       const co = id.split(":")[1];
-      fn = () => S.company_insurances.filter((i) => i.company_id === co && i.expires_on < S.today).forEach((i) => { i.expires_on = f.until; });
+      const types = [...new Set(S.company_insurances.filter((i) => i.company_id === co && i.expires_on < S.today).map((i) => i.insurance_type))];
+      fn = () => types.forEach((t) => S.company_insurances.push({ id: P.uid("i"), company_id: co, insurance_type: t, expires_on: f.until, policy_number: f.ref }));
     } else if (a.rule === "R11") {
       const ins = find(S.company_insurances, id.split(":")[1]);
       if (!P.need(f.until > ins.expires_on, "The new date must be later than the current one.")) return;
-      fn = () => { ins.expires_on = f.until; };
+      fn = () => S.company_insurances.push({ id: P.uid("i"), company_id: ins.company_id, insurance_type: ins.insurance_type, expires_on: f.until, policy_number: f.ref });
     } else if (a.rule === "R04") {
       const o = find(S.operatives, id.split(":")[1]);
       fn = () => { o.status = "active"; };
@@ -221,7 +224,7 @@
   P.acts["send-fix"] = (el) => {
     const f = P.form(el), kind = el.dataset.kind, rec = find(kind === "hold" ? P.S.work_holds : P.S.supervisor_issues, el.dataset.id);
     if (!P.need(f.photo, "Add a photo of the fix.")) return;
-    P.save("Fix sent with photo", () => { if (kind === "hold") rec.status = "correction_submitted"; else { rec.snag_status = "rectification_submitted"; rec.rectified_by = P.viewer().user_id; } }, el);
+    P.save("Fix sent with photo", () => { if (kind === "hold") { rec.status = "correction_submitted"; rec.corrected_by = P.viewer().user_id; } else { rec.snag_status = "rectification_submitted"; rec.rectified_by = P.viewer().user_id; } }, el);
   };
   P.acts["ask-check"] = (el) => { const f = P.form(el), h = find(P.S.work_holds, el.dataset.id); if (!P.need(f.note, "Add a short note.")) return; P.save("Office asked to check the fix", () => { h.status = "awaiting_release"; }, el, () => nav("#/today")); };
   P.screens.papers = (r, ctx) => {

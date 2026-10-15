@@ -253,3 +253,24 @@ test("once the office has given a critical defect to a gang it stops asking the 
   assert.equal(fix.kind, "gate", "a critical repair is still a mandatory gate for the gang");
   assert.equal(fix.state, "waiting");
 });
+
+test("insurance is append-only: a renewal is a new record and the old expired one is left alone (G13, R11)", () => {
+  const s = Data.make("busy");
+  const sam = who(s, "Sam");
+  assert.ok(Rules.compute(s, sam).some((x) => x.id === "insurance:co2"));
+  const before = JSON.stringify(s.company_insurances);
+  s.company_insurances.push({ id: "i9", company_id: "co2", insurance_type: "public_liability", expires_on: "2027-10-14" });
+  assert.ok(!Rules.compute(s, sam).some((x) => x.id === "insurance:co2"), "latest entry per type counts");
+  assert.ok(JSON.stringify(s.company_insurances).startsWith(before.slice(0, -1)), "nothing existing was edited");
+});
+
+test("whoever submitted the fix to a stop cannot release it either (matches work_holds.sql)", () => {
+  const s = Data.make("busy");
+  const jo = who(s, "Jo");
+  const h = s.work_holds.find((x) => x.id === "h1");
+  assert.ok(Rules.compute(s, jo).some((a) => a.id === "hold-release:h1" && a.state === "ready"));
+  h.corrected_by = jo.user_id;
+  const a = Rules.compute(s, jo).find((x) => x.id === "hold-release:h1");
+  assert.equal(a.state, "blocked");
+  assert.match(a.blockedBy, /submitted the fix/);
+});
