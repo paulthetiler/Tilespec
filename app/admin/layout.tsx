@@ -44,19 +44,42 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </div>
         </div>
       </header>
-      {!supervisor && <nav className={`${styles.shell} ${styles.nav}`} aria-label="Admin navigation">
-        <Link href="/admin">Overview</Link>
-        <Link href="/admin/contracts">Contracts</Link>
-        {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
-        <Link href="/admin/supervisor">Site dashboards</Link>
-        <Link href="/admin/snags">Snag register</Link>
-        <Link href="/admin/holds">Holds and releases</Link>
-        <Link href="/admin/alerts">Site alerts</Link>
-        {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/quality">Quality control</Link>}
-        {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
-        {member.role === "owner" && <Link href="/admin/team">User access</Link>}
-        {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
-      </nav>}
+      {!supervisor && (
+        <>
+          <nav className={`${styles.shell} ${styles.nav} ${styles.desktopNav}`} aria-label="Admin navigation">
+            <Link href="/admin">Overview</Link>
+            <Link href="/admin/contracts">Contracts</Link>
+            {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
+            <Link href="/admin/supervisor">Site dashboards</Link>
+            <Link href="/admin/snags">Snag register</Link>
+            <Link href="/admin/holds">Holds and releases</Link>
+            <Link href="/admin/alerts">Site alerts</Link>
+            {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/quality">Quality control</Link>}
+            {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
+            {member.role === "owner" && <Link href="/admin/team">User access</Link>}
+            {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
+          </nav>
+          <nav className={`${styles.shell} ${styles.mobileNav}`} aria-label="Mobile admin navigation">
+            <Link href="/admin/supervisor" className={styles.mobileSiteLink}>My sites</Link>
+            <details className={styles.mobileMenu}>
+              <summary>Office menu <span aria-hidden="true">☰</span></summary>
+              <div className={styles.mobileMenuLinks}>
+                <Link href="/admin">Overview</Link>
+                <Link href="/admin/contracts">Contracts</Link>
+                {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
+                <Link href="/admin/supervisor">Site dashboards</Link>
+                <Link href="/admin/snags">Snag register</Link>
+                <Link href="/admin/holds">Holds and releases</Link>
+                <Link href="/admin/alerts">Site alerts</Link>
+                {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/quality">Quality control</Link>}
+                {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
+                {member.role === "owner" && <Link href="/admin/team">User access</Link>}
+                {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
+              </div>
+            </details>
+          </nav>
+        </>
+      )}
       <main id="admin-main" className={`${styles.shell} ${styles.main}`} tabIndex={-1}>
         {children}
       </main>

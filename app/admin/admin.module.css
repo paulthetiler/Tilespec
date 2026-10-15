@@ -304,3 +304,31 @@ details[open] > summary .treeToggle::before { content: "▾"; }
 .plainFieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .plainFieldset > .actions { margin-top: 0; }
 .plainFieldset > .actions .bigButton { width: 100%; }
+
+/* Keep office administration available without burying the working-day view on phones. */
+.mobileNav { display: none; }
+@media (max-width: 639px) {
+  .desktopNav { display: none; }
+  .mobileNav { display: flex; align-items: flex-start; gap: 10px; padding-block: 10px; border-bottom: 1px solid var(--admin-line); }
+  .mobileSiteLink, .mobileMenu > summary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    min-height: 48px; padding: 9px 14px; border: 1px solid #b7c9cf;
+    border-radius: 8px; background: #fff; color: var(--admin-ink);
+    font-size: 14px; font-weight: 700;
+  }
+  .mobileMenu { flex: 1 1 auto; min-width: 0; }
+  .mobileMenu > summary { width: 100%; list-style: none; cursor: pointer; }
+  .mobileMenu > summary::-webkit-details-marker { display: none; }
+  .mobileMenu[open] > summary { background: #eaf1f0; }
+  .mobileMenuLinks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; margin-top: 8px; padding: 7px;
+    border: 1px solid var(--admin-line); border-radius: 10px; background: #fff; }
+  .mobileMenuLinks a { display: flex; align-items: center; min-height: 48px; padding: 9px 12px;
+    border-radius: 6px; font-size: 14px; font-weight: 700; }
+  .mobileMenuLinks a:hover { background: #eaf1f0; }
+  .header .shell { padding-block: 12px; }
+  .brand strong { font-size: 30px; }
+  .brandMeta { font-size: 8px; }
+  .identity { gap: 8px; }
+  .identity .secondaryButton { min-height: 44px; padding: 8px 12px; }
+  .main { padding-top: 20px; }
+}
