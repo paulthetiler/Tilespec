@@ -411,6 +411,7 @@ export default function AppleSimplePrototype() {
         <main className={styles.main}>
           <header className={styles.mobileHeader}><img src="/tilespec-logo-animated.svg" alt="TileSPEC" /><span>{config.user.slice(0, 1)}</span></header>
           {!detail && <div className={styles.greeting}><div><p>{title === "Today" ? "Thursday, 15 October" : config.name}</p><h1>{title === "Today" ? `Good ${role === "supervisor" || role === "subcontractor" ? "morning" : "afternoon"}, ${config.user}` : title}</h1></div>{screen === "today" && <span className={styles.synced}><Check size={15} /> Up to date</span>}</div>}
+          {!detail && role === "subcontractor" && <p className={styles.capabilityNotice}><AlertTriangle size={17} /><span><strong>Proposed experience.</strong> Installer accounts cannot currently read daily allocation records. This screen requires a separately reviewed, package-scoped read model.</span></p>}
           {completed ? <div className={styles.toast} role="status"><CheckCircle2 size={20} /><span><strong>Prototype action complete</strong> The next saved-data action would now move to the top.</span><button onClick={() => setCompleted(false)} aria-label="Dismiss"><X size={18} /></button></div> : null}
           {detail
             ? <ActionDetail role={role} onBack={() => setDetail(false)} onComplete={() => { setCompleted(true); setDetail(false); }} />

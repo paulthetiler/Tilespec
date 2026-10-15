@@ -43,6 +43,7 @@ can be reviewed without changing memberships. It is excluded from search indexin
 | Office-to-site handoff is partial | Instructions and QA requests have recipients and optional due dates, but contract setup gaps and document needs do not create assigned actions. | Office completion and site readiness are not joined into one queue. |
 | Subcontractor journey is not daily-work focused | Installer roles are directed to a large contract page; site screens return a message that allocated work is elsewhere. | Address, today’s allocation, instruction and paperwork are not presented together. |
 | Owner view mixes administration and decisions | The owner receives the same operational navigation as office users, plus user access and financial tools. | Exceptions, margin and approvals compete with setup tasks. |
+| Installer navigation exposes unavailable work | Lead and subcontract installers inherit office links for site dashboards, snags, holds and alerts, while site routes reject installer roles and point them back to the contract page. | The interface advertises paths the signed-in person cannot complete. |
 | Tender is an inbox, not a tender workflow | `app/admin/tenders/page.tsx` reads received enquiries and files only. | Qualification, estimating, review, submission and conversion have no persisted lifecycle. |
 | Financial workflow is only an original budget | The current schema stores value, original allowances, contingency, target margin, terms and retention. | Actual costs, variations, claims, notices, certificates and cash forecasting must not be presented as working features. |
 | Duplicate context entry remains possible | Locations, stage, package and team are selected in multiple plan, inspection, snag and hold forms. | Users can re-enter context that could be carried from the originating action. |
@@ -101,6 +102,12 @@ lower-frequency tools without making them compete with today’s work.
   contains messages, stop work, snags, history and end-of-day handover.
 - **Subcontractor Today:** address, arrival, allocated location, instruction,
   required documents and progress. No unrelated jobs, people or money.
+
+The subcontractor navigation is a target experience, not a claim about the current
+backend. Installer roles can currently read allocated package/area records, relevant
+operational documents and scoped work-release information, but allocation tables do
+not grant them `SELECT`. A package-scoped daily read model must be designed,
+security-tested and approved before this experience can use real data.
 
 ## 3. Screen-by-screen prototype
 
@@ -187,8 +194,8 @@ events exist:
 - actual cost, payment claim, notice, certificate and payment workflows;
 - document “current/approved” policy beyond immutable revision history;
 - general assigned office actions for setup gaps;
-- subcontractor daily-plan read model if current RLS does not expose every required
-  planned-allocation field safely.
+- subcontractor daily-plan read model: current RLS grants installer access through
+  package assignment but grants no `SELECT` on planned or actual allocation tables.
 
 ### Safety invariants
 
@@ -207,11 +214,14 @@ events exist:
 | Official SVG (`public/tilespec-logo-animated.svg`) | Header identity |
 | Brand tokens in `app/globals.css` | Navy, teal, paper and typography |
 | `OperationsForm` | Pending/error/success handling and controlled server actions |
+| `DailyForm` | Frozen retry behavior and confirmed next links for site mutations |
 | `ConnectionStatus` | Offline/online warning on site workflows |
 | `SiteNav` | Source behavior to replace with four-role persistent navigation |
 | `WorkReleaseList` | Scoped location/activity restrictions |
 | `WorkforceDay` and site workforce forms | Planned-to-actual attendance behavior |
 | `WorkmanshipForm` and inspection forms | Saved template checks and evidence |
+| `LocationPicker`, `LocationTree` and `LocationBuilder` | Searchable, hierarchical job context |
+| `PlanBoard` and `PlanForm` | Existing weekly planning and revision behavior |
 | Snag `PhotoUpload`, `CreateSnag`, `WorkCandidates` | Camera and attribution flow |
 | Hold create/detail components | Stop, correction and explicit release workflow |
 | `AuditHistory` | Advanced “History” disclosure |

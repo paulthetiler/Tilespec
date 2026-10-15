@@ -103,6 +103,20 @@
 .greeting p, .kicker { margin: 0 0 6px; color: var(--teal); font-size: 12px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .greeting h1 { margin: 0; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spacing: -.035em; }
 .synced { display: inline-flex; align-items: center; gap: 5px; color: #367060; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.capabilityNotice {
+  margin: -8px 0 20px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border: 1px solid #e5cc9b;
+  border-radius: 13px;
+  background: #fff6e7;
+  color: #674b20;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.capabilityNotice svg { flex: none; margin-top: 1px; }
 .nextAction {
   width: 100%;
   min-height: 260px;
