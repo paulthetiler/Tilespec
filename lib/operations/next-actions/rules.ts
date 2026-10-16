@@ -454,4 +454,3 @@ rule("R14_margin_below_target", ({ s, L }) => s.commercials.map(c => ({ c, b: bu
   audience: { owner: "act", office: "see" }, blocks: null, enforcedByBackend: false, financial: true, informationOnly: true,
   source: { table: "contract_commercials", id: c.contract_id }, route: { screen: "money" },
 })));
-
