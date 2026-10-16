@@ -6,8 +6,8 @@ import { LocationPicker } from "@/components/office/location-picker";
 import { qualityCategories,safetyCategories,holdTypes } from "@/lib/operations/holds";
 import { installationStages,installationStageLabels,type Location } from "@/lib/operations/types";
 import styles from "@/app/admin/admin.module.css";
-export function CreateHold({contract,locations,packages,requestKey,initialLocation,initialStage,source,initialReason}:{contract:string;locations:Location[];packages:{id:string;name:string}[];requestKey:string;initialLocation?:string;initialStage?:string;initialReason?:string;source?:{key:string;id:string;label:string}}){
- const [type,setType]=useState<"quality"|"safety">("quality"),[site,setSite]=useState(false);
+export function CreateHold({contract,locations,packages,requestKey,initialLocation,initialStage,source,initialReason,initialType}:{contract:string;initialType?:"quality"|"safety";locations:Location[];packages:{id:string;name:string}[];requestKey:string;initialLocation?:string;initialStage?:string;initialReason?:string;source?:{key:string;id:string;label:string}}){
+ const [type,setType]=useState<"quality"|"safety">(initialType??"quality"),[site,setSite]=useState(false);
  return <HoldForm action={createHoldAction} label="STOP AFFECTED WORK" create contract={contract}>
   <input type="hidden" name="contract_id" value={contract}/><input type="hidden" name="request_key" value={requestKey}/>
   {source&&<><input type="hidden" name={source.key} value={source.id}/><p>Linked to {source.label}. Original findings remain unchanged.</p></>}

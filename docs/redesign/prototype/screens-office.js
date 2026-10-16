@@ -12,7 +12,7 @@
     if (!covers.length) return P.chip("blocked", "No cover on file", "alert");
     const expired = covers.filter((i) => i.expires_on < P.S.today);
     if (expired.length) return P.chip("blocked", `${expired[0].insurance_type.replaceAll("_", " ")} expired`, "alert");
-    const soon = covers.filter((i) => R.dayDiff(i.expires_on, P.S.today) <= R.PROPOSED_THRESHOLDS.insuranceWarningDays);
+    const soon = covers.filter((i) => R.dayDiff(i.expires_on, P.S.today) <= R.config.insuranceWarningDays);
     if (soon.length) return P.chip("pending", `${soon[0].insurance_type.replaceAll("_", " ")} runs out ${P.fd(soon[0].expires_on)}`, "clock");
     return P.chip("saved", "Cover is valid", "check");
   };
@@ -22,8 +22,8 @@
     const L = P.L(), jobs = [...visible(ctx)].map((id) => L.contracts.get(id));
     return `<header class="gap-s"><h1 class="title">Jobs</h1><p class="sub">Everything about a job lives inside it.</p></header><div class="card flat list">${jobs.map((c) => {
       const mine = ctx.actions.filter((a) => a.job.id === c.id);
-      const n = mine.filter((a) => a.state === "ready").length, stop = P.S.work_holds.filter((h) => h.contract_id === c.id && h.status !== "released").length;
-      const chips = (n ? P.chip("pending", `${n} for you`, "bell") : P.chip("saved", "Up to date", "check")) + (stop ? P.chip("blocked", `${stop} stopped`, "stop") : "");
+      const n = mine.filter((a) => a.state === "ready").length, stop = P.S.work_holds.filter((h) => h.contract_id === c.id && ["active", "correction_submitted", "awaiting_release"].includes(h.status)).length;
+      const chips = (n ? P.chip("pending", `${n} for you`, "bell") : "") + (stop ? P.chip("blocked", `${stop} stopped`, "stop") : n ? "" : P.chip("saved", "Nothing needed", "check"));
       return P.row({ href: "#/job/" + c.id, icon: "briefcase", title: esc(c.reference + " · " + c.name), sub: esc(c.client), chips });
     }).join("")}</div>`;
   };
@@ -40,14 +40,13 @@
     const money = P.canSeeMoney(ctx) ? S.commercials.find((x) => x.contract_id === c.id) : null;
     const sec = (title, body, open) => `<details class="more" ${open ? "open" : ""}><summary>${title}</summary><div style="padding:0 0 16px;display:grid;gap:10px">${body}</div></details>`;
     return `${P.back("#/jobs", "Jobs")}<header class="gap-s"><p class="eyebrow">${esc(c.reference)} · ${esc(c.client)}</p><h1 class="title" style="font-size:clamp(32px,8cqw,46px)">${esc(c.name)}</h1><p class="sub">${esc(c.address)}</p></header>
-      ${nxt ? P.hero(nxt) : P.empty("Nothing needs doing on this job", "It is set up and up to date.")}
+      ${nxt ? P.hero(nxt) : P.empty("Nothing needs doing on this job", P.S.work_holds.some((h) => h.contract_id === c.id && ["active", "correction_submitted", "awaiting_release"].includes(h.status)) ? "Work is still restricted at this job. Completing set-up does not restart stopped work." : "It is set up. New work appears here when something is saved that needs you.")}
       ${rest.length ? `<section class="gap-s"><h2 class="section">Also on this job</h2><div class="card flat list">${rest.map(P.actionRow).join("")}</div></section>` : ""}
       <section class="card" style="padding-top:6px;padding-bottom:6px">
       ${sec(`Plan: who works where <span class="chip done">${plans.length}</span> ${P.hint("exists")}`, `${plans.map((p) => `<div class="row" role="group" style="border:0;padding:6px 0;min-height:0"><span class="text"><strong>${esc(P.L().teams.get(p.team_id).name)} · ${esc(L.path(p.work_area_id))}</strong><span>${esc(R.STAGE[p.stage])} · ${esc(P.fd(p.planned_start))} to ${esc(P.fd(p.planned_end))}</span></span></div>`).join("") || `<p class="muted">Nothing planned.</p>`}<button class="btn secondary" data-act="plan" data-job="${c.id}">${P.ic("plus")}Plan work</button>`)}
       ${sec(`Locations <span class="chip done">${areas.length}</span> ${P.hint("exists")}`, `${areas.map((a) => `<p style="padding-left:${(a.path_ids.length - 1) * 16}px">${esc(a.name)}</p>`).join("") || `<p class="muted">No locations yet.</p>`}<button class="btn secondary" data-act="add-locations" data-job="${c.id}">${P.ic("plus")}Add locations</button>`)}
       ${sec(`Documents <span class="chip done">${docs.length}</span> ${P.hint("exists")}`, `${docs.map((d) => `<button class="row" data-act="open-doc" style="border:0;min-height:56px"><span class="lead">${P.ic("file")}</span><span class="text"><strong>${esc(d.title)}</strong><span>${esc(d.document_reference)} · revision ${d.revision}</span></span></button>`).join("") || `<p class="muted">No documents.</p>`}<button class="btn secondary" data-act="add-doc" data-job="${c.id}">${P.ic("plus")}Add a document</button>`)}
-      ${sec(`Changes and extra work ${P.hint("new", "New backend B4")}`, `<p class="muted">Variations and dayworks are not recorded in TileSpec yet. This area is where they would live, one list, with a clear "waiting for the client" state. It is shown here so the layout can be reviewed. It is not part of the first build.</p>`)}
-      ${money ? sec(`Money ${P.hint("query", "Existing budget fields")}`, `${budgetCard(money)}<p class="small muted">Payment claims, retention and actual costs are not recorded yet. ${P.hint("new", "New backend B6")}</p>`) : ""}
+      ${money ? sec(`Money ${P.hint("query", "Existing budget fields")}`, `${budgetCard(money)}<p class="small muted">Actual costs, variations, payment claims and retention are not recorded yet, so there is nothing to press here. ${P.hint("new", "New backend B4, B6")}</p>`) : ""}
       ${sec(`Recent activity`, S.log.length ? S.log.slice(0, 8).map((l) => `<p class="small"><strong>${esc(l.at)}</strong> ${esc(l.who)}: ${esc(l.text)}</p>`).join("") : `<p class="muted">Nothing saved yet in this session. Every saved change is recorded with who and when. ${P.hint("exists", "audit_events")}</p>`)}</section>`;
   };
   P.acts["open-doc"] = () => P.toast("Opens the private document in a new tab. The app already does this for the office, but the supervisor's list does not yet.");
@@ -58,22 +57,17 @@
   };
 
   // ---------------------------------------------------------------- tenders
-  const TSTATUS = { received: ["pending", "New"], declined: ["done", "Declined"], replied: ["saved", "Replied"] };
-  P.screens.tenders = (r, ctx) => `<header class="gap-s"><h1 class="title">Tenders</h1><p class="sub">New enquiries first. ${P.hint("exists", "List and documents")} ${P.hint("new", "Status: New backend B5")}</p></header><div class="card flat list">${P.S.tender_enquiries.slice().sort((a, b) => (a.deadline < b.deadline ? -1 : 1)).map((t) => P.row({ href: "#/tender/" + t.id, icon: "inbox", title: esc(t.project), sub: esc(t.company + " · reply by " + P.fd(t.deadline)), chips: P.chip(TSTATUS[t.status][0], TSTATUS[t.status][1]) })).join("")}</div>
-    <p class="small muted">The app already lists new enquiries and opens their documents. It cannot yet record that one was replied to or declined, so the list never gets shorter (B5).</p>`;
+  // Received enquiries and their documents exist today. A reply or decline cannot be RECORDED yet (B5),
+  // so no button pretends it can.
+  P.screens.tenders = (r, ctx) => `<header class="gap-s"><h1 class="title">Tenders</h1><p class="sub">Enquiries by reply date. ${P.hint("exists", "List and documents")}</p></header><div class="card flat list">${P.S.tender_enquiries.slice().sort((a, b) => (a.deadline < b.deadline ? -1 : 1)).map((t) => P.row({ href: "#/tender/" + t.id, icon: "inbox", title: esc(t.project), sub: esc(t.company + " · reply by " + P.fd(t.deadline)), chips: P.chip("done", "Received " + P.fd(t.received_at.slice(0, 10))) })).join("")}</div>
+    <p class="small muted">TileSpec shows the enquiry and opens its documents. It cannot record that one was priced, replied to or declined, so no button is offered for that. ${P.hint("new", "New backend B5")}</p>`;
   P.screens.tender = (r) => {
     const t = find(P.S.tender_enquiries, r.id);
     if (!t) return `${P.back("#/tenders", "Tenders")}${P.empty("Not found", "That enquiry does not exist.", "inbox")}`;
-    const open = t.status === "received";
-    return `${P.back("#/tenders", "Tenders")}<header class="gap-s"><div class="chips">${P.chip(TSTATUS[t.status][0], TSTATUS[t.status][1])}</div><h1 class="title" style="font-size:clamp(30px,8cqw,44px)">${esc(t.project)}</h1><p class="sub">${esc(t.company)}</p></header>
+    return `${P.back("#/tenders", "Tenders")}<header class="gap-s"><div class="chips">${P.chip("done", "Received " + P.fd(t.received_at.slice(0, 10)))}</div><h1 class="title" style="font-size:clamp(30px,8cqw,44px)">${esc(t.project)}</h1><p class="sub">${esc(t.company)}</p></header>
       <section class="card">${kv([["From", esc(t.name + " · " + t.email)], ["Reply needed by", esc(P.fd(t.deadline))], ["Message", esc(t.message)]])}</section>
-      <section class="card flat list">${t.attachments.map((a) => `<button class="row" data-act="open-doc"><span class="lead">${P.ic("file")}</span><span class="text"><strong>${esc(a)}</strong></span></button>`).join("")}</section>
-      ${open ? `<a class="btn" href="#/job/c2" data-act="estimate">Start an estimate ${P.hint("query", "Existing estimator")}</a><div class="btn-row inline"><button class="btn secondary" data-act="tender-reply" data-id="${t.id}">Mark as replied</button><button class="btn secondary" data-act="tender-decline" data-id="${t.id}">Decline</button></div>` : ""}`;
+      <section class="card flat list">${t.attachments.map((a) => `<button class="row" data-act="open-doc"><span class="lead">${P.ic("file")}</span><span class="text"><strong>${esc(a)}</strong></span></button>`).join("")}</section>`;
   };
-  P.acts.estimate = (el, e) => { e.preventDefault(); P.toast("Opens the existing estimator. Pre-filling it from the enquiry would need B5."); };
-  P.acts["tender-decline"] = (el) => P.sheet(P.sheetFrame("Decline this enquiry", `<div class="field"><label for="r">Reason (kept for your records)</label><textarea id="r" name="reason"></textarea></div><button class="btn" data-act="save-tender" data-v="declined" data-id="${el.dataset.id}">Save</button>`));
-  P.acts["tender-reply"] = (el) => P.sheet(P.sheetFrame("Mark as replied", `<div class="field"><label for="r">What did you send?</label><textarea id="r" name="reason"></textarea></div><button class="btn" data-act="save-tender" data-v="replied" data-id="${el.dataset.id}">Save</button>`));
-  P.acts["save-tender"] = (el) => { const f = P.form(el), t = find(P.S.tender_enquiries, el.dataset.id); if (!P.need(f.reason, "Add a short note.")) return; P.save(`Enquiry ${el.dataset.v}`, () => { t.status = el.dataset.v; t.note = f.reason; }, el, () => nav("#/tenders")); };
 
   // ---------------------------------------------------------------- labour
   P.screens.labour = (r, ctx) => {
@@ -86,21 +80,14 @@
       ${prov.length ? `<section class="gap-s"><h2 class="section">To confirm</h2><div class="card flat list">${prov.map((o) => P.row({ act: "task", data: { id: "provisional:" + o.id }, icon: "users", title: esc(o.display_name), sub: "Added on site", chips: P.chip("pending", "Needs confirming") })).join("")}</div></section>` : ""}`;
   };
 
-  // ---------------------------------------------------------------- money and risks
+  // ---------------------------------------------------------------- money
   P.screens.money = (r, ctx) => {
     if (!P.canSeeMoney(ctx)) return P.empty("Not available", "Money is limited to people given money access.", "lock");
     const L = P.L();
     return `<header class="gap-s"><h1 class="title">Money</h1><p class="sub">Budgets compared with the profit you want. ${P.hint("query", "Existing budget fields")}</p></header>
       ${P.S.commercials.map((c) => `<section class="card" data-hint><h2 class="section" style="margin:0">${esc(L.contracts.get(c.contract_id).reference + " · " + L.contracts.get(c.contract_id).name)}</h2>${budgetCard(c)}</section>`).join("")}
-      <section class="banner"><strong>Not recorded yet</strong><span>Actual costs, variations, payment claims and your sign-off on a low margin. They are shown on the plan, not in the first build. ${P.hint("new", "New backend B3, B4, B6")}</span></section>`;
+      <section class="banner"><strong>Original budgets only</strong><span>Actual costs, variations, payment claims and any sign-off on a low margin are not recorded in TileSpec yet. There is nothing to press for them. ${P.hint("new", "New backend B3, B4, B6")}</span></section>`;
   };
-  P.screens.risks = (r, ctx) => {
-    const all = ctx.actions.filter((a) => ["stop-work", "snag", "compliance", "inspection"].includes(a.process) && (a.kind === "gate" || a.overdue));
-    const grp = (title, f) => { const l = all.filter(f); return l.length ? `<section class="gap-s"><h2 class="section">${title}</h2><div class="card flat list">${l.map(P.actionRow).join("")}</div></section>` : ""; };
-    const html = grp("Work stopped", (a) => a.process === "stop-work") + grp("Critical and failed", (a) => a.process === "snag" || a.rule === "G06") + grp("Compliance", (a) => a.process === "compliance") + grp("Inspections", (a) => a.process === "inspection" && a.rule !== "G06");
-    return `<header class="gap-s"><h1 class="title">Risks</h1><p class="sub">Only things that are stopping work, failed, late or out of cover.</p></header>${html || P.empty("No open risks", "Nothing is stopped, failed or out of cover.", "shield")}`;
-  };
-
   // ---------------------------------------------------------------- office set-up forms
   P.acts.task = (el) => {
     const id = el.dataset.id, a = P.actions.find((x) => x.id === id);
@@ -109,14 +96,14 @@
     const plan = (pid) => find(S.planned_allocations, pid);
     let body = "";
     if (a.rule === "G08") {
-      const p = plan(a.source.id);
+      const p = plan(a.id.split(":")[1]);
       body = `<p>${esc(a.why)}</p><div class="field"><span class="lbl">Does ${esc(R.STAGE[p.stage])} here need a mandatory inspection?</span>${P.choice("ans", [["required", "Yes"], ["not_applicable", "No"], ["unknown", "Not sure yet"]])}</div><div class="field"><label for="s">Which document says so?</label><input id="s" type="text" name="src"></div><p class="small muted">Choosing "Not sure yet" leaves it open. Unknown never counts as allowed.</p><button class="btn" data-act="save-task" data-id="${esc(id)}">Save</button>`;
     } else if (a.rule === "R09") {
       const p = plan(a.id.split(":")[1]);
       body = `<div class="field"><label for="t">Checklist name</label><input id="t" type="text" name="title" value="${esc(R.STAGE[p.stage] + " checks")}"></div><div class="field"><label for="c">Checks (one per line)</label><textarea id="c" name="checks">Floor flat and sound\nTile fully bedded\nJoints straight and even</textarea></div><button class="btn" data-act="save-task" data-id="${esc(id)}">Publish checks</button>`;
     } else if (a.rule === "R10") {
       body = `<p>${esc(a.why)}</p><button class="btn" data-act="save-task" data-id="${esc(id)}">Give access</button>`;
-    } else if (a.rule === "G13" || a.rule === "R11") {
+    } else if (a.rule === "A02" || a.rule === "R11") {
       body = `<p>${esc(a.why)}</p><div class="field"><label for="d">New cover runs until</label><input id="d" type="date" name="until" value="${R.addDays(S.today, 365)}"></div><div class="field"><label for="n">Certificate reference</label><input id="n" type="text" name="ref"></div><button class="btn" data-act="save-task" data-id="${esc(id)}">Save certificate</button>`;
     } else if (a.rule === "R04") {
       body = `<p>${esc(a.why)}</p><button class="btn" data-act="save-task" data-id="${esc(id)}">Confirm this person</button>`;
@@ -135,11 +122,14 @@
     if (!a) return;
     let fn;
     if (a.rule === "G08") {
-      const p = find(S.planned_allocations, a.source.id);
+      const p = find(S.planned_allocations, a.id.split(":")[1]);
       if (!P.need(f.ans, "Choose an answer.")) return;
       if (f.ans === "unknown") return P.closeSheet();
       if (!P.need(f.src, "Say which document decides this.")) return;
-      fn = () => S.location_inspection_requirements.push({ id: P.uid("rq"), contract_id: p.contract_id, work_area_id: p.work_area_id, stage: p.stage, applicability: f.ans, template_id: null });
+      const template = S.location_inspection_templates.find(t => t.contract_id === p.contract_id && t.stage === p.stage && L.under(p.work_area_id, t.work_area_id));
+      if (!P.need(f.ans !== "required" || template, "Publish the relevant checklist before approving a mandatory inspection.")) return;
+      fn = () => S.location_inspection_requirements.push({ id: P.uid("rq"), contract_id: p.contract_id, work_area_id: p.work_area_id, work_package_id: p.work_package_id,
+        stage: p.stage, applicability: f.ans === "required" ? "required" : "not_required", template_id: f.ans === "required" ? template.id : null, created_at: P.nowIso() });
     } else if (a.rule === "R09") {
       const p = find(S.planned_allocations, a.id.split(":")[1]);
       if (!P.need(f.title && f.checks, "Add a name and at least one check.")) return;
@@ -147,7 +137,7 @@
     } else if (a.rule === "R10") {
       const [, pid, uid] = a.id.split(":"), p = find(S.planned_allocations, pid);
       fn = () => S.package_assignments.push({ contract_id: p.contract_id, work_package_id: p.work_package_id, user_id: uid });
-    } else if (a.rule === "G13") {
+    } else if (a.rule === "A02") {
       if (!P.need(f.until > S.today, "The new cover must end after today.")) return;
       const co = id.split(":")[1];
       const types = [...new Set(S.company_insurances.filter((i) => i.company_id === co && i.expires_on < S.today).map((i) => i.insurance_type))];
@@ -194,18 +184,18 @@
 
   // ---------------------------------------------------------------- subcontractor
   P.screens.subToday = (r, ctx) => {
-    const alloc = R.allocationFor(P.S, ctx.v), nxt = R.nextAction(ctx.actions);
+    const alloc = R.allocationFor(P.S, ctx.v), q = R.buildQueue(ctx.actions), nxt = q.next;
+    const rest = q.then;
     const first = ctx.v.display_name.split(" ")[0];
     const head = `<header class="gap-s"><p class="eyebrow">${esc(P.fd(P.S.today))}</p><h1 class="title">Hello, ${esc(first)}</h1></header>`;
     const waiting = ctx.actions.filter((a) => a.state === "waiting");
-    const card = alloc ? `<section class="card" data-hint><p class="eyebrow">Your work today ${P.hint("new", "New backend B1")}</p><h2 class="section" style="margin:0;font-size:30px">${esc(alloc.location)}</h2><p class="muted">${esc(alloc.job.name)} · ${esc(alloc.stage)}</p>
+    const card = alloc ? `<section class="card" data-hint><p class="eyebrow">Your work today ${P.hint("new", "New backend B1")}</p><p class="small muted" style="margin:0">Preview only. A gang cannot read its own plan in the app until backend item B1 exists.</p><h2 class="section" style="margin:0;font-size:30px">${esc(alloc.location)}</h2><p class="muted">${esc(alloc.job.name)} · ${esc(alloc.stage)}</p>
       ${alloc.instructions ? `<div class="banner"><strong>Instructions</strong><span>${esc(alloc.instructions)}</span></div>` : ""}
       ${kv([["Address", esc(alloc.address)], ["Hours", esc(alloc.hours || "Not set")], ["Site contact", esc(alloc.siteContact || "Not set")], ["Your supervisor", esc(alloc.supervisor || "Not set")], ["Your gang", esc(alloc.people.join(", "))]])}
       <a class="btn secondary" href="#/papers">${P.ic("file")}Drawings and documents (${alloc.documents.length})</a></section>` : P.empty("Nothing planned for you today", "When the office plans you onto a job it appears here.", "users");
-    const primary = nxt ? P.hero(nxt) : alloc ? `<button class="btn" data-act="send-photo">${P.ic("camera")}Send a progress photo</button>` : "";
-    const help = alloc ? `<button class="btn quiet" data-act="tell-super">Tell the supervisor something ${P.hint("new", "New backend B2")}</button>` : "";
-    const wait = waiting.length ? `<section class="gap-s"><h2 class="section">Waiting on others</h2><div class="card flat list">${waiting.map(P.actionRow).join("")}</div></section>` : "";
-    return `${head}<div class="two-col"><div style="display:grid;gap:16px">${nxt ? primary + card : card + primary}${help}</div><div style="display:grid;gap:16px">${wait}</div></div>`;
+    const primary = nxt ? P.hero(nxt) : "";
+    const wait = (rest.length ? `<section class="gap-s"><h2 class="section">Then (${rest.length})</h2><div class="card flat list">${rest.map(P.actionRow).join("")}</div></section>` : "") + (waiting.length ? `<section class="gap-s"><h2 class="section">Waiting on others (${waiting.length})</h2><div class="card flat list">${waiting.map(P.actionRow).join("")}</div></section>` : "");
+    return `${head}<div class="two-col"><div style="display:grid;gap:16px">${nxt ? primary + card : card}</div><div style="display:grid;gap:16px">${wait}</div></div>`;
   };
   P.screens.fixes = (r, ctx) => {
     const mine = ctx.actions;
@@ -229,12 +219,8 @@
   P.acts["ask-check"] = (el) => { const f = P.form(el), h = find(P.S.work_holds, el.dataset.id); if (!P.need(f.note, "Add a short note.")) return; P.save("Office asked to check the fix", () => { h.status = "awaiting_release"; }, el, () => nav("#/today")); };
   P.screens.papers = (r, ctx) => {
     const alloc = R.allocationFor(P.S, ctx.v);
-    return `<header class="gap-s"><h1 class="title">Paperwork</h1><p class="sub">Documents for your job only.</p></header>${alloc ? `<div class="card flat list">${alloc.documents.map((d) => `<button class="row" data-act="open-doc"><span class="lead">${P.ic("file")}</span><span class="text"><strong>${esc(d.title)}</strong><span>${esc(d.document_reference)} · revision ${d.revision}</span></span>${P.ic("chevron")}</button>`).join("")}</div><button class="btn secondary" data-act="send-photo">${P.ic("camera")}Send a photo to the office</button>` : P.empty("No job today", "Documents appear when you are planned onto a job.", "file")}`;
+    return `<header class="gap-s"><h1 class="title">Paperwork</h1><p class="sub">Documents for your job only.</p></header>${alloc ? `<div class="card flat list">${alloc.documents.map((d) => `<button class="row" data-act="open-doc"><span class="lead">${P.ic("file")}</span><span class="text"><strong>${esc(d.title)}</strong><span>${esc(d.document_reference)} · revision ${d.revision}</span></span>${P.ic("chevron")}</button>`).join("")}</div>` : P.empty("No job today", "Documents appear when you are planned onto a job.", "file")}`;
   };
-  P.acts["send-photo"] = () => P.sheet(P.sheetFrame("Send a photo", `${P.photo("photo", "Take or add a photo")}<div class="field"><label for="n">What does it show?</label><textarea id="n" name="note"></textarea></div><button class="btn" data-act="save-photo">Send</button>`));
-  P.acts["save-photo"] = (el) => { const f = P.form(el); if (!P.need(f.photo, "Add a photo.")) return; P.save("Photo sent", () => {}, el); };
-  P.acts["tell-super"] = () => P.sheet(P.sheetFrame("Tell the supervisor", `<div class="field"><span class="lbl">What is happening?</span>${P.choice("kind", [["done", "Finished today"], ["help", "Need help"], ["late", "Running late"]])}</div><div class="field"><label for="n">Note</label><textarea id="n" name="note"></textarea></div><p class="small muted">Prototype only. There is no place to save this today (B2).</p><button class="btn" data-act="save-tell">Send</button>`));
-  P.acts["save-tell"] = (el) => { const f = P.form(el); if (!P.need(f.kind, "Choose one.")) return; P.save("Message sent to the supervisor", () => {}, el); };
 
   // ---------------------------------------------------------------- login
   P.screens.login = () => `<div class="login"><img src="tilespec-logo-animated.svg" alt="TileSPEC"><h1 class="title" style="text-align:center">Sign in</h1><p class="sub" style="text-align:center">This is the sign-in screen. In the prototype, pick who you are in the bar at the top.</p>

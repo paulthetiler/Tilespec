@@ -18,6 +18,7 @@ const shots = [
   ["supervisor-people", "u-dave", "busy", "/people"],
   ["supervisor-inspect", "u-dave", "busy", "/inspect/l-f31-bath?stage=installation"],
   ["supervisor-issues", "u-dave", "busy", "/issues"],
+  ["supervisor-report-issue", "u-dave", "busy", "/today", "", "P.acts.report()"],
   ["supervisor-check-repair", "u-dave", "busy", "/snag/s2"],
   ["supervisor-handover", "u-dave", "busy", "/handover", "&now=15:10"],
   ["office-today", "u-sam", "busy", "/today"],
@@ -28,7 +29,6 @@ const shots = [
   ["office-labour", "u-sam", "busy", "/labour"],
   ["owner-today", "u-alex", "busy", "/today"],
   ["owner-money", "u-alex", "busy", "/money"],
-  ["owner-risks", "u-alex", "busy", "/risks"],
   ["sub-today", "u-marek", "start", "/today"],
   ["sub-today-fix", "u-marek", "busy", "/today"],
   ["sub-fix", "u-marek", "busy", "/fix/s1?kind=snag"],
@@ -37,13 +37,14 @@ const shots = [
   ["login", "", "start", "/today"],
 ];
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {});
 for (const device of ["mobile", "desktop"]) {
   const page = await browser.newPage({ viewport: device === "mobile" ? { width: 640, height: 860 } : { width: 1366, height: 860 }, deviceScaleFactor: 1.5, reducedMotion: "reduce" });
-  for (const [name, who, scenario, hash, extra = ""] of shots) {
+  for (const [name, who, scenario, hash, extra = "", run] of shots) {
     if (device === "desktop" && name.startsWith("hints-")) continue;
     await page.goto(url(`role=${who}&scenario=${scenario}&device=${device}&clean=1${extra}`, hash));
     await page.waitForTimeout(2100);
+    if (run) { await page.evaluate(run); await page.waitForTimeout(300); }
     await page.locator("#device").screenshot({ path: path.join(out, `${name}-${device}.png`) });
   }
   await page.close();

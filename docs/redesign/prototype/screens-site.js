@@ -19,20 +19,37 @@
   P.screens.today = (r, ctx) => {
     const { role, v, actions } = ctx;
     if (role === "subcontractor") return P.screens.subToday(r, ctx);
-    const nxt = R.nextAction(actions);
-    const more = actions.filter((a) => a.state === "ready" && a !== nxt);
-    const info = actions.filter((a) => a.state === "info");
-    const waiting = actions.filter((a) => a.state === "waiting" || a.state === "blocked");
+    // One queue, from the one engine. The top task gets the main button. Everything else stays visible underneath.
+    const q = R.buildQueue(actions, { groupExceptions: role === "owner" });
+    const nxt = q.next, more = q.then, info = q.info, exceptions = q.exceptions;
+    const alerts = q.alerts.filter((a) => a.state !== "ready");
+    const waiting = q.waiting.filter((a) => !alerts.includes(a));
     const saved = R.savedToday(P.S, v);
     const first = v.display_name.split(" ")[0];
-    const ready = actions.filter((a) => a.state === "ready").length;
+    const counts = R.queueCounts(q);
+    // Alerts already in the banner are not listed or counted again under Risks.
+    const listedExceptions = exceptions.filter((a) => !alerts.some((b) => b.id === a.id));
+    const activeHolds = P.S.work_holds.filter((h) => ["active", "correction_submitted", "awaiting_release"].includes(h.status) && visible(ctx).has(h.contract_id));
     const jobs = [...visible(ctx)].map((id) => P.L().contracts.get(id)).filter(Boolean);
+    const attention = role === "owner" ? alerts.length : 0;
+    const infoN = role === "owner" ? counts.informational : 0;
+    const bits = [];
+    if (counts.actions) bits.push(counts.actions === 1 ? "1 thing needs you" : `${counts.actions} things need you`);
+    else if (!attention && !infoN) bits.push("Nothing needs you right now");
+    if (attention) bits.push(attention === 1 ? "1 needs attention" : `${attention} need attention`);
+    if (infoN) bits.push(infoN === 1 ? "1 informational alert" : `${infoN} informational alerts`);
+    P.todayBadge = role === "owner" ? counts.actions + attention : null;
     const head = `<header class="gap-s"><p class="eyebrow">${esc(P.fd(P.S.today))}${role === "supervisor" ? " · " + esc(jobs.map((c) => c.name).join(", ")) : ""}</p><h1 class="title">Hello, ${esc(first)}</h1>
-      <p class="sub">${ready ? `${ready} ${ready === 1 ? "thing needs" : "things need"} you.` : "Nothing needs you right now."}</p></header>`;
-    const main = nxt ? P.hero(nxt) : P.empty("You are up to date", waiting.length ? "Other people are working on the items below." : "Nothing is waiting. New work shows up here the moment something is saved that needs you.");
-    const thenList = more.length ? `<section class="gap-s"><h2 class="section">Then</h2><div class="card flat list">${more.slice(0, 3).map(P.actionRow).join("")}</div>${more.length > 3 ? `<details class="more"><summary>Show ${more.length - 3} more</summary><div class="card flat list">${more.slice(3).map(P.actionRow).join("")}</div></details>` : ""}</section>` : "";
-    const infoList = info.length ? `<section class="gap-s"><h2 class="section">For your information</h2><div class="card flat list">${info.map(P.actionRow).join("")}</div></section>` : "";
-    const waitList = waiting.length ? `<section class="gap-s"><h2 class="section">Waiting on others</h2><div class="card flat list">${waiting.slice(0, 4).map(P.actionRow).join("")}</div>${waiting.length > 4 ? `<details class="more"><summary>Show ${waiting.length - 4} more</summary><div class="card flat list">${waiting.slice(4).map(P.actionRow).join("")}</div></details>` : ""}</section>` : "";
+      <p class="sub">${esc(bits.join(". ") + ".")}</p></header>`;
+    const idle = R.idleCopy({ activeRestrictions: activeHolds.length > 0, waitingOnOthers: waiting.length + alerts.length > 0 });
+    const main = nxt ? P.hero(nxt) : P.empty(idle.title, idle.text);
+    const list = (cls, rows) => `<div class="card flat list">${rows.map(P.actionRow).join("")}</div>`;
+    const holdBanner = role === "supervisor" && activeHolds.length ? `<section class="gap-s" aria-label="Work that is stopped"><h2 class="section">Work that is stopped</h2>${activeHolds.map((h) => `<section class="banner stop"><strong>${esc(h.hold_type === "safety" ? "Safety stop" : "Quality hold")}: ${esc(P.L().path(h.work_area_id))}</strong><span>${esc(h.reason)}</span><span>Keep the affected work stopped. Only this location and activity is held.${h.hold_type === "safety" ? " Follow the principal contractor's site safety procedures." : ""} Completing your own tasks does not clear a restriction.</span><a href="#/hold/${h.id}">View restriction</a></section>`).join("")}</section>` : "";
+    const alertBox = alerts.length ? alerts.map((a) => `<section class="banner alert" role="status" data-hint><div class="chips">${P.kindChip(a)}${a.due ? P.chip("done", P.dueText(a), "clock") : ""}</div><strong>${esc(a.title)}</strong><span>${esc(a.why)}</span><span class="small muted">${esc(R.classNote(a))}</span></section>`).join("") : "";
+    const thenList = more.length ? `<section class="gap-s"><h2 class="section">Then (${more.length})</h2>${list("", more)}</section>` : "";
+    const infoList = info.length ? `<section class="gap-s"><h2 class="section">For your information</h2>${list("", info)}</section>` : "";
+    const riskList = listedExceptions.length ? `<section class="gap-s" aria-label="Risks and exceptions"><h2 class="section">Risks and exceptions (${listedExceptions.length})</h2><p class="small muted">Stopped work, defects, cover and money that are not yours to action today.</p>${list("", listedExceptions)}</section>` : "";
+    const waitList = waiting.length ? `<section class="gap-s"><h2 class="section">Waiting on others (${waiting.length})</h2>${list("", waiting)}</section>` : "";
     const savedList = saved.length ? `<section class="gap-s"><h2 class="section">Saved today</h2><div class="card flat list">${saved.map((s) => `<div class="row" role="group"><span class="lead">${P.ic("check")}</span><span class="text"><strong>${esc(s.label)}</strong><span>${esc(s.job)} · ${esc(s.at)}</span></span>${P.chip("saved", "Saved", "check")}</div>`).join("")}</div></section>` : "";
     let extra = "";
     if (role === "supervisor") {
@@ -45,9 +62,9 @@
       extra = `<section class="gap-s"><h2 class="section">Budget position</h2><a class="card" href="#/money" data-hint><div class="tile-row" style="grid-template-columns:repeat(2,1fr)"><div class="tile"><strong>${P.money(value)}</strong><span>Contract value, ${all.length} jobs</span></div><div class="tile"><strong>${(value ? (profit / value) * 100 : 0).toFixed(1)}%</strong><span>Budgeted margin after reserve</span></div></div><p class="small muted">Original budgets only. Real costs and claims are not recorded yet. ${P.hint("new", "New backend B3, B6")}</p></a></section>`;
     }
     if (role === "office") {
-      extra = `<section class="gap-s"><h2 class="section">Jobs</h2><div class="card flat list">${jobs.map((c) => { const n = actions.filter((a) => a.job.id === c.id && a.state === "ready").length; return P.row({ href: "#/job/" + c.id, icon: "briefcase", title: esc(c.reference + " · " + c.name), sub: n ? `${n} need you` : "Nothing needed", chips: n ? P.chip("pending", `${n} to do`, "bell") : P.chip("saved", "Up to date", "check") }); }).join("")}</div></section>`;
+      extra = `<section class="gap-s"><h2 class="section">Jobs</h2><div class="card flat list">${jobs.map((c) => { const n = actions.filter((a) => a.job.id === c.id && a.state === "ready").length; const stop = P.S.work_holds.filter((h) => h.contract_id === c.id && ["active", "correction_submitted", "awaiting_release"].includes(h.status)).length; const chips = (n ? P.chip("pending", `${n} to do`, "bell") : "") + (stop ? P.chip("blocked", `${stop} stopped`, "stop") : n ? "" : P.chip("saved", "Nothing needed", "check")); return P.row({ href: "#/job/" + c.id, icon: "briefcase", title: esc(c.reference + " · " + c.name), sub: n ? `${n} need you` : stop ? "Work is still restricted" : "Nothing needed", chips }); }).join("")}</div></section>`;
     }
-    return `${head}<div class="two-col"><div class="gap-s" style="display:grid;gap:16px">${main}${thenList}${infoList}</div><div style="display:grid;gap:16px">${waitList}${savedList}${extra}</div></div>`;
+    return `${head}<div class="two-col"><div class="gap-s" style="display:grid;gap:16px">${holdBanner}${alertBox}${main}${thenList}${infoList}</div><div style="display:grid;gap:16px">${riskList}${waitList}${savedList}${extra}</div></div>`;
   };
 
   // ---------------------------------------------------------------- morning checks
@@ -113,7 +130,7 @@
       return `<header class="gap-s"><h1 class="title">Inspect</h1><p class="sub">Check work against the specification. Only you can pass an inspection.</p></header>
         ${needed.length ? `<section class="gap-s"><h2 class="section">Needed now</h2><div class="card flat list">${needed.map(P.actionRow).join("")}</div></section>` : ""}
         <section class="gap-s"><h2 class="section">Start another</h2><div class="card flat list">${plans.map((p) => P.row({ href: `#/inspect/${p.work_area_id}?stage=${p.stage}`, icon: "clipboard", title: esc(L.path(p.work_area_id)), sub: esc(R.STAGE[p.stage]) })).join("") || `<p class="muted" style="padding:16px">Nothing is planned in the next 7 days.</p>`}</div></section>
-        ${done.length ? `<section class="gap-s"><h2 class="section">Saved</h2><div class="card flat list">${done.map((i) => `<div class="row" role="group"><span class="lead ${i.issues_count ? "stop" : ""}">${P.ic(i.issues_count ? "alert" : "check")}</span><span class="text"><strong>${esc(L.path(i.work_area_id))}</strong><span>${esc(R.STAGE[i.stage])} · ${esc(P.fd(i.created_at.slice(0, 10)))}</span></span>${i.issues_count ? P.chip("blocked", "Failed", "x") : P.chip("saved", "Passed", "check")}</div>`).join("")}</div></section>` : ""}`;
+        ${done.length ? `<section class="gap-s"><h2 class="section">Saved</h2><div class="card flat list">${done.map((i) => `<div class="row" role="group"><span class="lead ${i.blocking_failure ? "stop" : ""}">${P.ic(i.blocking_failure ? "alert" : "check")}</span><span class="text"><strong>${esc(L.path(i.work_area_id))}</strong><span>${esc(R.STAGE[i.stage])} · ${esc(P.fd(i.created_at.slice(0, 10)))}</span></span>${i.blocking_failure ? P.chip("blocked", "Failed", "x") : P.chip("saved", "Passed", "check")}</div>`).join("")}</div></section>` : ""}`;
     }
     const area = L.areas.get(r.id);
     if (!area || !vis.has(area.contract_id)) return `${P.back("#/inspect")}${P.empty("Not available", "This location is not on a job you look after.", "lock")}`;
@@ -133,8 +150,14 @@
     if (!P.need(answers.every(Boolean), `Answer every check. ${answers.filter((x) => !x).length} left.`)) return;
     const fails = answers.filter((x) => x === "fail").length;
     if (!P.need(!fails || f.note, "Say what failed in the note.")) return;
-    P.save(fails ? "Inspection saved: failed, work stays blocked" : "Inspection saved: passed", () => {
-      P.S.location_inspections.push({ id: P.uid("li"), contract_id: area.contract_id, work_area_id: area.id, stage, issues_count: fails, created_at: P.nowIso(), inspector_id: P.viewer().user_id });
+    P.save(fails ? "Inspection saved: failed, release stays held" : "Inspection saved: passed", () => {
+      const template = P.S.location_inspection_templates.find(t => t.contract_id === area.contract_id && t.stage === stage && area.path_ids.includes(t.work_area_id));
+      // The illustrative clock stays fixed while a scenario is played. Give
+      // successive saved observations distinct timestamps, just as separate
+      // database transactions do, so a later pass supersedes a saved failure.
+      const createdAt = new Date(Math.max(Date.parse(P.nowIso()), ...P.S.location_inspections.map(i => Date.parse(i.created_at) + 1))).toISOString();
+      P.S.location_inspections.push({ id: P.uid("li"), contract_id: area.contract_id, work_area_id: area.id, template_id: template?.id, work_package_id: null,
+        stage, blocking_failure: fails > 0, created_at: createdAt, inspector_id: P.viewer().user_id });
       if (el.dataset.qa) P.S.supervisor_qa_submissions.push({ id: P.uid("qa"), item_id: el.dataset.qa, created_at: P.nowIso() });
     }, el, () => nav("#/today"));
   };
@@ -144,10 +167,10 @@
     const S = P.S, L = P.L(), vis = visible(ctx);
     const holds = S.work_holds.filter((h) => vis.has(h.contract_id) && h.status !== "released");
     const snags = S.supervisor_issues.filter((i) => vis.has(i.contract_id) && i.snag_status !== "closed");
-    return `<header class="gap-s"><h1 class="title">Issues</h1><p class="sub">Stopped work and snags on your jobs.</p></header>
+    return `<header class="gap-s"><h1 class="title">Issues</h1><p class="sub">Snags and stopped work on your jobs.</p></header>
       <section class="gap-s"><h2 class="section">Stopped work</h2><div class="card flat list">${holds.map((h) => P.row({ href: "#/hold/" + h.id, icon: "stop", tone: "stop", title: esc(L.path(h.work_area_id)), sub: esc(h.reason), chips: P.chip(h.status === "active" ? "blocked" : "pending", HOLD_TEXT[h.status], "lock") })).join("") || `<p class="muted" style="padding:16px">No work is stopped.</p>`}</div></section>
       <section class="gap-s"><h2 class="section">Snags</h2><div class="card flat list">${snags.map((i) => P.row({ href: "#/snag/" + i.id, icon: "wrench", tone: i.severity === "critical" ? "stop" : "amber", title: esc(i.check_label), sub: esc(L.path(i.work_area_id)), chips: P.chip(i.severity === "critical" ? "blocked" : "pending", (i.severity === "critical" ? "Critical · " : "") + SNAG_TEXT[i.snag_status]) })).join("") || `<p class="muted" style="padding:16px">No open snags.</p>`}</div></section>
-      <button class="btn secondary" data-act="raise-snag">${P.ic("plus")}Raise a snag</button>`;
+      <button class="btn secondary" data-act="report">${P.ic("alert")}Report an issue</button>`;
   };
 
   const kv = (rows) => `<dl class="kv">${rows.filter(Boolean).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl>`;
@@ -162,7 +185,7 @@
     const assign = ctx.actions.find((a) => a.id === "snag-assign:" + i.id);
     let panel = "";
     if (i.snag_status === "open" && !i.assigned_team_id) {
-      if (crit || assign) panel = `<section class="card" data-form data-hint><h2 class="section" style="margin:0">Who will fix it? ${P.hint("exists")}</h2><div class="field"><label for="g">Gang</label><select id="g" name="team">${teamOptions()}</select></div><div class="field"><label for="d">Target date</label><input id="d" type="date" name="date" value="${R.addDays(S.today, 2)}"></div><button class="btn" data-act="assign-snag" data-id="${i.id}">Save</button>${i.severity === "critical" ? `<button class="btn quiet" data-act="raise-hold" data-area="${i.work_area_id}">Affected work must stop? Raise a stop work</button>` : ""}</section>`;
+      if (crit || assign) panel = `<section class="card" data-form data-hint><h2 class="section" style="margin:0">Who will fix it? ${P.hint("exists")}</h2><div class="field"><label for="g">Gang</label><select id="g" name="team">${teamOptions()}</select></div><div class="field"><label for="d">Target date</label><input id="d" type="date" name="date" value="${R.addDays(S.today, 2)}"></div><button class="btn" data-act="assign-snag" data-id="${i.id}">Save</button>${i.severity === "critical" ? `<p class="small muted">A critical defect does not stop work by itself.</p><button class="btn quiet" data-act="report" data-area="${i.work_area_id}">Does work here need to stop? Report an issue</button>` : ""}</section>`;
       else panel = `<section class="banner"><strong>Waiting for the office</strong><span>A critical defect is reviewed by the office, who choose the gang.</span></section>`;
     } else if (i.snag_status === "assigned") {
       panel = `<section class="banner"><strong>Waiting for ${esc(teamName(i.assigned_team_id))}</strong><span>${i.target_date ? "Due " + esc(P.fd(i.target_date)) : "No date set"}. They will send a photo when it is fixed.</span></section>`;
@@ -204,7 +227,7 @@
     const insp = S.location_inspections.filter((i) => i.contract_id === h.contract_id && L.under(i.work_area_id, h.work_area_id));
     const safety = h.hold_type === "safety";
     const head = `${P.back("#/today", "Today")}<header class="gap-s"><div class="chips">${P.chip(safety ? "blocked" : "pending", safety ? "Safety stop" : "Quality hold", "stop")}</div><h1 class="title">Check the fix</h1><p class="sub">${esc(L.path(h.work_area_id))}</p></header>${a && a.state === "blocked" ? `<section class="banner stop"><strong>You cannot decide this one</strong><span>${esc(a.blockedBy)}</span></section>` : ""}${P.needBox(a)}
-      <section class="card">${kv([["Why it was stopped", esc(h.reason)], ["What the gang had to do", esc(h.required_action)], ["Raised by", esc(L.person(h.raised_by))], ["Gang", esc(teamName(h.assigned_team_id))], ["Inspections here", insp.length ? insp.map((i) => `${esc(R.STAGE[i.stage])}: ${i.issues_count ? "failed" : "passed"}`).join(", ") : "None saved"]])}</section>`;
+      <section class="card">${kv([["Why it was stopped", esc(h.reason)], ["What the gang had to do", esc(h.required_action)], ["Raised by", esc(L.person(h.raised_by))], ["Gang", esc(teamName(h.assigned_team_id))], ["Inspections here", insp.length ? insp.map((i) => `${esc(R.STAGE[i.stage])}: ${i.blocking_failure ? "failed" : "passed"}`).join(", ") : "None saved"]])}</section>`;
     if (!a || a.state === "waiting") return `${head}<section class="banner"><strong>This decision is for the office</strong><span>${h.status === "awaiting_release" ? "They are checking the fix." : "It is not ready to be checked yet."}</span></section>`;
     if (a.state === "blocked") return head;
     return `${head}<div data-form style="display:grid;gap:16px"><section class="card" data-hint><h2 class="section" style="margin:0">Your decision ${P.hint("exists", "Release review")}</h2>
@@ -222,25 +245,28 @@
     P.save(rel ? "Work restarted for this location" : "Fix sent back to the gang", () => { h.status = rel ? "released" : "active"; if (!rel) h.required_action = f.why; }, el, () => nav("#/today"));
   };
 
-  // ---------------------------------------------------------------- raise a stop / snag
-  P.acts["raise-hold"] = (el) => {
-    const ctx = P.cur, ids = visible(ctx);
-    P.sheet(P.sheetFrame("Stop work", `<p class="sub">Only the work at this location stops. Everything else carries on.</p><div class="field"><label for="a">Where?</label><select id="a" name="area">${areaOptions(ids)}</select></div>
-      <div class="field"><span class="lbl">What kind?</span>${P.choice("type", [["safety", "Safety", true], ["quality", "Quality"]], "quality")}</div>
-      <div class="field"><label for="r">What is wrong?</label><textarea id="r" name="reason"></textarea></div><button class="btn danger" data-act="save-hold">Stop work here</button>`));
-    if (el.dataset.area) { const s = document.querySelector('.sheet [name="area"]'); if (s) s.value = el.dataset.area; }
+  // ---------------------------------------------------------------- report an issue
+  // One everyday action. It records a snag, or the EXISTING quality hold or safety stop, with the
+  // same permissions and audit trail as before. There is no new kind of record.
+  P.acts.report = (el) => {
+    const ids = visible(P.cur);
+    P.sheet(P.sheetFrame("Report an issue", `<div class="field"><label for="a">Where?</label><select id="a" name="area">${areaOptions(ids)}</select></div>
+      <div class="field"><label for="w">What is wrong?</label><textarea id="w" name="what"></textarea></div>${P.photo("photo", "Add a photo")}
+      <div class="field"><span class="lbl">Does work need to stop here?</span>${P.choice("stop", [["no", "No"], ["quality", "Yes: quality hold"], ["safety", "Yes: safety stop", true]], "no")}</div>
+      <div class="field" data-when-no><span class="lbl">How serious?</span>${P.choice("sev", [["minor", "Minor"], ["major", "Major"], ["critical", "Critical", true]], "major")}<small>A critical defect goes to the office. It does not stop work by itself.</small></div>
+      <p class="small muted" data-when-stop hidden>Only this location and activity stop. Everything else carries on. They stay stopped until the fix is checked and the office restarts them.</p>
+      <p class="small muted" data-when-safety hidden><strong>Make the area safe first</strong> and follow the principal contractor's procedure. This records the stop and tells the office.</p>
+      <button class="btn" data-act="save-report">Report it</button>`));
+    if (el && el.dataset && el.dataset.area) { const s = document.querySelector('.sheet [name="area"]'); if (s) s.value = el.dataset.area; }
   };
-  P.acts["save-hold"] = (el) => {
-    const f = P.form(el), area = P.L().areas.get(f.area), id = P.uid("h");
-    if (!P.need(f.reason, "Say what is wrong.")) return;
-    P.save(`${f.type === "safety" ? "Safety stop" : "Quality hold"} raised`, () => P.S.work_holds.push({ id, contract_id: area.contract_id, work_area_id: area.id, stage: "installation", hold_type: f.type || "quality", status: "active", reason: f.reason, required_action: "", raised_by: P.viewer().user_id, assigned_team_id: null, target_date: null }), el, () => nav("#/hold/" + id));
-  };
-  P.acts["raise-snag"] = () => P.sheet(P.sheetFrame("Raise a snag", `<div class="field"><label for="a">Where?</label><select id="a" name="area">${areaOptions(visible(P.cur))}</select></div><div class="field"><label for="w">What is wrong?</label><input id="w" type="text" name="what" autocomplete="off"></div>
-      <div class="field"><span class="lbl">How serious?</span>${P.choice("sev", [["minor", "Minor"], ["major", "Major"], ["critical", "Critical", true]], "major")}</div>${P.photo("photo", "Add a photo")}<button class="btn" data-act="save-snag">Save snag</button>`));
-  P.acts["save-snag"] = (el) => {
-    const f = P.form(el), area = P.L().areas.get(f.area), id = P.uid("s");
+  P.acts["save-report"] = (el) => {
+    const f = P.form(el), area = P.L().areas.get(f.area), id = P.uid("r"), stops = f.stop && f.stop !== "no";
     if (!P.need(f.what, "Say what is wrong.")) return;
-    P.save("Snag raised", () => P.S.supervisor_issues.push({ id, contract_id: area.contract_id, work_area_id: area.id, stage: "installation", check_label: f.what, description: f.what, severity: f.sev || "major", snag_status: "open", assigned_team_id: null, target_date: null, raised_by: P.viewer().user_id, rectified_by: null, escalated: false }), el, () => nav("#/snag/" + id));
+    if (stops) {
+      P.save(`${f.stop === "safety" ? "Safety stop" : "Quality hold"} raised`, () => P.S.work_holds.push({ id, contract_id: area.contract_id, work_area_id: area.id, stage: "installation", hold_type: f.stop, status: "active", reason: f.what, required_action: "", raised_by: P.viewer().user_id, corrected_by: null, assigned_team_id: null, assigned_operative_id: null, target_date: null, critical_snags_open: false }), el, () => nav("#/hold/" + id));
+    } else {
+      P.save("Snag recorded", () => P.S.supervisor_issues.push({ id, contract_id: area.contract_id, work_area_id: area.id, stage: "installation", check_label: f.what.slice(0, 60), description: f.what, severity: f.sev || "major", snag_status: "open", assigned_team_id: null, target_date: null, raised_by: P.viewer().user_id, rectified_by: null, escalated: false, responsibility_state: "not_assessed", responsibility_team_id: null }), el, () => nav("#/snag/" + id));
+    }
   };
 
   // ---------------------------------------------------------------- messages and handover
@@ -266,7 +292,7 @@
     return `${P.back("#/today", "Today")}<header class="gap-s"><p class="eyebrow">${esc(job.name)}</p><h1 class="title">Handover</h1><p class="sub">Tell the office what is finished, what is stuck and what you need tomorrow. ${P.hint("exists")}</p></header>${summary}
       <div data-form style="display:grid;gap:16px"><section class="card"><div class="field"><label for="s">What is stuck?</label><textarea id="s" name="stuck"></textarea></div><div class="field"><label for="t">What do you need tomorrow?</label><textarea id="t" name="need"></textarea></div></section><button class="btn" data-act="send-handover" data-job="${cid}">Send handover</button></div>`;
   };
-  P.acts["send-handover"] = (el) => { const f = P.form(el), cid = el.dataset.job; P.save("Handover sent", () => P.S.site_handovers.push({ id: P.uid("ho"), contract_id: cid, work_date: P.S.today, created_at: P.nowIso(), stuck: f.stuck, need: f.need }), el, () => nav("#/today")); };
+  P.acts["send-handover"] = (el) => { const f = P.form(el), cid = el.dataset.job; P.save("Handover sent", () => P.S.site_handovers.push({ id: P.uid("ho"), contract_id: cid, actor_id: P.viewer().user_id, work_date: P.S.today, created_at: P.nowIso(), stuck: f.stuck, need: f.need }), el, () => nav("#/today")); };
 
   P.acts.who = () => P.sheet(P.sheetFrame(P.viewer().display_name, `<p class="muted">${esc({ owner: "Owner", office: "Office", supervisor: "Site supervisor", subcontractor: "Subcontractor" }[P.role()])}${P.role() === "office" ? (P.viewer().financial_access ? " · can see money" : " · money hidden") : ""}</p><button class="btn secondary" data-act="signout">Sign out</button>`));
   P.acts.signout = () => { P.ui.person = ""; P.ui.sheet = null; document.getElementById("person").value = ""; P.render(); };

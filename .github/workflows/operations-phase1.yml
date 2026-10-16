@@ -53,9 +53,18 @@ jobs:
       - run: npm run test:db
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      - run: npm run preview:check
+      - run: npm run preview:smoke
+      - run: npm run preview:e2e
+      - run: npm run preview:mobile
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/workflow-preview-mobile
       - run: npm run test:browser
       - run: npm run test:forms
       - run: npm run test:ui
+      - run: npm run test:next-actions-ui
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/next-actions-app-mobile
       # The end-to-end test runs the real app against PostgREST and a disposable
       # PostgreSQL. The PostgREST release is pinned and checksum-verified.
       - name: PostgREST for the end-to-end test
@@ -72,4 +81,16 @@ jobs:
         with:
           name: supervisor-site-screenshots
           path: ${{ runner.temp }}/site-screenshots
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workflow-preview-mobile
+          path: ${{ runner.temp }}/workflow-preview-mobile
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: next-actions-app-mobile
+          path: ${{ runner.temp }}/next-actions-app-mobile
           if-no-files-found: ignore
