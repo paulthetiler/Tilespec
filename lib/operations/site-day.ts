@@ -166,7 +166,10 @@ function overlaps(a: ActualAllocation, b: ActualAllocation, now: string) {
 
 export type NextActionKey = "checks" | "earlier" | "confirm" | "review" | "issues" | "monitor" | "critical" | "reinspection" | "disputed" | "overdue" | "safety" | "quality" | "release" | "inspection";
 export type NextAction = { key: NextActionKey; label: string; detail: string; href: string };
-// The one thing the supervisor should do next, from saved records only.
+/**
+ * @deprecated The shared Next Action engine in lib/operations/next-actions is the single
+ * source of truth. This remains only for the supervisor page while FEATURE_NEXT_ACTIONS is off.
+ */
 export function nextAction(input: { siteHref: string; issuesHref: string; checksDone: boolean; staleOpen: number; openIssues: number; day: SiteDay; snags?: { critical: number; awaiting_reinspection: number; disputed: number; overdue: number }; holds?: { href: string; active_safety: number; active_quality: number; awaiting_release: number; inspections_due: number; failed_mandatory: number } }): NextAction {
   const { summary } = input.day;
   const filtered = (filter: string) => `${input.issuesHref}${input.issuesHref.includes("?") ? "&" : "?"}${filter}`;

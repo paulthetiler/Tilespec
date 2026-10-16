@@ -1,7 +1,7 @@
 /*
  * Prototype shell: state, router, shared components, simulated saving.
  * Nothing here talks to a backend. Saving changes the in-memory scenario so that
- * the Next Action rules (rules.js) re-derive what each person should do next.
+ * the Next Action engine (engine.js, bundled from lib/operations/next-actions) re-derive what each person should do next.
  */
 (function () {
   const R = window.TSRules;
@@ -80,13 +80,13 @@
 
   // ---- tabs: at most four per role ------------------------------------------
   P.NAV = {
-    owner: [["today", "Today", "home"], ["jobs", "Jobs", "briefcase"], ["money", "Money", "pound"], ["risks", "Risks", "shield"]],
+    owner: [["today", "Today", "home"], ["jobs", "Jobs", "briefcase"], ["money", "Money", "pound"]],
     office: [["today", "Today", "home"], ["jobs", "Jobs", "briefcase"], ["tenders", "Tenders", "inbox"], ["labour", "Labour", "users"]],
     supervisor: [["today", "Today", "home"], ["people", "People", "users"], ["inspect", "Inspect", "clipboard"], ["issues", "Issues", "alert"]],
     subcontractor: [["today", "Today", "home"], ["fixes", "Fixes", "wrench"], ["papers", "Paperwork", "file"]],
   };
   P.tabOf = (screen, role) => {
-    const map = { jobs: "jobs", job: "jobs", tenders: "tenders", tender: "tenders", labour: "labour", money: "money", risks: "risks", people: "people", inspect: "inspect", issues: "issues", fixes: "fixes", papers: "papers" };
+    const map = { jobs: "jobs", job: "jobs", tenders: "tenders", tender: "tenders", labour: "labour", money: "money", people: "people", inspect: "inspect", issues: "issues", fixes: "fixes", papers: "papers" };
     if (map[screen]) return map[screen];
     if (role === "supervisor" && ["snag", "hold"].includes(screen)) return "issues";
     if (role === "subcontractor" && screen === "fix") return "fixes";
@@ -94,13 +94,12 @@
   };
 
   P.actionVisible = (a) => a.state === "ready" || a.state === "info";
-  P.CTA = { G01: "Choose who fixes it", G02: "Choose who fixes it", G03: "Fix it and send photos", G04: "Ask for the check", G05: "Review and decide", G06: "Inspect again", G07: "Start inspection", G08: "Decide", G09: "Review defect", G10: "Check the repair", G11: "Respond", G12: "Start inspection", G13: "Update cover",
-    S03: "Fix it and send photos", R01: "Start morning checks", R02: "Finish earlier work", R03: "Confirm who is here", R04: "Confirm person", R05: "Read it", R06: "Review handover", R07: "Chase now", R08: "Set it up", R09: "Publish checks", R10: "Give access", R11: "Update cover", R12: "Open enquiry", R13: "Choose who fixes it", R14: "See the budget" };
-  const SHEET_RULES = new Set(["G08", "R09", "R10", "R08", "G13", "R11", "R04"]);
+  P.CTA = R.ctaLabel;
+  const SHEET_RULES = new Set(["G08", "R09", "R10", "R08", "A02", "R11", "R04"]);
   P.ctaAttrs = (a) => (SHEET_RULES.has(a.rule) ? `data-act="task" data-id="${esc(a.id)}"` : `href="${P.href(a.route)}"`);
   P.ctaBtn = (a, cls) => {
     const tag = SHEET_RULES.has(a.rule) ? "button" : "a";
-    return `<${tag} class="btn ${cls || ""}" ${P.ctaAttrs(a)}>${esc(P.CTA[a.rule] || "Open")}${P.ic("chevron")}</${tag}>`;
+    return `<${tag} class="btn ${cls || ""}" ${P.ctaAttrs(a)}>${esc(P.CTA(a))}${P.ic("chevron")}</${tag}>`;
   };
 
   P.dueText = (a) => {
@@ -109,7 +108,7 @@
     if (a.due === P.S.today) return "Due today";
     return `Due ${P.fd(a.due)}`;
   };
-  P.kindChip = (a) => (a.kind === "gate" ? P.chip("must", "Must be done before work continues", "lock") : P.chip("done", "Reminder", "bell"));
+  P.kindChip = (a) => { const c = R.classChip(a); return P.chip(c.tone === "reminder" ? "done" : c.tone, c.text, c.tone === "must" ? "lock" : c.tone === "alert" ? "alert" : "bell"); };
   const PROC = { "stop-work": ["stop", "stop"], snag: ["wrench", "amber"], inspection: ["clipboard", ""], "daily-site": ["users", ""], workforce: ["users", ""], "job-setup": ["briefcase", ""], compliance: ["shield", "amber"], tender: ["inbox", ""], money: ["pound", ""] };
 
   P.actionRow = (a) => {
@@ -118,7 +117,7 @@
     const chips = [];
     if (a.state === "waiting") chips.push(P.chip("pending", `Waiting on ${a.responsible.who || a.responsible.label}`, "clock"));
     if (a.state === "blocked") chips.push(P.chip("blocked", "Blocked", "lock"));
-    if (a.kind === "gate" && a.state !== "waiting") chips.push(P.chip("must", "Must do", "lock"));
+    if (a.kind !== "reminder" && a.state !== "waiting") chips.push(P.kindChip(a));
     if (a.overdue) chips.push(P.chip("blocked", P.dueText(a), "alert"));
     const sub = a.state === "blocked" ? esc(a.blockedBy) : esc(where);
     const lead = `<span class="lead ${tone}">${P.ic(icon)}</span>`;
@@ -127,7 +126,7 @@
     return `<div class="row" role="group" aria-label="${esc(a.title)}">${lead}${body}</div>`;
   };
 
-  P.hero = (a) => `<section class="card hero ${a.kind === "gate" ? "gate" : ""}" aria-labelledby="hero-title" data-hint>
+  P.hero = (a) => `<section class="card hero ${a.kind}" aria-labelledby="hero-title" data-hint>
       <p class="eyebrow">Do this next ${P.hint("query", "Derived from saved records")}</p>
       <div class="chips">${P.kindChip(a)}${a.overdue ? P.chip("blocked", P.dueText(a), "alert") : a.due ? P.chip("done", P.dueText(a), "clock") : ""}</div>
       <h2 id="hero-title" class="title" style="font-size:clamp(30px,8cqw,44px)">${esc(a.title)}</h2>
@@ -135,17 +134,17 @@
       <p class="why">${esc(a.why)}</p>
       <p class="small muted">${P.ic("users").replace("<svg", '<svg style="width:15px;height:15px;vertical-align:-2px"')} ${esc(a.responsible.who ? a.responsible.who + " (" + a.responsible.label + ")" : a.responsible.label)}</p>
       ${P.ctaBtn(a)}
-      <p class="small muted">You will need: ${esc(a.requires.join(", "))}.</p>
+      ${a.requires.length ? `<p class="small muted">You will need: ${esc(a.requires.join(", "))}.</p>` : ""}
+      ${a.kind !== "reminder" ? `<p class="small muted">${esc(R.classNote(a))}</p>` : ""}
     </section>`;
 
   P.needBox = (a) => {
     if (!a) return "";
-    const rows = [["Who", a.responsible.who ? `${a.responsible.who} (${a.responsible.label})` : a.responsible.label], ["Due", a.due ? P.dueText(a) : "No date"], ["You will need", a.requires.join(", ")], ["Finished when", a.doneWhen], ["Then", a.next || "Nothing further"], ["Saved on", a.source.table]];
+    const rows = [["Who", a.responsible.who ? `${a.responsible.who} (${a.responsible.label})` : a.responsible.label], ["Due", a.due ? P.dueText(a) : "No date"], ...(a.requires.length ? [["You will need", a.requires.join(", ")]] : []), ["Finished when", a.doneWhen], ["Then", a.next || "Nothing further"], ["Saved on", a.source.table]];
     return `<section class="card" aria-label="What is needed"><div class="chips">${P.kindChip(a)}${a.overdue ? P.chip("blocked", P.dueText(a), "alert") : ""}</div>
       <p>${esc(a.why)}</p>
-      <details class="more"><summary>What this needs ${P.hb(a.backend)}</summary><dl class="kv">${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
-      ${a.enforcedByBackend === false ? `<p class="small muted">The database does not enforce this today. It is a rule people follow.</p>` : ""}
-      ${a.kind === "gate" ? `<p class="small muted">A mandatory control. It cannot be dismissed, snoozed or skipped, and TileSpec never completes it for anyone.</p>` : ""}</details></section>`;
+      <details class="more"><summary>What this needs ${a.informationOnly ? P.hint("query", "Read-only") : P.hint("exists")}</summary><dl class="kv">${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
+      <p class="small muted">${esc(R.classNote(a))}</p></details></section>`;
   };
 
   P.empty = (title, text, icon) => `<section class="card empty">${P.ic(icon || "check")}<h2 class="section" style="margin:0">${esc(title)}</h2><p class="sub">${esc(text)}</p></section>`;
@@ -229,7 +228,7 @@
     const nav = P.NAV[role];
     const legend = `<div class="legend" role="note"><strong>Backend reality check</strong> ${P.hint("exists", "Built")} already in the app ${P.hint("query", "Query only")} new screen or read-only query, no schema change ${P.hint("new", "New backend")} needs approval before it could exist</div>`;
     dev.innerHTML = `${legend}<div class="app">
-      <header class="topbar"><img class="logo" src="tilespec-logo-animated.svg" alt="TileSPEC"><div class="right">${role === "supervisor" ? `<button class="stop-pill" data-act="raise-hold" aria-label="Raise a stop work">${P.ic("stop")}STOP WORK</button>` : ""}<button class="avatar" data-act="who" aria-label="Your account">${esc(v.display_name.split(" ").map((x) => x[0]).join(""))}</button></div></header>
+      <header class="topbar"><img class="logo" src="tilespec-logo-animated.svg" alt="TileSPEC"><div class="right">${role === "supervisor" ? `<button class="report-pill" data-act="report">${P.ic("alert")}Report an issue</button>` : ""}<button class="avatar" data-act="who" aria-label="Your account">${esc(v.display_name.split(" ").map((x) => x[0]).join(""))}</button></div></header>
       <main class="main" id="main"><div class="page">${body}</div></main>
       <nav class="tabbar" aria-label="Main">${nav.map(([k, label, icon]) => `<a class="tab" href="#/${k}" ${k === tab ? 'aria-current="page"' : ""}>${P.ic(icon)}${esc(label)}${k === "today" && ready ? `<span class="dot" aria-label="${ready} waiting for you">${ready}</span>` : ""}</a>`).join("")}</nav></div>${P.ui.sheet || ""}`;
     const main = $(".main", dev);
@@ -250,7 +249,15 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && P.ui.sheet) P.closeSheet(); });
   P.acts.back = (el) => { const to = el.dataset.to; if (to) location.hash = to; else history.back(); };
   P.acts.close = () => P.closeSheet();
-  P.acts.pick = (el) => { el.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false")); el.setAttribute("aria-pressed", "true"); };
+  P.acts.pick = (el) => {
+    el.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false")); el.setAttribute("aria-pressed", "true");
+    if (el.parentElement.dataset.choice === "stop") {
+      const sheet = el.closest(".sheet");
+      sheet.querySelectorAll("[data-when-no]").forEach((n) => { n.hidden = el.dataset.v !== "no"; });
+      sheet.querySelectorAll("[data-when-stop]").forEach((n) => { n.hidden = el.dataset.v === "no"; });
+      sheet.querySelectorAll("[data-when-safety]").forEach((n) => { n.hidden = el.dataset.v !== "safety"; });
+    }
+  };
   P.acts.photo = (el) => { const on = !el.classList.contains("has"); el.classList.toggle("has", on); el.setAttribute("aria-pressed", String(on)); el.innerHTML = on ? `${P.ic("check")}<span>Photo added</span>` : `${P.ic("camera")}<span>Take or add a photo</span>`; };
   window.addEventListener("hashchange", () => { P.ui.sheet = null; P.render(); });
 

@@ -53,11 +53,12 @@ await scenario("Poor signal: a failed save keeps what was typed and the retry su
   assert.match(await text(), /Saved: Morning checks, 1 sent to the office/);
 });
 
-await scenario("Stop work end to end: supervisor raises, gang fixes, office releases, nobody approves their own", "role=u-dave&scenario=start", async ({ page, as, hero, click, go, text, pick }) => {
-  await click("STOP WORK");
-  await pick("type", "safety");
-  await page.fill('.sheet [name="reason"]', "Exposed cable above the wet area");
-  await page.locator(".sheet").getByRole("button", { name: "Stop work here" }).click();
+await scenario("Report an issue end to end: supervisor reports a safety stop, gang fixes, office releases, nobody approves their own", "role=u-dave&scenario=start", async ({ page, as, hero, click, go, text, pick }) => {
+  assert.equal(await page.getByText("STOP WORK").count(), 0, "no prominent Stop Work button");
+  await click("Report an issue");
+  await pick("stop", "safety");
+  await page.fill('.sheet [name="what"]', "Exposed cable above the wet area");
+  await page.locator(".sheet").getByRole("button", { name: "Report it" }).click();
   await page.waitForTimeout(500);
   assert.match(await text(), /Who fixes it/);
   await page.selectOption('[name="team"]', "t1");
@@ -179,10 +180,11 @@ await scenario("Office without money access does not see money", "role=u-jo&scen
   for (const r of ["/today", "/job/c1", "/money"]) { await go(r); assert.ok(!/£|Budgeted/.test(await text()), r); }
 });
 
-await scenario("Owner sees a low margin as information, never as an approval they must tick", "role=u-alex&scenario=busy", async ({ go, text }) => {
+await scenario("Owner sees a low margin as information, never as an approval they must tick", "role=u-alex&scenario=busy", async ({ go, text, page }) => {
   await go("/money");
-  assert.match(await text(), /Not recorded yet/);
+  assert.match(await text(), /Original budgets only/);
   assert.match(await text(), /25\.\d%/);
+  assert.equal(await page.getByRole("button").filter({ hasText: /approve|variation|daywork|claim/i }).count(), 0, "no dead-end money buttons");
 });
 
 await scenario("Desktop uses the same four destinations as a side rail", "role=u-sam&scenario=busy&device=desktop", async ({ page }) => {
@@ -190,6 +192,36 @@ await scenario("Desktop uses the same four destinations as a side rail", "role=u
   const box = await page.locator(".tabbar").boundingBox(), dev = await page.locator("#device").boundingBox();
   assert.ok(box.x - dev.x < 20 && box.width < 300 && box.y < dev.y + 200, "rail on the left");
   assert.equal(await page.locator(".tab").count(), 4);
+});
+
+await scenario("Owner has three destinations and risks live under Today", "role=u-alex&scenario=busy", async ({ page, text, click }) => {
+  assert.equal(await page.locator(".tab").count(), 3);
+  assert.equal(await page.locator(".tab", { hasText: /^Risks$/ }).count(), 0);
+  assert.match(await text(), /Risks and exceptions \(\d+\)/);
+});
+
+await scenario("Subcontractor has Today, Fixes and Paperwork and no Tell the supervisor", "role=u-marek&scenario=busy", async ({ page, go, text }) => {
+  assert.deepEqual((await page.locator(".tab").allInnerTexts()).map((t) => t.trim().split("\n")[0]), ["Today", "Fixes", "Paperwork"]);
+  for (const r of ["/today", "/fixes", "/papers"]) { await go(r); assert.doesNotMatch(await text(), /Tell the supervisor/i, r); }
+});
+
+await scenario("The whole queue stays visible under the main button", "role=u-dave&scenario=busy", async ({ page, text }) => {
+  const t = await text();
+  assert.match(t, /Then \(\d+\)/);
+  const n = Number(t.match(/Then \((\d+)\)/)[1]);
+  const queue = await page.evaluate(() => { const a = TSRules.compute(P.S, P.viewer(), TSRules.config); return TSRules.buildQueue(a).then.length; });
+  assert.equal(n, queue, "every queued task is listed");
+});
+
+await scenario("A critical snag is reported without stopping work", "role=u-dave&scenario=start", async ({ page, click, pick, text }) => {
+  await click("Report an issue");
+  await pick("sev", "critical");
+  await page.fill('.sheet [name="what"]', "Substrate failing under the tray");
+  const before = await page.evaluate(() => P.S.work_holds.length);
+  await page.locator(".sheet").getByRole("button", { name: "Report it" }).click();
+  await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => P.S.work_holds.length), before, "no hold was created");
+  assert.match(await text(), /Snag recorded/);
 });
 
 await browser.close();
