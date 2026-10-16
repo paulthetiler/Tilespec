@@ -36,19 +36,25 @@ var TSEngine = (() => {
     ctaLabel: () => ctaLabel,
     dayDiff: () => dayDiff,
     flagEnabled: () => flagEnabled,
+    flagEnv: () => flagEnv,
+    hrefIsExistingForm: () => hrefIsExistingForm,
+    idleCopy: () => idleCopy,
     isoDate: () => isoDate,
     latestCover: () => latestCover,
     makeLookups: () => makeLookups,
     nextAction: () => nextAction,
     parseWorkingHours: () => parseWorkingHours,
     pounds: () => pounds,
+    queueCounts: () => queueCounts,
     queueIds: () => queueIds,
     resolveTimings: () => resolveTimings,
     roleKey: () => roleKey,
     rules: () => rules,
     toClock: () => toClock,
     toMinutes: () => toMinutes,
-    visibleContractIds: () => visibleContractIds
+    todayCountCopy: () => todayCountCopy,
+    visibleContractIds: () => visibleContractIds,
+    workflowPreviewExposed: () => workflowPreviewExposed
   });
 
   // <define:process.env>
@@ -395,7 +401,7 @@ var TSEngine = (() => {
           blocks: INSPECTION_BLOCKS,
           enforcedByBackend: true,
           source: { table: "location_inspections", id: last.id },
-          route: { screen: "inspect", id: plan.work_area_id }
+          route: { screen: "inspect", id: plan.work_area_id, stage: plan.stage }
         });
       } else if (!last && plan.planned_start <= s.today && plan.planned_end >= s.today) {
         out.push({
@@ -1012,17 +1018,26 @@ var TSEngine = (() => {
   function buildQueue(actions, options = {}) {
     var _a;
     const ready = actions.filter((a) => a.state === "ready");
-    const rest = actions.filter((a) => a.state !== "ready");
-    const isException = (a) => a.kind !== "reminder" || !!a.overdue || !!a.informationOnly;
+    const infoItems = actions.filter((a) => a.state === "info");
+    const rest = actions.filter((a) => a.state !== "ready" && a.state !== "info");
+    const isException = (a) => a.kind !== "reminder" || !!a.overdue;
     const exceptions = options.groupExceptions ? rest.filter(isException) : [];
     const remaining = rest.filter((a) => !exceptions.includes(a));
     return {
       next: (_a = ready[0]) != null ? _a : null,
       then: ready.slice(1),
-      info: remaining.filter((a) => a.state === "info"),
+      info: infoItems,
       exceptions,
-      waiting: remaining.filter((a) => a.state !== "info"),
+      waiting: remaining,
       alerts: actions.filter((a) => a.kind === "alert")
+    };
+  }
+  function queueCounts(q) {
+    return {
+      actions: (q.next ? 1 : 0) + q.then.length,
+      informational: q.info.length,
+      exceptions: q.exceptions.length,
+      waiting: q.waiting.length
     };
   }
   var queueIds = (q) => [q.next, ...q.then, ...q.info, ...q.exceptions, ...q.waiting].filter((a) => !!a).map((a) => a.id);
@@ -1031,9 +1046,23 @@ var TSEngine = (() => {
   var ENV_NAME = { nextActions: "FEATURE_NEXT_ACTIONS", roleShell: "FEATURE_ROLE_SHELL" };
   var ON = /* @__PURE__ */ new Set(["1", "true", "on", "yes", "all"]);
   var ROLES = /* @__PURE__ */ new Set(["owner", "contracts_manager", "supervisor", "lead_installer", "subcontract_installer"]);
+  function flagEnv(env = define_process_env_default) {
+    var _a, _b;
+    if (env.VERCEL_ENV !== "preview") return env;
+    return {
+      ...env,
+      FEATURE_NEXT_ACTIONS: (_a = env.FEATURE_NEXT_ACTIONS) != null ? _a : "supervisor",
+      FEATURE_ROLE_SHELL: (_b = env.FEATURE_ROLE_SHELL) != null ? _b : "supervisor"
+    };
+  }
+  function workflowPreviewExposed(env = define_process_env_default) {
+    if (env.VERCEL_ENV === "preview") return true;
+    if (env.VERCEL) return false;
+    return env.NODE_ENV === "development";
+  }
   function flagEnabled(name, role, env = define_process_env_default) {
     var _a;
-    const raw = ((_a = env[ENV_NAME[name]]) != null ? _a : "").trim().toLowerCase();
+    const raw = ((_a = flagEnv(env)[ENV_NAME[name]]) != null ? _a : "").trim().toLowerCase();
     if (!raw) return false;
     if (ON.has(raw)) return true;
     const listed = raw.split(",").map((x) => x.trim()).filter(Boolean);
@@ -1085,6 +1114,24 @@ var TSEngine = (() => {
     if (a.kind === "alert") return "TileSpec does not block anything because of this. It is shown first because it matters, and the people named have to act on it.";
     return "A reminder. Nothing is held up by it.";
   }
+  function idleCopy(opts) {
+    if (opts.activeRestrictions) {
+      return {
+        title: "Work is still restricted",
+        text: "Affected work stays stopped until the office restarts it. Completing your own tasks does not clear a restriction."
+      };
+    }
+    if (opts.waitingOnOthers) {
+      return { title: "Nothing needs you right now", text: "Other people are working on the items below." };
+    }
+    return { title: "Nothing needs you right now", text: "New work appears here as soon as something is saved that needs you." };
+  }
+  function todayCountCopy(actions, informational = 0) {
+    const need = actions === 0 ? "Nothing needs you right now." : actions === 1 ? "1 thing needs you." : `${actions} things need you.`;
+    if (!informational) return need;
+    const info = informational === 1 ? "1 informational alert." : `${informational} informational alerts.`;
+    return `${need} ${info}`;
+  }
 
   // lib/operations/next-actions/routes.ts
   function actionHref(a, siteBase) {
@@ -1095,6 +1142,8 @@ var TSEngine = (() => {
         return `/admin/holds/${r.id}`;
       case "snag":
         return `/admin/snags/${r.id}`;
+      case "fix":
+        return r.kind === "hold" ? `/admin/holds/${r.id}` : `/admin/snags/${r.id}`;
       case "morning":
         return `${siteBase}/checks`;
       case "people":
@@ -1112,9 +1161,25 @@ var TSEngine = (() => {
         return `/admin/contracts/${r.id}`;
       case "labour":
         return "/admin/workforce";
+      case "money":
+        return "/admin/money";
       default:
         return siteBase;
     }
+  }
+  function hrefIsExistingForm(href, siteBase) {
+    if (!href || href === siteBase || href === `${siteBase}/`) return false;
+    const path = href.split("?")[0].split("#")[0];
+    const esc = siteBase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return [
+      /^\/admin\/holds\/[^/]+$/,
+      /^\/admin\/snags\/[^/]+$/,
+      /^\/admin\/contracts\/[^/]+$/,
+      /^\/admin\/workforce$/,
+      /^\/admin\/money$/,
+      new RegExp(`^${esc}/(checks|workforce|inspections|messages|finish)$`),
+      new RegExp(`^${esc}/tasks/[^/]+$`)
+    ].some((re) => re.test(path));
   }
   return __toCommonJS(index_exports);
 })();

@@ -26,12 +26,15 @@
     const waiting = q.waiting.filter((a) => !alerts.includes(a));
     const saved = R.savedToday(P.S, v);
     const first = v.display_name.split(" ")[0];
-    const ready = actions.filter((a) => a.state === "ready").length;
+    const counts = R.queueCounts(q);
+    const activeHolds = P.S.work_holds.filter((h) => ["active", "correction_submitted", "awaiting_release"].includes(h.status) && visible(ctx).has(h.contract_id));
     const jobs = [...visible(ctx)].map((id) => P.L().contracts.get(id)).filter(Boolean);
     const head = `<header class="gap-s"><p class="eyebrow">${esc(P.fd(P.S.today))}${role === "supervisor" ? " · " + esc(jobs.map((c) => c.name).join(", ")) : ""}</p><h1 class="title">Hello, ${esc(first)}</h1>
-      <p class="sub">${ready ? `${ready} ${ready === 1 ? "thing needs" : "things need"} you.` : "Nothing needs you right now."}</p></header>`;
-    const main = nxt ? P.hero(nxt) : P.empty("You are up to date", waiting.length ? "Other people are working on the items below." : "Nothing is waiting. New work shows up here the moment something is saved that needs you.");
+      <p class="sub">${esc(R.todayCountCopy(counts.actions, role === "owner" ? counts.informational : 0))}</p></header>`;
+    const idle = R.idleCopy({ activeRestrictions: activeHolds.length > 0, waitingOnOthers: waiting.length + alerts.length > 0 });
+    const main = nxt ? P.hero(nxt) : P.empty(idle.title, idle.text);
     const list = (cls, rows) => `<div class="card flat list">${rows.map(P.actionRow).join("")}</div>`;
+    const holdBanner = role === "supervisor" && activeHolds.length ? `<section class="gap-s" aria-label="Work that is stopped"><h2 class="section">Work that is stopped</h2>${activeHolds.map((h) => `<section class="banner stop"><strong>${esc(h.hold_type === "safety" ? "Safety stop" : "Quality hold")}: ${esc(P.L().path(h.work_area_id))}</strong><span>${esc(h.reason)}</span><span>Keep the affected work stopped. Only this location and activity is held.${h.hold_type === "safety" ? " Follow the principal contractor's site safety procedures." : ""} Completing your own tasks does not clear a restriction.</span><a href="#/hold/${h.id}">View restriction</a></section>`).join("")}</section>` : "";
     const alertBox = alerts.length ? alerts.map((a) => `<section class="banner alert" role="status" data-hint><div class="chips">${P.kindChip(a)}${a.due ? P.chip("done", P.dueText(a), "clock") : ""}</div><strong>${esc(a.title)}</strong><span>${esc(a.why)}</span><span class="small muted">${esc(R.classNote(a))}</span></section>`).join("") : "";
     const thenList = more.length ? `<section class="gap-s"><h2 class="section">Then (${more.length})</h2>${list("", more)}</section>` : "";
     const infoList = info.length ? `<section class="gap-s"><h2 class="section">For your information</h2>${list("", info)}</section>` : "";
@@ -49,9 +52,9 @@
       extra = `<section class="gap-s"><h2 class="section">Budget position</h2><a class="card" href="#/money" data-hint><div class="tile-row" style="grid-template-columns:repeat(2,1fr)"><div class="tile"><strong>${P.money(value)}</strong><span>Contract value, ${all.length} jobs</span></div><div class="tile"><strong>${(value ? (profit / value) * 100 : 0).toFixed(1)}%</strong><span>Budgeted margin after reserve</span></div></div><p class="small muted">Original budgets only. Real costs and claims are not recorded yet. ${P.hint("new", "New backend B3, B6")}</p></a></section>`;
     }
     if (role === "office") {
-      extra = `<section class="gap-s"><h2 class="section">Jobs</h2><div class="card flat list">${jobs.map((c) => { const n = actions.filter((a) => a.job.id === c.id && a.state === "ready").length; return P.row({ href: "#/job/" + c.id, icon: "briefcase", title: esc(c.reference + " · " + c.name), sub: n ? `${n} need you` : "Nothing needed", chips: n ? P.chip("pending", `${n} to do`, "bell") : P.chip("saved", "Up to date", "check") }); }).join("")}</div></section>`;
+      extra = `<section class="gap-s"><h2 class="section">Jobs</h2><div class="card flat list">${jobs.map((c) => { const n = actions.filter((a) => a.job.id === c.id && a.state === "ready").length; const stop = P.S.work_holds.filter((h) => h.contract_id === c.id && ["active", "correction_submitted", "awaiting_release"].includes(h.status)).length; const chips = (n ? P.chip("pending", `${n} to do`, "bell") : "") + (stop ? P.chip("blocked", `${stop} stopped`, "stop") : n ? "" : P.chip("saved", "Nothing needed", "check")); return P.row({ href: "#/job/" + c.id, icon: "briefcase", title: esc(c.reference + " · " + c.name), sub: n ? `${n} need you` : stop ? "Work is still restricted" : "Nothing needed", chips }); }).join("")}</div></section>`;
     }
-    return `${head}<div class="two-col"><div class="gap-s" style="display:grid;gap:16px">${alertBox}${main}${thenList}${infoList}</div><div style="display:grid;gap:16px">${riskList}${waitList}${savedList}${extra}</div></div>`;
+    return `${head}<div class="two-col"><div class="gap-s" style="display:grid;gap:16px">${holdBanner}${alertBox}${main}${thenList}${infoList}</div><div style="display:grid;gap:16px">${riskList}${waitList}${savedList}${extra}</div></div>`;
   };
 
   // ---------------------------------------------------------------- morning checks

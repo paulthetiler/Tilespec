@@ -32,7 +32,7 @@ Also run:
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Engine, loader, flags, navigation and review points (independence, gate vs alert classes, config from working hours, no hard-coded clock times, no dead-end actions, queue completeness, one engine for app and preview) | `npm test` | 149 pass (38 in `tests/next-actions.test.ts`) |
+| Engine, loader, flags, navigation and review points (independence, gate vs alert classes, config from working hours, no hard-coded clock times, no dead-end actions, queue completeness, owner counts, idle copy, one engine for app and preview) | `npm test` | 153 pass (42 in `tests/next-actions.test.ts`) |
 | Type check | `npm run typecheck` | Clean |
 | Preview bundle is current | `npm run preview:check` | Clean |
 | 624 screen openings (6 people, 26 routes, 2 scenarios, 2 layouts) | `npm run preview:smoke` | No script errors, no empty screen, owner and subcontractor 3 tabs and others at most 4, no STOP WORK, no Risks tab, no "Tell the supervisor", no dead-end buttons, no money to the wrong person |

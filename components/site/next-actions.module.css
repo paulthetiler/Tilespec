@@ -1,4 +1,5 @@
-.today { display: grid; gap: 20px; min-width: 0; }
+.today { display: grid; gap: 20px; min-width: 0; overflow-x: clip; }
+.head, .hero, .empty, .layout, .section, .row { min-width: 0; }
 .today h1, .today h2, .today h3, .today p { margin-bottom: 0; }
 .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .hello { font-size: 21px; font-weight: 700; }
@@ -38,3 +39,13 @@ a.row:hover { background: #f7fbfa; }
   .layout > div { display: grid; gap: 20px; }
 }
 @media (max-width: 899px) { .layout, .layout > div { display: grid; gap: 20px; } }
+@media (max-width: 360px) {
+  .head { gap: 8px; }
+  .hello { font-size: 18px; }
+  .title { font-size: 30px; }
+  .heroTitle { font-size: 26px; }
+  .report { min-height: 44px; padding: 8px 12px; font-size: 14px; }
+  .hero, .empty { padding: 14px; }
+  .cta { min-height: 56px; font-size: 16px; }
+  .row { padding: 12px; }
+}

@@ -46,7 +46,8 @@
   root.TSRules = {
     config,
     compute: (s, viewer) => E.compute(s, viewer, config),
-    nextAction: E.nextAction, buildQueue: E.buildQueue, classChip: E.classChip, classNote: E.classNote, ctaLabel: E.ctaLabel, resolveTimings: E.resolveTimings,
+    nextAction: E.nextAction, buildQueue: E.buildQueue, queueCounts: E.queueCounts,
+    classChip: E.classChip, classNote: E.classNote, ctaLabel: E.ctaLabel, idleCopy: E.idleCopy, todayCountCopy: E.todayCountCopy, resolveTimings: E.resolveTimings,
     lib: E.makeLookups, roleKey: E.roleKey, visibleContractIds: (s, viewer) => E.visibleContractIds(s, viewer),
     STAGE: E.STAGE_LABEL, addDays: E.addDays, dayDiff: E.dayDiff, money: E.pounds, budgetSummary, savedToday, allocationFor,
   };

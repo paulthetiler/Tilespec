@@ -27,3 +27,28 @@ export function classNote(a: Pick<NextAction, "kind" | "blocks">): string {
   if (a.kind === "alert") return "TileSpec does not block anything because of this. It is shown first because it matters, and the people named have to act on it.";
   return "A reminder. Nothing is held up by it.";
 }
+
+/**
+ * Idle copy for Today. Never says "you are up to date": that would sound as if an
+ * active restriction had been cleared when the person simply has nothing to press.
+ */
+export function idleCopy(opts: { activeRestrictions: boolean; waitingOnOthers: boolean }): { title: string; text: string } {
+  if (opts.activeRestrictions) {
+    return {
+      title: "Work is still restricted",
+      text: "Affected work stays stopped until the office restarts it. Completing your own tasks does not clear a restriction.",
+    };
+  }
+  if (opts.waitingOnOthers) {
+    return { title: "Nothing needs you right now", text: "Other people are working on the items below." };
+  }
+  return { title: "Nothing needs you right now", text: "New work appears here as soon as something is saved that needs you." };
+}
+
+/** Owner/office Today count: actions to take are never mixed with informational alerts. */
+export function todayCountCopy(actions: number, informational = 0): string {
+  const need = actions === 0 ? "Nothing needs you right now." : actions === 1 ? "1 thing needs you." : `${actions} things need you.`;
+  if (!informational) return need;
+  const info = informational === 1 ? "1 informational alert." : `${informational} informational alerts.`;
+  return `${need} ${info}`;
+}

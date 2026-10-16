@@ -137,7 +137,7 @@ A deterministic, tested order means two people looking at the same job see the s
 
 ### The queue (review point 8)
 
-`buildQueue()` splits the sorted list into: the **main button** (the first actionable item only), **Then** (every other actionable item, never truncated), **For your information**, **Risks and exceptions** (owner only), **Waiting on others** and **alerts** for items the viewer does not act on. Every action appears in exactly one list, and a test proves nothing is dropped. Information-only items never become the main button.
+`buildQueue()` splits the sorted list into: the **main button** (the first ready action only), **Then** (every other ready action, never truncated), **For your information** (information-only items such as a low margin), **Risks and exceptions** (owner only: gates, alerts and overdue items they cannot act on), **Waiting on others** and **alerts** for items the viewer does not act on. Every action appears in exactly one list, and a test proves nothing is dropped. Information-only items never become the main button, and they are never counted as work to do or as a risk that has been cleared. The idle heading never says "you are up to date" while a restriction is still active.
 
 ## 4.6 Parallel processes
 

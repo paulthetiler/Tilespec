@@ -60,7 +60,7 @@ export interface Queue {
   then: ViewerAction[];
   /** Read-only information (for example a budget margin). Never a button that leads nowhere. */
   info: ViewerAction[];
-  /** Only filled when groupExceptions is set: gates, alerts, overdue items and information that are not this person's to do. */
+  /** Only filled when groupExceptions is set: gates, alerts and overdue items this person cannot act on. Informational items stay in `info`. */
   exceptions: ViewerAction[];
   waiting: ViewerAction[];
   /** Alerts this person must see prominently, whether or not they are the one to act. */
@@ -70,17 +70,31 @@ export interface Queue {
 /** Every action lands in exactly one of next, then, info, exceptions or waiting. Nothing is hidden. */
 export function buildQueue(actions: ViewerAction[], options: { groupExceptions?: boolean } = {}): Queue {
   const ready = actions.filter(a => a.state === "ready");
-  const rest = actions.filter(a => a.state !== "ready");
-  const isException = (a: ViewerAction) => a.kind !== "reminder" || !!a.overdue || !!a.informationOnly;
+  const infoItems = actions.filter(a => a.state === "info");
+  const rest = actions.filter(a => a.state !== "ready" && a.state !== "info");
+  // Exceptions are gates, alerts and overdue items this person cannot act on.
+  // Informational items (for example a low margin) stay in `info` and are never
+  // counted as work to do or as a risk that has been cleared.
+  const isException = (a: ViewerAction) => a.kind !== "reminder" || !!a.overdue;
   const exceptions = options.groupExceptions ? rest.filter(isException) : [];
   const remaining = rest.filter(a => !exceptions.includes(a));
   return {
     next: ready[0] ?? null,
     then: ready.slice(1),
-    info: remaining.filter(a => a.state === "info"),
+    info: infoItems,
     exceptions,
-    waiting: remaining.filter(a => a.state !== "info"),
+    waiting: remaining,
     alerts: actions.filter(a => a.kind === "alert"),
+  };
+}
+
+/** Counts that the owner Today header uses: actions to take vs informational alerts. */
+export function queueCounts(q: Queue): { actions: number; informational: number; exceptions: number; waiting: number } {
+  return {
+    actions: (q.next ? 1 : 0) + q.then.length,
+    informational: q.info.length,
+    exceptions: q.exceptions.length,
+    waiting: q.waiting.length,
   };
 }
 

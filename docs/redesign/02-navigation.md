@@ -108,7 +108,7 @@ Each role's first screen has one answer in the largest type, one button, and the
 | Supervisor, quiet morning | ![](screenshots/supervisor-today-mobile.png) | "Do the morning checks" |
 | Supervisor, busy day | ![](screenshots/supervisor-today-busy-mobile.png) | "Check the repair" |
 | Office | ![](screenshots/office-today-mobile.png) | "Check the fix and decide" |
-| Owner | ![](screenshots/owner-today-mobile.png) | A decision, or "You are up to date". Risks and exceptions below |
+| Owner | ![](screenshots/owner-today-mobile.png) | A decision if they can take one, with the action count separate from informational alerts. Risks and exceptions below. Never "you are up to date" while work is still restricted |
 | Subcontractor | ![](screenshots/sub-today-mobile.png) | Where to be and what to do |
 
 How to run the test with real people is in the acceptance tests.

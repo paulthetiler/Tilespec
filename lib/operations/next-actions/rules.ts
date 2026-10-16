@@ -127,7 +127,7 @@ rule("G06_G07_G08_inspections", ({ s, L, cfg }) => {
         why: "A required check did not pass. This work stays held until it is corrected and checked again.",
         due: null, requires: ["Correction done", "A new inspection"], doneWhen: "A later inspection for the same location and activity passes", next: "Office is told once it passes",
         audience: { supervisor: "act", office: "see" }, blocks: INSPECTION_BLOCKS, enforcedByBackend: true,
-        source: { table: "location_inspections", id: last.id }, route: { screen: "inspect", id: plan.work_area_id },
+        source: { table: "location_inspections", id: last.id }, route: { screen: "inspect", id: plan.work_area_id, stage: plan.stage },
       });
     } else if (!last && plan.planned_start <= s.today && plan.planned_end >= s.today) {
       out.push({

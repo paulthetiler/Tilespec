@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { actionHref, buildQueue, classChip, classNote, compute, configFromEnv, ctaLabel, type ViewerAction } from "@/lib/operations/next-actions";
+import { actionHref, buildQueue, classChip, classNote, compute, configFromEnv, ctaLabel, idleCopy, type ViewerAction } from "@/lib/operations/next-actions";
 import { loadSiteSnapshot } from "@/lib/operations/next-actions/snapshot-data";
 import { WorkReleaseList } from "@/components/site/work-release-list";
 import { qualityOverviewFor } from "@/lib/operations/quality-data";
@@ -42,7 +42,8 @@ export async function NextActionsToday({ supabase, member, contract }: Props) {
   ]);
   checkDatabase(details.error);
   checkDatabase(documents.error);
-  const holds = snapshot.work_holds;
+  const holds = snapshot.work_holds.filter(h => ["active", "correction_submitted", "awaiting_release"].includes(h.status));
+  const idle = idleCopy({ activeRestrictions: holds.length > 0, waitingOnOthers: waiting.length + banner.length > 0 });
   const areaName = (id: string | null) => (id ? snapshot.work_areas.find(a => a.id === id)?.path_ids.map(p => snapshot.work_areas.find(x => x.id === p)?.name).filter(Boolean).join(" › ") : null) || "Whole site";
   const firstName = member.display_name.trim().split(/\s+/)[0] || "there";
   const information: [string, string][] = [["Client", "client"], ["Site contact", "site_contact"], ["Scope", "scope"], ["Exclusions", "exclusions"], ["Tile specification", "tile_specification"],
@@ -99,8 +100,8 @@ export async function NextActionsToday({ supabase, member, contract }: Props) {
           {hero.requires.length > 0 && <p className={styles.fine}>You will need: {hero.requires.join(", ")}.</p>}
           {hero.kind !== "reminder" && <p className={styles.fine}>{classNote(hero)}</p>}
         </section> : <section className={styles.empty}>
-          <h2>You are up to date</h2>
-          <p className={styles.sub}>{waiting.length || banner.length ? "Other people are working on the items below." : "Nothing is waiting. New work appears here as soon as something is saved that needs you."}</p>
+          <h2>{idle.title}</h2>
+          <p className={styles.sub}>{idle.text}</p>
         </section>}
 
         {queue.then.length > 0 && <section className={styles.section} aria-label="Then">

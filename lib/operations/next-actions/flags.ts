@@ -14,8 +14,33 @@ const ENV_NAME: Record<FlagName, string> = { nextActions: "FEATURE_NEXT_ACTIONS"
 const ON = new Set(["1", "true", "on", "yes", "all"]);
 const ROLES = new Set<string>(["owner", "contracts_manager", "supervisor", "lead_installer", "subcontract_installer"]);
 
+/**
+ * Production stays off unless the owner sets the variables. Vercel Preview
+ * deployments default both flags to the supervisor role so the working
+ * Supervisor Today can be reviewed without enabling anything in production.
+ * An explicit empty value still turns a flag off.
+ */
+export function flagEnv(env: Record<string, string | undefined> = process.env): Record<string, string | undefined> {
+  if (env.VERCEL_ENV !== "preview") return env;
+  return {
+    ...env,
+    FEATURE_NEXT_ACTIONS: env.FEATURE_NEXT_ACTIONS ?? "supervisor",
+    FEATURE_ROLE_SHELL: env.FEATURE_ROLE_SHELL ?? "supervisor",
+  };
+}
+
+/**
+ * The clickable Supervisor Today prototype is copied to /preview/workflow
+ * on Vercel Preview and local `next dev` only. Production never serves it.
+ */
+export function workflowPreviewExposed(env: Record<string, string | undefined> = process.env): boolean {
+  if (env.VERCEL_ENV === "preview") return true;
+  if (env.VERCEL) return false;
+  return env.NODE_ENV === "development";
+}
+
 export function flagEnabled(name: FlagName, role: MemberRole, env: Record<string, string | undefined> = process.env): boolean {
-  const raw = (env[ENV_NAME[name]] ?? "").trim().toLowerCase();
+  const raw = (flagEnv(env)[ENV_NAME[name]] ?? "").trim().toLowerCase();
   if (!raw) return false;
   if (ON.has(raw)) return true;
   const listed = raw.split(",").map(x => x.trim()).filter(Boolean);
