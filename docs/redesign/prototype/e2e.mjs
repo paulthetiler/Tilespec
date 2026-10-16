@@ -194,10 +194,20 @@ await scenario("Desktop uses the same four destinations as a side rail", "role=u
   assert.equal(await page.locator(".tab").count(), 4);
 });
 
-await scenario("Owner has three destinations and risks live under Today", "role=u-alex&scenario=busy", async ({ page, text, click }) => {
+await scenario("Owner has three destinations and risks live under Today", "role=u-alex&scenario=busy", async ({ page, text }) => {
   assert.equal(await page.locator(".tab").count(), 3);
   assert.equal(await page.locator(".tab", { hasText: /^Risks$/ }).count(), 0);
-  assert.match(await text(), /Risks and exceptions \(\d+\)/);
+  const t = await text();
+  assert.doesNotMatch(t, /You are up to date/i);
+  const counts = await page.evaluate(() => {
+    const a = TSRules.compute(P.S, P.viewer());
+    const q = TSRules.buildQueue(a, { groupExceptions: true });
+    return TSRules.queueCounts(q);
+  });
+  assert.match(t, new RegExp(counts.actions === 1 ? "1 thing needs you" : `${counts.actions} things need you`));
+  assert.match(t, new RegExp(`${counts.informational} informational alert`));
+  const risks = Number((t.match(/Risks and exceptions \((\d+)\)/) || [])[1]);
+  assert.equal(risks, counts.exceptions, "informational alerts are not mixed into the risks count");
 });
 
 await scenario("Subcontractor has Today, Fixes and Paperwork and no Tell the supervisor", "role=u-marek&scenario=busy", async ({ page, go, text }) => {

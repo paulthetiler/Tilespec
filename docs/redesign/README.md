@@ -17,6 +17,8 @@ Every person should know what to do next within three seconds. Underneath, the a
 
 Open `docs/redesign/prototype/index.html` in any browser, or serve the folder (`npx serve docs/redesign/prototype`) and open it on a phone. For a direct link to the phone view as a supervisor add `?role=u-dave&device=mobile`. The preview needs no build step (the bundled engine is committed).
 
+On a Vercel Preview deployment the same prototype is served at `/preview/workflow/?role=u-dave&device=mobile#/today`. That path is not copied into production builds. Preview also defaults `FEATURE_NEXT_ACTIONS` and `FEATURE_ROLE_SHELL` to `supervisor` so the real Supervisor Today (`/admin/supervisor`, after sign-in) can be reviewed without enabling either flag in production.
+
 1. Pick a person in the bar at the top. Try Dave (supervisor), Sam (office), Alex (owner), Marek (subcontractor).
 2. Toggle **Phone** and **Desktop**.
 3. Choose **Busy day** to see a stop, snags, an inspection request and unfinished work.

@@ -22,8 +22,8 @@
     const L = P.L(), jobs = [...visible(ctx)].map((id) => L.contracts.get(id));
     return `<header class="gap-s"><h1 class="title">Jobs</h1><p class="sub">Everything about a job lives inside it.</p></header><div class="card flat list">${jobs.map((c) => {
       const mine = ctx.actions.filter((a) => a.job.id === c.id);
-      const n = mine.filter((a) => a.state === "ready").length, stop = P.S.work_holds.filter((h) => h.contract_id === c.id && h.status !== "released").length;
-      const chips = (n ? P.chip("pending", `${n} for you`, "bell") : P.chip("saved", "Up to date", "check")) + (stop ? P.chip("blocked", `${stop} stopped`, "stop") : "");
+      const n = mine.filter((a) => a.state === "ready").length, stop = P.S.work_holds.filter((h) => h.contract_id === c.id && ["active", "correction_submitted", "awaiting_release"].includes(h.status)).length;
+      const chips = (n ? P.chip("pending", `${n} for you`, "bell") : "") + (stop ? P.chip("blocked", `${stop} stopped`, "stop") : n ? "" : P.chip("saved", "Nothing needed", "check"));
       return P.row({ href: "#/job/" + c.id, icon: "briefcase", title: esc(c.reference + " · " + c.name), sub: esc(c.client), chips });
     }).join("")}</div>`;
   };
@@ -40,7 +40,7 @@
     const money = P.canSeeMoney(ctx) ? S.commercials.find((x) => x.contract_id === c.id) : null;
     const sec = (title, body, open) => `<details class="more" ${open ? "open" : ""}><summary>${title}</summary><div style="padding:0 0 16px;display:grid;gap:10px">${body}</div></details>`;
     return `${P.back("#/jobs", "Jobs")}<header class="gap-s"><p class="eyebrow">${esc(c.reference)} · ${esc(c.client)}</p><h1 class="title" style="font-size:clamp(32px,8cqw,46px)">${esc(c.name)}</h1><p class="sub">${esc(c.address)}</p></header>
-      ${nxt ? P.hero(nxt) : P.empty("Nothing needs doing on this job", "It is set up and up to date.")}
+      ${nxt ? P.hero(nxt) : P.empty("Nothing needs doing on this job", P.S.work_holds.some((h) => h.contract_id === c.id && ["active", "correction_submitted", "awaiting_release"].includes(h.status)) ? "Work is still restricted at this job. Completing set-up does not restart stopped work." : "It is set up. New work appears here when something is saved that needs you.")}
       ${rest.length ? `<section class="gap-s"><h2 class="section">Also on this job</h2><div class="card flat list">${rest.map(P.actionRow).join("")}</div></section>` : ""}
       <section class="card" style="padding-top:6px;padding-bottom:6px">
       ${sec(`Plan: who works where <span class="chip done">${plans.length}</span> ${P.hint("exists")}`, `${plans.map((p) => `<div class="row" role="group" style="border:0;padding:6px 0;min-height:0"><span class="text"><strong>${esc(P.L().teams.get(p.team_id).name)} · ${esc(L.path(p.work_area_id))}</strong><span>${esc(R.STAGE[p.stage])} · ${esc(P.fd(p.planned_start))} to ${esc(P.fd(p.planned_end))}</span></span></div>`).join("") || `<p class="muted">Nothing planned.</p>`}<button class="btn secondary" data-act="plan" data-job="${c.id}">${P.ic("plus")}Plan work</button>`)}

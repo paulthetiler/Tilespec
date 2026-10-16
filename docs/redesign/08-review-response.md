@@ -34,7 +34,7 @@ FEATURE_NEXT_ACTIONS=1              # on for everyone ("1", "true", "on", "yes" 
 FEATURE_ROLE_SHELL=supervisor       # on for one role only (comma list of database roles)
 ```
 
-A value that is not recognised turns the flag off.
+A value that is not recognised turns the flag off. Production is never turned on by this branch. Vercel Preview deployments default both flags to `supervisor` so the working Supervisor Today can be reviewed; an explicit empty value still turns a flag off.
 
 ### Configuration (all optional)
 
@@ -53,7 +53,7 @@ A value that is not recognised turns the flag off.
 
 ```bash
 npm run typecheck
-npm test                 # 149 pass
+npm test                 # engine, flags, navigation, independence, owner counts, idle copy
 npm run preview:check
 npm run preview:smoke    # 624 screen openings
 npm run preview:e2e      # 17 journeys

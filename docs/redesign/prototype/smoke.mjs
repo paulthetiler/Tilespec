@@ -34,6 +34,9 @@ for (const device of ["mobile", "desktop"]) {
         if ((await page.locator(".tab", { hasText: /^Risks$/ }).count()) > 0) errors.push(`${device}/${scenario}/${id}: Risks tab`);
         if (role === "subcontractor" && /£|margin|contract value|budget/i.test(text)) errors.push(`${scenario}/${id}${r}: money visible to subcontractor`);
         if (id === "u-jo" && /£|Budgeted/.test(text)) errors.push(`${scenario}/${id}${r}: money visible to office without money access`);
+        if (r === "/today" && /You are up to date/i.test(text)) errors.push(`${device}/${scenario}/${id}${r}: idle copy says up to date`);
+        const holds = await page.evaluate(() => (P.S.work_holds || []).filter((h) => ["active", "correction_submitted", "awaiting_release"].includes(h.status)).length);
+        if (r === "/today" && holds > 0 && /up to date/i.test(text)) errors.push(`${device}/${scenario}/${id}${r}: up to date while a restriction is active`);
       }
       await page.close();
     }

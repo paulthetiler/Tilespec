@@ -5,7 +5,7 @@ import path from "node:path";
 import Data from "../docs/redesign/prototype/data.js";
 import * as engine from "../lib/operations/next-actions";
 import {
-  buildQueue, compute, configFromEnv, DEFAULT_CONFIG, flagEnabled, nextAction, parseWorkingHours, queueIds, resolveTimings,
+  actionHref, buildQueue, compute, configFromEnv, DEFAULT_CONFIG, flagEnabled, hrefIsExistingForm, idleCopy, nextAction, parseWorkingHours, queueCounts, queueIds, resolveTimings, todayCountCopy, workflowPreviewExposed,
   type NextActionSnapshot, type ViewerAction,
 } from "../lib/operations/next-actions";
 import { buildSiteDay, nextAction as legacyNextAction } from "../lib/operations/site-day";
@@ -284,10 +284,19 @@ test("risks and exceptions are grouped for the owner without hiding anything", (
   const s = make("busy");
   const alex = compute(s, who(s, "Alex"));
   const q = buildQueue(alex, { groupExceptions: true });
+  const counts = queueCounts(q);
   assert.ok(q.exceptions.length > 0);
-  assert.ok(q.exceptions.every(a => a.state !== "ready"));
-  assert.ok(q.exceptions.every(a => a.kind !== "reminder" || a.overdue || a.informationOnly));
+  assert.ok(q.exceptions.every(a => a.state !== "ready" && a.state !== "info"));
+  assert.ok(q.exceptions.every(a => a.kind !== "reminder" || a.overdue));
   assert.ok(q.exceptions.some(a => a.rule === "A02"), "expired insurance is among the risks");
+  assert.ok(q.info.every(a => a.informationOnly), "budget items stay informational");
+  assert.ok(q.info.some(a => a.rule === "R14"), "a low margin is counted as information, not as a risk");
+  assert.ok(!q.exceptions.some(a => a.rule === "R14"), "informational alerts are not mixed into the risks count");
+  assert.equal(counts.actions, (q.next ? 1 : 0) + q.then.length);
+  assert.equal(counts.informational, q.info.length);
+  assert.equal(counts.exceptions, q.exceptions.length);
+  assert.match(todayCountCopy(counts.actions, counts.informational), /informational alert/);
+  assert.ok(!/up to date/i.test(todayCountCopy(counts.actions, counts.informational)));
 });
 
 // ---- review point 7: one source of truth -------------------------------------------------------------
@@ -355,6 +364,19 @@ test("feature flags are off unless set, and can be staged by role", () => {
   assert.equal(flagEnabled("roleShell", "supervisor", { FEATURE_ROLE_SHELL: "supervisor, lead_installer" }), true);
   assert.equal(flagEnabled("roleShell", "owner", { FEATURE_ROLE_SHELL: "supervisor,lead_installer" }), false);
   assert.equal(flagEnabled("roleShell", "owner", { FEATURE_ROLE_SHELL: "supervisr,owner" }), false, "a typo turns it off rather than on");
+  assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "preview" }), true, "preview defaults on for supervisors");
+  assert.equal(flagEnabled("roleShell", "supervisor", { VERCEL_ENV: "preview" }), true);
+  assert.equal(flagEnabled("nextActions", "owner", { VERCEL_ENV: "preview" }), false, "preview default is supervisor only");
+  assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "production" }), false, "production stays off");
+  assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "preview", FEATURE_NEXT_ACTIONS: "" }), false, "explicit empty still off");
+  assert.equal(workflowPreviewExposed({ VERCEL_ENV: "preview" }), true);
+  assert.equal(workflowPreviewExposed({ VERCEL_ENV: "production", VERCEL: "1" }), false, "production never serves the prototype");
+  assert.equal(workflowPreviewExposed({ VERCEL: "1", VERCEL_ENV: "development" }), false);
+  assert.equal(workflowPreviewExposed({ NODE_ENV: "development" }), true);
+  assert.equal(workflowPreviewExposed({ NODE_ENV: "production" }), false);
+  const config = source("next.config.ts") + source("middleware.ts");
+  assert.match(config, /workflowPreviewExposed/);
+  assert.match(config, /\/preview\/workflow/);
 });
 
 // ---- navigation: review points 2 and 3 --------------------------------------------------------------
@@ -425,6 +447,87 @@ test("Report an issue replaces Stop Work and still reaches the existing hold and
   assert.match(report, /flagEnabled\("nextActions"/);
   const nav = source("components/site/site-nav.tsx");
   assert.match(nav, /reportIssue \?/);
+  const holdPage = source("app/admin/holds/new/page.tsx");
+  assert.match(holdPage, /initialType=\{q\.type==="safety"\?"safety":"quality"\}/);
+});
+
+test("every Supervisor Today action opens an existing form", () => {
+  const base = "/admin/supervisor/sites/c1";
+  for (const scenario of ["start", "busy"] as const) {
+    const s = make(scenario);
+    for (const name of ["Dave", "Ellie"]) {
+      const ready = compute(s, who(s, name)).filter(a => a.state === "ready");
+      for (const a of ready) {
+        const href = actionHref(a, base);
+        assert.ok(hrefIsExistingForm(href, base), `${name} ${scenario} ${a.rule} ${a.id} -> ${href}`);
+        if (a.rule === "G06" || a.rule === "G07") assert.match(href, /[?&]stage=/, `${a.rule} includes the stage so the inspection form opens on the right activity`);
+        if (a.rule === "R01") assert.equal(href, `${base}/checks`);
+        if (a.rule === "R02") assert.match(href, /workforce#earlier-work/);
+        if (a.rule === "R03") assert.equal(href.split("#")[0], `${base}/workforce`);
+        if (a.rule === "G10" || a.rule === "R13") assert.match(href, /^\/admin\/snags\//);
+        if (a.rule === "G01" || a.rule === "G02") assert.match(href, /^\/admin\/holds\//);
+        if (a.rule === "R16") assert.match(href, /\/tasks\//);
+      }
+    }
+  }
+  const holdFix = actionHref({ route: { screen: "fix", id: "h3", kind: "hold" } }, base);
+  const snagFix = actionHref({ route: { screen: "fix", id: "s1", kind: "snag" } }, base);
+  assert.equal(holdFix, "/admin/holds/h3");
+  assert.equal(snagFix, "/admin/snags/s1");
+});
+
+test("a supervisor cannot see another contract's actions", () => {
+  const s = make("busy");
+  const dave = compute(s, who(s, "Dave"));
+  const ellie = compute(s, who(s, "Ellie"));
+  assert.ok(dave.some(a => a.job.id === "c1") && ellie.some(a => a.job.id === "c3"));
+  assert.ok(dave.every(a => !a.job.id || a.job.id === "c1"), "Dave is allocated to Riverside only");
+  assert.ok(ellie.every(a => !a.job.id || a.job.id === "c3"), "Ellie is allocated to St Anne's only");
+  assert.ok(!dave.some(a => a.job.id === "c3") && !ellie.some(a => a.job.id === "c1"));
+});
+
+test("feature flags work separately, together and off, and a typo stays off", () => {
+  const off = {};
+  const nextOnly = { FEATURE_NEXT_ACTIONS: "supervisor" };
+  const shellOnly = { FEATURE_ROLE_SHELL: "supervisor" };
+  const both = { FEATURE_NEXT_ACTIONS: "supervisor", FEATURE_ROLE_SHELL: "supervisor" };
+  for (const role of ["owner", "contracts_manager", "supervisor", "lead_installer"] as const) {
+    assert.equal(flagEnabled("nextActions", role, off), false, `${role} next off`);
+    assert.equal(flagEnabled("roleShell", role, off), false, `${role} shell off`);
+  }
+  assert.equal(flagEnabled("nextActions", "supervisor", nextOnly), true);
+  assert.equal(flagEnabled("roleShell", "supervisor", nextOnly), false);
+  assert.equal(flagEnabled("nextActions", "supervisor", shellOnly), false);
+  assert.equal(flagEnabled("roleShell", "supervisor", shellOnly), true);
+  assert.equal(flagEnabled("nextActions", "supervisor", both), true);
+  assert.equal(flagEnabled("roleShell", "supervisor", both), true);
+  assert.equal(flagEnabled("nextActions", "owner", both), false, "owner is not in the staged list");
+  assert.equal(flagEnabled("roleShell", "owner", both), false);
+  assert.equal(flagEnabled("nextActions", "supervisor", { FEATURE_NEXT_ACTIONS: "SUPERVISR" }), false);
+  const layout = source("app/admin/layout.tsx");
+  const page = source("app/admin/supervisor/sites/[id]/page.tsx");
+  assert.match(layout, /flagEnabled\("roleShell"/);
+  assert.match(page, /flagEnabled\("nextActions"/);
+  assert.match(page, /STOP WORK/);
+  assert.match(layout, /Office menu/);
+});
+
+test("idle copy never says work is up to date while a restriction is still active", () => {
+  const restricted = idleCopy({ activeRestrictions: true, waitingOnOthers: true });
+  const waiting = idleCopy({ activeRestrictions: false, waitingOnOthers: true });
+  const clear = idleCopy({ activeRestrictions: false, waitingOnOthers: false });
+  assert.equal(restricted.title, "Work is still restricted");
+  assert.match(restricted.text, /does not clear a restriction/);
+  for (const copy of [restricted, waiting, clear]) {
+    assert.ok(!/up to date/i.test(`${copy.title} ${copy.text}`), copy.title);
+  }
+  const today = source("components/site/next-actions-today.tsx");
+  assert.match(today, /idleCopy\(/);
+  assert.match(today, /Work that is stopped/);
+  assert.ok(!/You are up to date/.test(today));
+  const prototype = source("docs/redesign/prototype/screens-site.js") + source("docs/redesign/prototype/screens-office.js");
+  assert.ok(!/You are up to date/.test(prototype));
+  assert.ok(!/P\.chip\("saved", "Up to date"/.test(prototype));
 });
 
 test("labels never promise more than the backend does", () => {
