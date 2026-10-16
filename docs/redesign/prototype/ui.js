@@ -222,9 +222,10 @@
     const actions = P.actions = R.compute(P.S, v);
     P.cur = { r, role, v, actions };
     const screen = P.screens[r.screen] || P.screens.today;
+    P.todayBadge = null;
     const body = screen(r, P.cur);
     const tab = P.tabOf(r.screen, role);
-    const ready = R.queueCounts(R.buildQueue(actions)).actions;
+    const ready = P.todayBadge == null ? R.queueCounts(R.buildQueue(actions)).actions : P.todayBadge;
     const nav = P.NAV[role];
     const legend = `<div class="legend" role="note"><strong>Backend reality check</strong> ${P.hint("exists", "Built")} already in the app ${P.hint("query", "Query only")} new screen or read-only query, no schema change ${P.hint("new", "New backend")} needs approval before it could exist</div>`;
     dev.innerHTML = `${legend}<div class="app">
