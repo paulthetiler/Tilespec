@@ -32,10 +32,19 @@ Also run:
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Engine, loader, flags, navigation and review points (independence, gate vs alert classes, config from working hours, no hard-coded clock times, no dead-end actions, queue completeness, owner counts, idle copy, one engine for app and preview) | `npm test` | 153 pass (42 in `tests/next-actions.test.ts`) |
+| Engine, loader, flags, navigation and review points (independence, gate vs alert classes, config from working hours, no hard-coded clock times, no dead-end actions, queue completeness, owner counts, idle copy, one engine for app and preview) | `npm test` | 170 pass: 111 existing regressions, 53 engine/flag/navigation checks and 6 app loader/rendering/access checks |
 | Type check | `npm run typecheck` | Clean |
 | Preview bundle is current | `npm run preview:check` | Clean |
 | 624 screen openings (6 people, 26 routes, 2 scenarios, 2 layouts) | `npm run preview:smoke` | No script errors, no empty screen, owner and subcontractor 3 tabs and others at most 4, no STOP WORK, no Risks tab, no "Tell the supervisor", no dead-end buttons, no money to the wrong person |
+| Actual served preview at both `/preview/workflow` and `/preview/workflow/`, plus existing public/auth boundaries | `npm run test:browser` | 13 passed; one intentional desktop skip of the phone-only menu test |
+| Real Supervisor Today, role shell and issue-report components with read-only synthetic dependencies | `npm run test:next-actions-ui` | 14 reports passed at 320px, 390px and 820px; 9 screenshots; controls at least 44px, no overflow or browser errors |
+| Narrow-phone review journeys including the owner-count fixes | `npm run preview:mobile` | 12 captures at 320px and 390px, zero horizontal overflow |
+| Production compilation with both flags explicitly off | `npm run build` | Passed |
+
+The app loader and component harnesses use read-only fixtures, not hosted Auth,
+RLS, Storage or writes. The existing database permissions and mutating forms
+remain unchanged. No database migration or live staging change is needed to run
+these Phase 2 checks.
 
 ## 7.2 To run against the real build
 

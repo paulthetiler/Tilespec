@@ -1,6 +1,6 @@
 # TileSpec Admin: Apple-simple workflow redesign
 
-**Status: Phase 1 reviewed and approved in direction. All eight review points are addressed (see [08-review-response.md](08-review-response.md)). Phase 2 (shared rules engine, Supervisor Today, role-specific navigation) is built behind feature flags that are off by default. No schema changes. Not merged or deployed.**
+**Status: Phase 1 was squash-merged into `main` as `9cebbbe`. Phase 2 continues the seven saved commits through `cb0ce756` on a fresh branch, without replaying Phase 1. The shared rules engine, Supervisor Today and role navigation are behind flags that stay off by default in every environment. No schema changes or production rollout. See [08-review-response.md](08-review-response.md) for scope and validation.**
 
 The documents describe the design. The code is in `lib/operations/next-actions/`, `lib/operations/role-nav.ts` and `components/`. The mobile preview in `docs/redesign/prototype/` runs the same engine as the app.
 
@@ -17,7 +17,7 @@ Every person should know what to do next within three seconds. Underneath, the a
 
 Open `docs/redesign/prototype/index.html` in any browser, or serve the folder (`npx serve docs/redesign/prototype`) and open it on a phone. For a direct link to the phone view as a supervisor add `?role=u-dave&device=mobile`. The preview needs no build step (the bundled engine is committed).
 
-On a Vercel Preview deployment the same prototype is served at `/preview/workflow/?role=u-dave&device=mobile#/today`. That path is not copied into production builds. Preview also defaults `FEATURE_NEXT_ACTIONS` and `FEATURE_ROLE_SHELL` to `supervisor` so the real Supervisor Today (`/admin/supervisor`, after sign-in) can be reviewed without enabling either flag in production.
+On a Vercel Preview deployment the same fictional-data prototype is served at `/preview/workflow/?role=u-dave&device=mobile#/today`. That path is removed from production builds. Both `FEATURE_NEXT_ACTIONS` and `FEATURE_ROLE_SHELL` remain **off by default in every environment**, including previews. Reviewing the real Supervisor Today (`/admin/supervisor`, after sign-in) requires explicit role-scoped opt-in on an approved test environment; the static preview does not enable either application flag.
 
 1. Pick a person in the bar at the top. Try Dave (supervisor), Sam (office), Alex (owner), Marek (subcontractor).
 2. Toggle **Phone** and **Desktop**.
@@ -71,10 +71,11 @@ To see the system working across people: as Dave tap **Report an issue**, choose
 
 ```bash
 npm run typecheck        # tsc --noEmit
-npm test                 # 149 tests, including 38 for the engine
+npm test                 # existing regression suite plus Phase 2 rules, loader and permission tests
 npm run preview:check    # the bundled engine in the preview matches the TypeScript source
 npm run preview:smoke    # 624 screen openings
 npm run preview:e2e      # 17 clickable journeys
+npm run preview:mobile   # 320px and 390px review journeys; set SCREENSHOT_DIR to keep captures
 node docs/redesign/prototype/shots.mjs   # regenerate screenshots
 ```
 

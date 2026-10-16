@@ -4,7 +4,7 @@ import { actionHref, buildQueue, classChip, classNote, compute, configFromEnv, c
 import { loadSiteSnapshot } from "@/lib/operations/next-actions/snapshot-data";
 import { WorkReleaseList } from "@/components/site/work-release-list";
 import { qualityOverviewFor } from "@/lib/operations/quality-data";
-import { holdTypes } from "@/lib/operations/holds";
+import { holdScope, holdTypes } from "@/lib/operations/holds";
 import { dayLabel, londonDate } from "@/lib/operations/planning";
 import { checkDatabase } from "@/lib/operations/data";
 import type { Member } from "@/lib/auth";
@@ -76,8 +76,10 @@ export async function NextActionsToday({ supabase, member, contract }: Props) {
       <h2>Work that is stopped</h2>
       {holds.map(hold => <article key={hold.id} className={`${adminStyles.warning}`}>
         <strong>{holdTypes[hold.hold_type]}: {areaName(hold.work_area_id)}</strong>
+        <p>{holdScope({ ...hold, location_path: hold.location_path?.length ? hold.location_path : hold.work_area_id ? [areaName(hold.work_area_id)] : [], stage: hold.stage ?? null, activity: hold.activity ?? "" })}</p>
         <p>{hold.reason}</p>
-        <p>Keep the affected work stopped. Only this location and activity is held. {hold.hold_type === "safety" ? "Follow the principal contractor's site safety procedures. " : ""}<Link href={`/admin/holds/${hold.id}`}>View restriction</Link></p>
+        <p>Keep the work in this recorded scope stopped. Other restrictions still apply. {hold.hold_type === "safety" ? "Follow the principal contractor's site safety procedures. " : ""}</p>
+        <p><Link className={adminStyles.secondaryButton} href={`/admin/holds/${hold.id}`}>View restriction</Link></p>
       </article>)}
     </section>}
 

@@ -36,7 +36,6 @@ var TSEngine = (() => {
     ctaLabel: () => ctaLabel,
     dayDiff: () => dayDiff,
     flagEnabled: () => flagEnabled,
-    flagEnv: () => flagEnv,
     hrefIsExistingForm: () => hrefIsExistingForm,
     idleCopy: () => idleCopy,
     isoDate: () => isoDate,
@@ -343,17 +342,34 @@ var TSEngine = (() => {
       route: { screen: "decision", id: h.id }
     };
   }));
-  var requirementsFor = (s, L, plan) => s.location_inspection_requirements.filter((r) => r.contract_id === plan.contract_id && r.stage === plan.stage && L.under(plan.work_area_id, r.work_area_id));
-  var latestInspection = (s, L, plan) => s.location_inspections.filter((i) => i.contract_id === plan.contract_id && i.stage === plan.stage && (i.work_area_id === plan.work_area_id || L.under(i.work_area_id, plan.work_area_id))).sort((a, b) => a.created_at < b.created_at ? 1 : -1)[0];
+  var requirementsFor = (s, L, plan) => s.location_inspection_requirements.filter((r) => r.contract_id === plan.contract_id && r.stage === plan.stage && L.under(plan.work_area_id, r.work_area_id) && (!plan.work_package_id || !r.work_package_id || r.work_package_id === plan.work_package_id));
+  var timestampOrder = (a, b) => {
+    const milliseconds = Date.parse(a) - Date.parse(b);
+    if (milliseconds !== 0) return milliseconds;
+    const remainder = (value) => {
+      var _a, _b;
+      return ((_b = (_a = value.match(/\.(\d+)(?:Z|[+-]\d{2}:?\d{2})$/)) == null ? void 0 : _a[1]) != null ? _b : "").slice(3).padEnd(6, "0");
+    };
+    return remainder(a).localeCompare(remainder(b));
+  };
+  var latestInspection = (s, plan, requirement) => s.location_inspections.filter((i) => {
+    var _a, _b;
+    return i.contract_id === plan.contract_id && i.stage === plan.stage && i.work_area_id === plan.work_area_id && (!requirement.template_id || i.template_id === requirement.template_id) && (!requirement.created_at || timestampOrder(i.created_at, requirement.created_at) >= 0) && (((_a = i.work_package_id) != null ? _a : null) === ((_b = requirement.work_package_id) != null ? _b : null) || !requirement.work_package_id && !!plan.work_package_id && i.work_package_id === plan.work_package_id);
+  }).sort((a, b) => timestampOrder(b.created_at, a.created_at) || b.id.localeCompare(a.id))[0];
   var INSPECTION_BLOCKS = "This work is not shown as released until a passing inspection is saved.";
   rule("G06_G07_G08_inspections", ({ s, L, cfg }) => {
+    var _a, _b;
     const out = [];
     const horizon = addDays(s.today, cfg.planHorizonDays);
     for (const plan of s.planned_allocations) {
       if (plan.planned_start > horizon || plan.planned_end < s.today) continue;
       const reqs = requirementsFor(s, L, plan);
       const job = L.job(plan.contract_id), where = L.path(plan.work_area_id), stage = STAGE_LABEL[plan.stage];
-      if (!reqs.length) {
+      const required = reqs.filter((r) => r.applicability === "required");
+      const missingMandatory = s.location_inspection_templates.some((t) => t.contract_id === plan.contract_id && t.stage === plan.stage && t.mandatory && L.under(plan.work_area_id, t.work_area_id) && !required.some((r) => r.template_id === t.id && (!r.work_package_id || !!plan.work_package_id && r.work_package_id === plan.work_package_id)));
+      const outdated = required.some((r) => r.template_current === false);
+      const incomplete = required.some((r) => !r.template_id || !r.created_at || !Number.isFinite(Date.parse(r.created_at)));
+      if (!reqs.length || !plan.work_package_id && !reqs.some((r) => !r.work_package_id) || missingMandatory || outdated || incomplete) {
         out.push({
           id: `applicability:${plan.id}`,
           rule: "G08",
@@ -365,7 +381,7 @@ var TSEngine = (() => {
           location: where,
           responsible: OFFICE,
           title: `Confirm which inspections apply to ${stage}`,
-          why: `Work is planned here from ${plan.planned_start}. Until the office confirms what must be inspected, this work is not released. Unknown never counts as allowed.`,
+          why: `Work is planned here from ${plan.planned_start}. ${outdated ? "The inspection requirement refers to a replaced checklist. " : ""}Until the office confirms the current inspections for this location and activity, this work is not released. Unknown never counts as allowed.`,
           due: plan.planned_start,
           requires: ["The specification or manufacturer document", "Whether a mandatory inspection is needed"],
           doneWhen: "An inspection decision is saved for this location and activity",
@@ -373,14 +389,19 @@ var TSEngine = (() => {
           audience: { office: "act", supervisor: "see" },
           blocks: INSPECTION_BLOCKS,
           enforcedByBackend: true,
-          source: { table: "location_inspection_requirements", id: plan.id },
+          source: { table: "location_inspection_requirements", id: (_b = (_a = reqs[0]) == null ? void 0 : _a.id) != null ? _b : null },
           route: { screen: "job", id: plan.contract_id }
         });
         continue;
       }
-      if (!reqs.some((r) => r.applicability === "required")) continue;
-      const last = latestInspection(s, L, plan);
-      if (last == null ? void 0 : last.blocking_failure) {
+      if (!required.length) continue;
+      const assessed = required.map((requirement) => ({ requirement, inspection: latestInspection(s, plan, requirement) }));
+      const failed = assessed.find((a) => {
+        var _a2;
+        return (_a2 = a.inspection) == null ? void 0 : _a2.blocking_failure;
+      });
+      const pending = assessed.find((a) => !a.inspection);
+      if (failed == null ? void 0 : failed.inspection) {
         out.push({
           id: `inspection-failed:${plan.id}`,
           rule: "G06",
@@ -400,10 +421,10 @@ var TSEngine = (() => {
           audience: { supervisor: "act", office: "see" },
           blocks: INSPECTION_BLOCKS,
           enforcedByBackend: true,
-          source: { table: "location_inspections", id: last.id },
+          source: { table: "location_inspections", id: failed.inspection.id },
           route: { screen: "inspect", id: plan.work_area_id, stage: plan.stage }
         });
-      } else if (!last && plan.planned_start <= s.today && plan.planned_end >= s.today) {
+      } else if (pending && plan.planned_start <= s.today && plan.planned_end >= s.today) {
         out.push({
           id: `inspection-due:${plan.id}`,
           rule: "G07",
@@ -419,11 +440,11 @@ var TSEngine = (() => {
           due: s.today,
           requires: ["Pass, fail or not applicable for each check", "A photo where the check asks for one"],
           doneWhen: "A passing inspection is saved for this location and activity",
-          next: "Work at this location is cleared to continue",
+          next: "Saved result is available; other restrictions still apply",
           audience: { supervisor: "act", office: "see" },
           blocks: INSPECTION_BLOCKS,
           enforcedByBackend: true,
-          source: { table: "location_inspection_requirements", id: reqs[0].id },
+          source: { table: "location_inspection_requirements", id: pending.requirement.id },
           route: { screen: "inspect", id: plan.work_area_id, stage: plan.stage }
         });
       }
@@ -573,7 +594,8 @@ var TSEngine = (() => {
     for (const co of s.companies) {
       const teamIds = s.teams.filter((t) => t.company_id === co.id).map((t) => t.id);
       const soon = s.planned_allocations.filter((p) => teamIds.includes(p.team_id) && p.planned_end >= s.today && p.planned_start <= addDays(s.today, cfg.planHorizonDays));
-      const onSite = s.actual_allocations.some((a) => a.team_id && teamIds.includes(a.team_id) && isOpenWork(a));
+      const actual = s.actual_allocations.find((a) => a.team_id && teamIds.includes(a.team_id) && isOpenWork(a));
+      const onSite = !!actual;
       if (!soon.length && !onSite) continue;
       const covers = latestCover(s, co.id);
       const expired = covers.filter((i) => i.expires_on < s.today);
@@ -588,8 +610,8 @@ var TSEngine = (() => {
         kind: "alert",
         priority: onSite ? 1 : 2,
         order: 12,
-        job: plan ? L.job(plan.contract_id) : { id: null, reference: "", name: "Several jobs" },
-        location: plan ? L.path(plan.work_area_id) : null,
+        job: plan ? L.job(plan.contract_id) : L.job(actual.contract_id),
+        location: plan ? L.path(plan.work_area_id) : L.path(actual.work_area_id),
         responsible: OFFICE,
         title: `${co.name}: ${covers.length ? `${kind} has expired` : "no insurance on file"}`,
         why: `${co.name} ${onSite ? "is on site" : `is planned from ${plan == null ? void 0 : plan.planned_start}`} and ${status}. TileSpec does not stop work being planned for a company without valid cover. The office has to decide before they start.`,
@@ -768,7 +790,13 @@ var TSEngine = (() => {
     source: { table: "operatives", id: o.id },
     route: { screen: "labour" }
   })));
-  rule("R05_instruction_unread", ({ s, L }) => s.supervisor_office_items.filter((m) => m.kind === "instruction" && m.acknowledgement_required && !s.supervisor_office_acknowledgements.some((a) => a.item_id === m.id)).map((m) => ({
+  var siteSupervisors = (s, contractId) => s.contract_assignments.filter((a) => a.contract_id === contractId && s.members.some((m) => m.user_id === a.user_id && m.role === "supervisor")).map((a) => a.user_id);
+  var everyoneCompleted = (s, contractId, completed) => {
+    const supervisors = siteSupervisors(s, contractId);
+    return supervisors.length > 0 && supervisors.every((id) => completed.includes(id));
+  };
+  var acknowledgers = (s, itemId) => s.supervisor_office_acknowledgements.filter((a) => a.item_id === itemId).map((a) => a.user_id);
+  rule("R05_instruction_unread", ({ s, L }) => s.supervisor_office_items.filter((m) => m.kind === "instruction" && m.acknowledgement_required && !(m.recipient_id ? acknowledgers(s, m.id).includes(m.recipient_id) : everyoneCompleted(s, m.contract_id, acknowledgers(s, m.id)))).map((m) => ({
     id: `ack:${m.id}`,
     rule: "R05",
     process: "daily-site",
@@ -786,12 +814,14 @@ var TSEngine = (() => {
     next: null,
     audience: { supervisor: "act", office: "see" },
     actUsers: m.recipient_id ? [m.recipient_id] : null,
+    completedUsers: acknowledgers(s, m.id),
     blocks: null,
     enforcedByBackend: false,
     source: { table: "supervisor_office_items", id: m.id },
     route: { screen: "messages" }
   })));
-  rule("R06_handover", (c) => c.s.contracts.filter((k) => workToday(c.s, k.id) && !c.s.site_handovers.some((h) => h.contract_id === k.id && h.work_date === c.s.today)).map((k) => {
+  var handoverAuthors = (s, contractId) => s.site_handovers.filter((h) => h.contract_id === contractId && h.work_date === s.today).map((h) => h.actor_id).filter((id) => !!id);
+  rule("R06_handover", (c) => c.s.contracts.filter((k) => workToday(c.s, k.id) && !everyoneCompleted(c.s, k.id, handoverAuthors(c.s, k.id))).map((k) => {
     const t = c.timingsFor(k.id);
     return {
       id: `handover:${k.id}:${c.s.today}`,
@@ -810,6 +840,7 @@ var TSEngine = (() => {
       doneWhen: "Today's handover is saved",
       next: "Office reads it",
       audience: { supervisor: c.s.now >= t.handoverReminderAt ? "act" : null, office: c.s.now >= t.handoverOfficeSeesAt ? "see" : null },
+      completedUsers: handoverAuthors(c.s, k.id),
       blocks: null,
       enforcedByBackend: false,
       source: { table: "site_handovers", id: null },
@@ -964,10 +995,11 @@ var TSEngine = (() => {
 
   // lib/operations/next-actions/engine.ts
   function forViewer(raw, viewer, s, L) {
-    var _a, _b;
+    var _a, _b, _c;
     const key = roleKey(viewer);
     const mode = raw.audience[key];
     if (!mode) return null;
+    if (mode === "act" && ((_a = raw.completedUsers) == null ? void 0 : _a.includes(viewer.user_id))) return null;
     if (raw.financial && key === "office" && !viewer.financial_access) return null;
     if (key === "subcontractor") {
       const teams = L.teamIdsOf(viewer.user_id);
@@ -978,11 +1010,11 @@ var TSEngine = (() => {
       a.state = "waiting";
       a.viewerMode = "see";
     }
-    if (mode === "act" && ((_a = raw.blockers) == null ? void 0 : _a.length)) {
+    if (mode === "act" && ((_b = raw.blockers) == null ? void 0 : _b.length)) {
       a.state = "blocked";
       a.blockedBy = raw.blockers[0];
     }
-    const barred = mode === "act" && ((_b = raw.independence) == null ? void 0 : _b.forbidden.find((f) => f.userId === viewer.user_id));
+    const barred = mode === "act" && ((_c = raw.independence) == null ? void 0 : _c.forbidden.find((f) => f.userId === viewer.user_id));
     if (barred) {
       a.state = "blocked";
       a.blockedBy = barred.reason;
@@ -1046,15 +1078,6 @@ var TSEngine = (() => {
   var ENV_NAME = { nextActions: "FEATURE_NEXT_ACTIONS", roleShell: "FEATURE_ROLE_SHELL" };
   var ON = /* @__PURE__ */ new Set(["1", "true", "on", "yes", "all"]);
   var ROLES = /* @__PURE__ */ new Set(["owner", "contracts_manager", "supervisor", "lead_installer", "subcontract_installer"]);
-  function flagEnv(env = define_process_env_default) {
-    var _a, _b;
-    if (env.VERCEL_ENV !== "preview") return env;
-    return {
-      ...env,
-      FEATURE_NEXT_ACTIONS: (_a = env.FEATURE_NEXT_ACTIONS) != null ? _a : "supervisor",
-      FEATURE_ROLE_SHELL: (_b = env.FEATURE_ROLE_SHELL) != null ? _b : "supervisor"
-    };
-  }
   function workflowPreviewExposed(env = define_process_env_default) {
     if (env.VERCEL_ENV === "preview") return true;
     if (env.VERCEL) return false;
@@ -1062,7 +1085,7 @@ var TSEngine = (() => {
   }
   function flagEnabled(name, role, env = define_process_env_default) {
     var _a;
-    const raw = ((_a = flagEnv(env)[ENV_NAME[name]]) != null ? _a : "").trim().toLowerCase();
+    const raw = ((_a = env[ENV_NAME[name]]) != null ? _a : "").trim().toLowerCase();
     if (!raw) return false;
     if (ON.has(raw)) return true;
     const listed = raw.split(",").map((x) => x.trim()).filter(Boolean);

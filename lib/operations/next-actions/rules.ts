@@ -92,11 +92,26 @@ rule("G05_hold_release_decision", ({ s, L }) => s.work_holds.filter(h => h.statu
 
 // G06/G07/G08: mandatory inspections for planned work.
 const requirementsFor = (s: NextActionSnapshot, L: Lookups, plan: PlannedAllocationRow) =>
-  s.location_inspection_requirements.filter(r => r.contract_id === plan.contract_id && r.stage === plan.stage && L.under(plan.work_area_id, r.work_area_id));
-const latestInspection = (s: NextActionSnapshot, L: Lookups, plan: PlannedAllocationRow) =>
+  s.location_inspection_requirements.filter(r => r.contract_id === plan.contract_id && r.stage === plan.stage && L.under(plan.work_area_id, r.work_area_id)
+    && (!plan.work_package_id || !r.work_package_id || r.work_package_id === plan.work_package_id));
+// PostgreSQL records microseconds; Date.parse alone loses anything after the
+// third fractional digit and can accept an observation just before approval.
+const timestampOrder = (a: string, b: string) => {
+  const milliseconds = Date.parse(a) - Date.parse(b);
+  if (milliseconds !== 0) return milliseconds;
+  const remainder = (value: string) => (value.match(/\.(\d+)(?:Z|[+-]\d{2}:?\d{2})$/)?.[1] ?? "").slice(3).padEnd(6, "0");
+  return remainder(a).localeCompare(remainder(b));
+};
+const latestInspection = (s: NextActionSnapshot, plan: PlannedAllocationRow, requirement: NextActionSnapshot["location_inspection_requirements"][number]) =>
   s.location_inspections.filter(i => i.contract_id === plan.contract_id && i.stage === plan.stage
-    && (i.work_area_id === plan.work_area_id || L.under(i.work_area_id, plan.work_area_id)))
-    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+    // The backend requires an observation of this exact location against the
+    // current requirement's template, package and approval date. A pass in one
+    // room cannot clear a whole floor, or an earlier specification revision.
+    && i.work_area_id === plan.work_area_id && (!requirement.template_id || i.template_id === requirement.template_id)
+    && (!requirement.created_at || timestampOrder(i.created_at, requirement.created_at) >= 0)
+    && ((i.work_package_id ?? null) === (requirement.work_package_id ?? null)
+      || (!requirement.work_package_id && !!plan.work_package_id && i.work_package_id === plan.work_package_id)))
+    .sort((a, b) => timestampOrder(b.created_at, a.created_at) || b.id.localeCompare(a.id))[0];
 const INSPECTION_BLOCKS = "This work is not shown as released until a passing inspection is saved.";
 
 rule("G06_G07_G08_inspections", ({ s, L, cfg }) => {
@@ -106,38 +121,46 @@ rule("G06_G07_G08_inspections", ({ s, L, cfg }) => {
     if (plan.planned_start > horizon || plan.planned_end < s.today) continue;
     const reqs = requirementsFor(s, L, plan);
     const job = L.job(plan.contract_id), where = L.path(plan.work_area_id), stage = STAGE_LABEL[plan.stage];
-    if (!reqs.length) {
+    const required = reqs.filter(r => r.applicability === "required");
+    const missingMandatory = s.location_inspection_templates.some(t => t.contract_id === plan.contract_id && t.stage === plan.stage
+      && t.mandatory && L.under(plan.work_area_id, t.work_area_id)
+      && !required.some(r => r.template_id === t.id && (!r.work_package_id || (!!plan.work_package_id && r.work_package_id === plan.work_package_id))));
+    const outdated = required.some(r => r.template_current === false);
+    const incomplete = required.some(r => !r.template_id || !r.created_at || !Number.isFinite(Date.parse(r.created_at)));
+    if (!reqs.length || (!plan.work_package_id && !reqs.some(r => !r.work_package_id)) || missingMandatory || outdated || incomplete) {
       out.push({
         id: `applicability:${plan.id}`, rule: "G08", process: "inspection", kind: "gate", priority: 2, order: 13, job, location: where,
         responsible: OFFICE, title: `Confirm which inspections apply to ${stage}`,
-        why: `Work is planned here from ${plan.planned_start}. Until the office confirms what must be inspected, this work is not released. Unknown never counts as allowed.`,
+        why: `Work is planned here from ${plan.planned_start}. ${outdated ? "The inspection requirement refers to a replaced checklist. " : ""}Until the office confirms the current inspections for this location and activity, this work is not released. Unknown never counts as allowed.`,
         due: plan.planned_start, requires: ["The specification or manufacturer document", "Whether a mandatory inspection is needed"],
         doneWhen: "An inspection decision is saved for this location and activity", next: "Supervisors see exactly which checks to do",
         audience: { office: "act", supervisor: "see" }, blocks: INSPECTION_BLOCKS, enforcedByBackend: true,
-        source: { table: "location_inspection_requirements", id: plan.id }, route: { screen: "job", id: plan.contract_id },
+        source: { table: "location_inspection_requirements", id: reqs[0]?.id ?? null }, route: { screen: "job", id: plan.contract_id },
       });
       continue;
     }
-    if (!reqs.some(r => r.applicability === "required")) continue;
-    const last = latestInspection(s, L, plan);
-    if (last?.blocking_failure) {
+    if (!required.length) continue;
+    const assessed = required.map(requirement => ({ requirement, inspection: latestInspection(s, plan, requirement) }));
+    const failed = assessed.find(a => a.inspection?.blocking_failure);
+    const pending = assessed.find(a => !a.inspection);
+    if (failed?.inspection) {
       out.push({
         id: `inspection-failed:${plan.id}`, rule: "G06", process: "inspection", kind: "gate", priority: 1, order: 4, job, location: where,
         responsible: supervisorLabel(L, plan.contract_id), title: `Required inspection failed: ${where}`,
         why: "A required check did not pass. This work stays held until it is corrected and checked again.",
         due: null, requires: ["Correction done", "A new inspection"], doneWhen: "A later inspection for the same location and activity passes", next: "Office is told once it passes",
         audience: { supervisor: "act", office: "see" }, blocks: INSPECTION_BLOCKS, enforcedByBackend: true,
-        source: { table: "location_inspections", id: last.id }, route: { screen: "inspect", id: plan.work_area_id, stage: plan.stage },
+        source: { table: "location_inspections", id: failed.inspection.id }, route: { screen: "inspect", id: plan.work_area_id, stage: plan.stage },
       });
-    } else if (!last && plan.planned_start <= s.today && plan.planned_end >= s.today) {
+    } else if (pending && plan.planned_start <= s.today && plan.planned_end >= s.today) {
       out.push({
         id: `inspection-due:${plan.id}`, rule: "G07", process: "inspection", kind: "gate", priority: 2, order: 13, job, location: where,
         responsible: supervisorLabel(L, plan.contract_id), title: `Inspect ${where} before ${stage} goes ahead`,
         why: "This work needs a mandatory inspection and none has been saved yet. Nothing here passes the inspection for you.",
         due: s.today, requires: ["Pass, fail or not applicable for each check", "A photo where the check asks for one"],
-        doneWhen: "A passing inspection is saved for this location and activity", next: "Work at this location is cleared to continue",
+        doneWhen: "A passing inspection is saved for this location and activity", next: "Saved result is available; other restrictions still apply",
         audience: { supervisor: "act", office: "see" }, blocks: INSPECTION_BLOCKS, enforcedByBackend: true,
-        source: { table: "location_inspection_requirements", id: reqs[0].id }, route: { screen: "inspect", id: plan.work_area_id, stage: plan.stage },
+        source: { table: "location_inspection_requirements", id: pending.requirement.id }, route: { screen: "inspect", id: plan.work_area_id, stage: plan.stage },
       });
     }
   }
@@ -224,7 +247,8 @@ rule("A02_insurance_expired", ({ s, L, cfg }) => {
   for (const co of s.companies) {
     const teamIds = s.teams.filter(t => t.company_id === co.id).map(t => t.id);
     const soon = s.planned_allocations.filter(p => teamIds.includes(p.team_id) && p.planned_end >= s.today && p.planned_start <= addDays(s.today, cfg.planHorizonDays));
-    const onSite = s.actual_allocations.some(a => a.team_id && teamIds.includes(a.team_id) && isOpenWork(a));
+    const actual = s.actual_allocations.find(a => a.team_id && teamIds.includes(a.team_id) && isOpenWork(a));
+    const onSite = !!actual;
     if (!soon.length && !onSite) continue;
     const covers = latestCover(s, co.id);
     const expired = covers.filter(i => i.expires_on < s.today);
@@ -234,7 +258,7 @@ rule("A02_insurance_expired", ({ s, L, cfg }) => {
     const status = !covers.length ? "has no insurance recorded" : `${kind} cover is out of date`;
     out.push({
       id: `insurance:${co.id}`, rule: "A02", process: "compliance", kind: "alert", priority: onSite ? 1 : 2, order: 12,
-      job: plan ? L.job(plan.contract_id) : { id: null, reference: "", name: "Several jobs" }, location: plan ? L.path(plan.work_area_id) : null,
+      job: plan ? L.job(plan.contract_id) : L.job(actual!.contract_id), location: plan ? L.path(plan.work_area_id) : L.path(actual!.work_area_id),
       responsible: OFFICE, title: `${co.name}: ${covers.length ? `${kind} has expired` : "no insurance on file"}`,
       why: `${co.name} ${onSite ? "is on site" : `is planned from ${plan?.planned_start}`} and ${status}. TileSpec does not stop work being planned for a company without valid cover. The office has to decide before they start.`,
       due: plan?.planned_start ?? null, requires: ["The new certificate", "Its start and end dates"], doneWhen: "Valid cover is saved for the company, or the plan is changed",
@@ -326,15 +350,25 @@ rule("R04_provisional_person", ({ s }) => s.operatives.filter(o => o.status === 
   blocks: null, enforcedByBackend: false, source: { table: "operatives", id: o.id }, route: { screen: "labour" },
 })));
 
+const siteSupervisors = (s: NextActionSnapshot, contractId: string) => s.contract_assignments.filter(a => a.contract_id === contractId
+  && s.members.some(m => m.user_id === a.user_id && m.role === "supervisor")).map(a => a.user_id);
+const everyoneCompleted = (s: NextActionSnapshot, contractId: string, completed: string[]) => {
+  const supervisors = siteSupervisors(s, contractId);
+  return supervisors.length > 0 && supervisors.every(id => completed.includes(id));
+};
+const acknowledgers = (s: NextActionSnapshot, itemId: string) => s.supervisor_office_acknowledgements.filter(a => a.item_id === itemId).map(a => a.user_id);
 rule("R05_instruction_unread", ({ s, L }) => s.supervisor_office_items.filter(m => m.kind === "instruction" && m.acknowledgement_required
-  && !s.supervisor_office_acknowledgements.some(a => a.item_id === m.id)).map(m => ({
+  && !(m.recipient_id ? acknowledgers(s, m.id).includes(m.recipient_id) : everyoneCompleted(s, m.contract_id, acknowledgers(s, m.id)))).map(m => ({
   id: `ack:${m.id}`, rule: "R05", process: "daily-site", kind: "reminder", priority: 2, order: 9.5, job: L.job(m.contract_id), location: null,
   responsible: { role: "supervisor", who: L.person(m.recipient_id), label: "Site supervisor" }, title: `Read: ${m.title}`, why: m.body, due: null, requires: ["Tap Got it"],
   doneWhen: "You acknowledge it", next: null, audience: { supervisor: "act", office: "see" }, actUsers: m.recipient_id ? [m.recipient_id] : null,
+  completedUsers: acknowledgers(s, m.id),
   blocks: null, enforcedByBackend: false, source: { table: "supervisor_office_items", id: m.id }, route: { screen: "messages" },
 })));
 
-rule("R06_handover", c => c.s.contracts.filter(k => workToday(c.s, k.id) && !c.s.site_handovers.some(h => h.contract_id === k.id && h.work_date === c.s.today)).map(k => {
+const handoverAuthors = (s: NextActionSnapshot, contractId: string) => s.site_handovers.filter(h => h.contract_id === contractId && h.work_date === s.today)
+  .map(h => h.actor_id).filter((id): id is string => !!id);
+rule("R06_handover", c => c.s.contracts.filter(k => workToday(c.s, k.id) && !everyoneCompleted(c.s, k.id, handoverAuthors(c.s, k.id))).map(k => {
   const t = c.timingsFor(k.id);
   return {
     id: `handover:${k.id}:${c.s.today}`, rule: "R06", process: "daily-site", kind: "reminder", priority: 3, order: 15, job: c.L.job(k.id), location: null,
@@ -342,6 +376,7 @@ rule("R06_handover", c => c.s.contracts.filter(k => workToday(c.s, k.id) && !c.s
     why: "Tell the office what is finished, what is stuck and what you need tomorrow. Today's records are filled in for you.", due: c.s.today, requires: ["Check the summary", "Add anything missing"],
     doneWhen: "Today's handover is saved", next: "Office reads it",
     audience: { supervisor: c.s.now >= t.handoverReminderAt ? "act" : null, office: c.s.now >= t.handoverOfficeSeesAt ? "see" : null },
+    completedUsers: handoverAuthors(c.s, k.id),
     blocks: null, enforcedByBackend: false, source: { table: "site_handovers", id: null }, route: { screen: "handover" },
   } satisfies NextAction;
 }));

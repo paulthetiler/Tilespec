@@ -37,7 +37,7 @@ const shots = [
   ["login", "", "start", "/today"],
 ];
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {});
 for (const device of ["mobile", "desktop"]) {
   const page = await browser.newPage({ viewport: device === "mobile" ? { width: 640, height: 860 } : { width: 1366, height: 860 }, deviceScaleFactor: 1.5, reducedMotion: "reduce" });
   for (const [name, who, scenario, hash, extra = "", run] of shots) {

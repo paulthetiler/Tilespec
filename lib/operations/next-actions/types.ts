@@ -38,15 +38,17 @@ export interface ActualAllocationRow {
 }
 export interface AbsenceRow { planned_allocation_id: string; work_date: string }
 export interface MorningCheckRow { id: string; contract_id: string; created_at: string }
-export interface HandoverRow { id: string; contract_id: string; work_date: string; created_at: string }
-export interface InspectionTemplateRow { id: string; contract_id: string; work_area_id: string; stage: InstallationStageKey }
+export interface HandoverRow { id: string; contract_id: string; actor_id?: string; work_date: string; created_at: string }
+export interface InspectionTemplateRow { id: string; contract_id: string; work_area_id: string; stage: InstallationStageKey; mandatory?: boolean }
 /** Only `required` records a mandatory inspection. No record at all means "not yet decided", which never counts as allowed. */
 export interface InspectionRequirementRow {
   id: string; contract_id: string; work_area_id: string; stage: InstallationStageKey; applicability: "required" | "not_required";
+  template_id?: string | null; work_package_id?: string | null; created_at?: string; template_current?: boolean;
 }
 /** `blocking_failure` is derived by the loader with the existing `inspectionHasBlockingFailure`. The engine does not re-implement it. */
 export interface InspectionRow {
   id: string; contract_id: string; work_area_id: string; stage: InstallationStageKey; blocking_failure: boolean; created_at: string;
+  template_id?: string; work_package_id?: string | null;
 }
 export type SnagStatus = "draft" | "open" | "assigned" | "rectification_submitted" | "reinspection" | "closed" | "cancelled";
 export interface SnagRow {
@@ -60,6 +62,7 @@ export interface HoldRow {
   id: string; contract_id: string; work_area_id: string | null; hold_type: "quality" | "safety"; status: HoldStatus;
   reason: string; required_action: string; raised_by: string; corrected_by: string | null;
   assigned_team_id: string | null; assigned_operative_id: string | null; target_date: string | null; critical_snags_open: boolean;
+  stage?: string | null; activity?: string; work_package_id?: string | null; work_package_name?: string | null; location_path?: string[];
 }
 export interface OfficeItemRow {
   id: string; contract_id: string; kind: "instruction" | "qa_request"; title: string; body: string; recipient_id: string | null;
@@ -143,6 +146,8 @@ export interface NextAction {
   route: ActionRoute;
   parties?: { teamIds: (string | null)[] };
   actUsers?: (string | null)[] | null;
+  /** Per-person daily work: another person's saved acknowledgement or handover cannot complete yours. */
+  completedUsers?: string[];
   independence?: { forbidden: { userId: string | null; reason: string }[] } | null;
   blockers?: string[];
   financial?: boolean;

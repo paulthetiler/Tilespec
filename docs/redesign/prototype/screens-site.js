@@ -151,7 +151,13 @@
     const fails = answers.filter((x) => x === "fail").length;
     if (!P.need(!fails || f.note, "Say what failed in the note.")) return;
     P.save(fails ? "Inspection saved: failed, release stays held" : "Inspection saved: passed", () => {
-      P.S.location_inspections.push({ id: P.uid("li"), contract_id: area.contract_id, work_area_id: area.id, stage, blocking_failure: fails > 0, created_at: P.nowIso(), inspector_id: P.viewer().user_id });
+      const template = P.S.location_inspection_templates.find(t => t.contract_id === area.contract_id && t.stage === stage && area.path_ids.includes(t.work_area_id));
+      // The illustrative clock stays fixed while a scenario is played. Give
+      // successive saved observations distinct timestamps, just as separate
+      // database transactions do, so a later pass supersedes a saved failure.
+      const createdAt = new Date(Math.max(Date.parse(P.nowIso()), ...P.S.location_inspections.map(i => Date.parse(i.created_at) + 1))).toISOString();
+      P.S.location_inspections.push({ id: P.uid("li"), contract_id: area.contract_id, work_area_id: area.id, template_id: template?.id, work_package_id: null,
+        stage, blocking_failure: fails > 0, created_at: createdAt, inspector_id: P.viewer().user_id });
       if (el.dataset.qa) P.S.supervisor_qa_submissions.push({ id: P.uid("qa"), item_id: el.dataset.qa, created_at: P.nowIso() });
     }, el, () => nav("#/today"));
   };
@@ -286,7 +292,7 @@
     return `${P.back("#/today", "Today")}<header class="gap-s"><p class="eyebrow">${esc(job.name)}</p><h1 class="title">Handover</h1><p class="sub">Tell the office what is finished, what is stuck and what you need tomorrow. ${P.hint("exists")}</p></header>${summary}
       <div data-form style="display:grid;gap:16px"><section class="card"><div class="field"><label for="s">What is stuck?</label><textarea id="s" name="stuck"></textarea></div><div class="field"><label for="t">What do you need tomorrow?</label><textarea id="t" name="need"></textarea></div></section><button class="btn" data-act="send-handover" data-job="${cid}">Send handover</button></div>`;
   };
-  P.acts["send-handover"] = (el) => { const f = P.form(el), cid = el.dataset.job; P.save("Handover sent", () => P.S.site_handovers.push({ id: P.uid("ho"), contract_id: cid, work_date: P.S.today, created_at: P.nowIso(), stuck: f.stuck, need: f.need }), el, () => nav("#/today")); };
+  P.acts["send-handover"] = (el) => { const f = P.form(el), cid = el.dataset.job; P.save("Handover sent", () => P.S.site_handovers.push({ id: P.uid("ho"), contract_id: cid, actor_id: P.viewer().user_id, work_date: P.S.today, created_at: P.nowIso(), stuck: f.stuck, need: f.need }), el, () => nav("#/today")); };
 
   P.acts.who = () => P.sheet(P.sheetFrame(P.viewer().display_name, `<p class="muted">${esc({ owner: "Owner", office: "Office", supervisor: "Site supervisor", subcontractor: "Subcontractor" }[P.role()])}${P.role() === "office" ? (P.viewer().financial_access ? " · can see money" : " · money hidden") : ""}</p><button class="btn secondary" data-act="signout">Sign out</button>`));
   P.acts.signout = () => { P.ui.person = ""; P.ui.sheet = null; document.getElementById("person").value = ""; P.render(); };

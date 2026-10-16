@@ -111,7 +111,7 @@
         { id: "tpl1", contract_id: "c1", work_area_id: "l-b", stage: "installation", title: "Floor tile workmanship" },
       ],
       location_inspection_requirements: [
-        { id: "req1", contract_id: "c1", work_area_id: "l-b3", stage: "installation", applicability: "required", template_id: "tpl1" },
+        { id: "req1", contract_id: "c1", work_area_id: "l-b3", work_package_id: null, stage: "installation", applicability: "required", template_id: "tpl1", created_at: "2026-10-12T07:00:00Z" },
       ],
       location_inspections: [],
       supervisor_issues: [], // snags

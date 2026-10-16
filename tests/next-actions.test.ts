@@ -64,9 +64,9 @@ test("a mandatory inspection stays a gate until a passing inspection is SAVED", 
   const s = make("start");
   const dave = who(s, "Dave");
   assert.ok(compute(s, dave).some(a => a.rule === "G07" && a.kind === "gate" && a.state === "ready"));
-  s.location_inspections.push({ id: "li", contract_id: "c1", work_area_id: "l-f31-bath", stage: "installation", created_at: "2026-10-15T08:30:00Z", blocking_failure: false });
+  s.location_inspections.push({ id: "li", contract_id: "c1", work_area_id: "l-f31-bath", template_id: "tpl1", work_package_id: null, stage: "installation", created_at: "2026-10-15T08:30:00Z", blocking_failure: false });
   assert.ok(!ids(compute(s, dave)).includes("G07"));
-  s.location_inspections.push({ id: "li2", contract_id: "c1", work_area_id: "l-f31-bath", stage: "installation", created_at: "2026-10-15T09:30:00Z", blocking_failure: true });
+  s.location_inspections.push({ id: "li2", contract_id: "c1", work_area_id: "l-f31-bath", template_id: "tpl1", work_package_id: null, stage: "installation", created_at: "2026-10-15T09:30:00Z", blocking_failure: true });
   const failed = compute(s, dave).find(a => a.rule === "G06");
   assert.ok(failed, "a later failed inspection re-opens the gate");
   assert.equal(failed.priority, 1);
@@ -364,10 +364,14 @@ test("feature flags are off unless set, and can be staged by role", () => {
   assert.equal(flagEnabled("roleShell", "supervisor", { FEATURE_ROLE_SHELL: "supervisor, lead_installer" }), true);
   assert.equal(flagEnabled("roleShell", "owner", { FEATURE_ROLE_SHELL: "supervisor,lead_installer" }), false);
   assert.equal(flagEnabled("roleShell", "owner", { FEATURE_ROLE_SHELL: "supervisr,owner" }), false, "a typo turns it off rather than on");
-  assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "preview" }), true, "preview defaults on for supervisors");
-  assert.equal(flagEnabled("roleShell", "supervisor", { VERCEL_ENV: "preview" }), true);
-  assert.equal(flagEnabled("nextActions", "owner", { VERCEL_ENV: "preview" }), false, "preview default is supervisor only");
-  assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "production" }), false, "production stays off");
+  for (const VERCEL_ENV of ["development", "preview", "production"]) {
+    for (const role of ["owner", "contracts_manager", "supervisor", "lead_installer", "subcontract_installer"] as const) {
+      for (const flag of ["nextActions", "roleShell"] as const) {
+        assert.equal(flagEnabled(flag, role, { VERCEL_ENV }), false, `${VERCEL_ENV}: ${flag} defaults off for ${role}`);
+      }
+    }
+  }
+  assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "preview", FEATURE_NEXT_ACTIONS: "supervisor" }), true, "preview can opt in explicitly");
   assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "preview", FEATURE_NEXT_ACTIONS: "" }), false, "explicit empty still off");
   assert.equal(workflowPreviewExposed({ VERCEL_ENV: "preview" }), true);
   assert.equal(workflowPreviewExposed({ VERCEL_ENV: "production", VERCEL: "1" }), false, "production never serves the prototype");

@@ -12,6 +12,7 @@ function forViewer(raw: NextAction, viewer: Viewer, s: NextActionSnapshot, L: Re
   const key = roleKey(viewer);
   const mode = raw.audience[key];
   if (!mode) return null;
+  if (mode === "act" && raw.completedUsers?.includes(viewer.user_id)) return null;
   if (raw.financial && key === "office" && !viewer.financial_access) return null;
   if (key === "subcontractor") {
     // A gang only ever receives actions for its own team.

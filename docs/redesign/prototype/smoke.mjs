@@ -10,7 +10,7 @@ const url = (qs, hash = "") => `file://${dir}/index.html?${qs}#${hash}`;
 const people = [["u-alex", "owner"], ["u-sam", "office"], ["u-jo", "office"], ["u-dave", "supervisor"], ["u-ellie", "supervisor"], ["u-marek", "subcontractor"]];
 const routes = ["/today", "/jobs", "/job/c1", "/job/c2", "/tenders", "/tender/te1", "/labour", "/money", "/people", "/inspect", "/inspect/l-f31-bath?stage=installation", "/issues", "/snag/s1", "/snag/s2", "/snag/s3", "/hold/h1", "/hold/h2", "/decision/h1", "/decision/h2", "/messages", "/handover", "/morning", "/fixes", "/fix/s1?kind=snag", "/fix/h3?kind=hold", "/papers"];
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {});
 const errors = [];
 let screens = 0;
 for (const device of ["mobile", "desktop"]) {

@@ -9,7 +9,7 @@ const proto = path.join(dir, "..", "docs/redesign/prototype");
 const out = process.env.SCREENSHOT_DIR || path.join(dir, "..", "docs/redesign/screenshots");
 fs.mkdirSync(out, { recursive: true });
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {});
 const results = [];
 
 async function shot(name, width, qs, hash, after) {

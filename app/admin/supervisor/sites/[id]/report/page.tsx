@@ -23,7 +23,7 @@ export default async function ReportIssue({ params }: { params: Promise<{ id: st
     <div className={dailyStyles.siteList}>
       <Link className={dailyStyles.siteChoice} href={`/admin/snags/new?contract=${id}`}>
         <strong>No, just record it</strong>
-        <span>Add a photo, the location and a short note. Work carries on and the office is told.</span>
+        <span>Add a photo, the location and a short note for the office. Existing work restrictions still apply.</span>
       </Link>
       <Link className={dailyStyles.siteChoice} href={`/admin/holds/new?contract=${id}&type=quality`}>
         <strong>Yes, put a quality hold on it</strong>

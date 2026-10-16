@@ -96,7 +96,7 @@
     const plan = (pid) => find(S.planned_allocations, pid);
     let body = "";
     if (a.rule === "G08") {
-      const p = plan(a.source.id);
+      const p = plan(a.id.split(":")[1]);
       body = `<p>${esc(a.why)}</p><div class="field"><span class="lbl">Does ${esc(R.STAGE[p.stage])} here need a mandatory inspection?</span>${P.choice("ans", [["required", "Yes"], ["not_applicable", "No"], ["unknown", "Not sure yet"]])}</div><div class="field"><label for="s">Which document says so?</label><input id="s" type="text" name="src"></div><p class="small muted">Choosing "Not sure yet" leaves it open. Unknown never counts as allowed.</p><button class="btn" data-act="save-task" data-id="${esc(id)}">Save</button>`;
     } else if (a.rule === "R09") {
       const p = plan(a.id.split(":")[1]);
@@ -122,11 +122,14 @@
     if (!a) return;
     let fn;
     if (a.rule === "G08") {
-      const p = find(S.planned_allocations, a.source.id);
+      const p = find(S.planned_allocations, a.id.split(":")[1]);
       if (!P.need(f.ans, "Choose an answer.")) return;
       if (f.ans === "unknown") return P.closeSheet();
       if (!P.need(f.src, "Say which document decides this.")) return;
-      fn = () => S.location_inspection_requirements.push({ id: P.uid("rq"), contract_id: p.contract_id, work_area_id: p.work_area_id, stage: p.stage, applicability: f.ans, template_id: null });
+      const template = S.location_inspection_templates.find(t => t.contract_id === p.contract_id && t.stage === p.stage && L.under(p.work_area_id, t.work_area_id));
+      if (!P.need(f.ans !== "required" || template, "Publish the relevant checklist before approving a mandatory inspection.")) return;
+      fn = () => S.location_inspection_requirements.push({ id: P.uid("rq"), contract_id: p.contract_id, work_area_id: p.work_area_id, work_package_id: p.work_package_id,
+        stage: p.stage, applicability: f.ans === "required" ? "required" : "not_required", template_id: f.ans === "required" ? template.id : null, created_at: P.nowIso() });
     } else if (a.rule === "R09") {
       const p = find(S.planned_allocations, a.id.split(":")[1]);
       if (!P.need(f.title && f.checks, "Add a name and at least one check.")) return;

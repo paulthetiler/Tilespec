@@ -13,17 +13,19 @@ export function currentRows<T extends { id: string; supersedes_id: string | null
   return rows.filter(row => !replaced.has(row.id));
 }
 
-export function toRequirement(row: { id: string; contract_id: string; work_area_id: string; stage: InstallationStageKey; applicability: string }): InspectionRequirementRow {
-  return { id: row.id, contract_id: row.contract_id, work_area_id: row.work_area_id, stage: row.stage, applicability: row.applicability === "required" ? "required" : "not_required" };
+export function toRequirement(row: { id: string; contract_id: string; work_area_id: string; stage: InstallationStageKey; applicability: string; template_id?: string | null; work_package_id?: string | null; created_at?: string }): InspectionRequirementRow {
+  return { id: row.id, contract_id: row.contract_id, work_area_id: row.work_area_id, stage: row.stage, applicability: row.applicability === "required" ? "required" : "not_required",
+    template_id: row.template_id, work_package_id: row.work_package_id, created_at: row.created_at };
 }
 
 export function toInspection(
-  row: Pick<LocationInspection, "id" | "work_area_id" | "issues_count" | "answers" | "created_at"> & { contract_id: string; template_id: string },
+  row: Pick<LocationInspection, "id" | "work_area_id" | "work_package_id" | "issues_count" | "answers" | "created_at"> & { contract_id: string; template_id: string },
   stageByTemplate: Map<string, InstallationStageKey>,
 ): InspectionRow | null {
   const stage = stageByTemplate.get(row.template_id);
   if (!stage) return null;
-  return { id: row.id, contract_id: row.contract_id, work_area_id: row.work_area_id, stage, created_at: row.created_at, blocking_failure: inspectionHasBlockingFailure(row) };
+  return { id: row.id, contract_id: row.contract_id, work_area_id: row.work_area_id, template_id: row.template_id, work_package_id: row.work_package_id ?? null,
+    stage, created_at: row.created_at, blocking_failure: inspectionHasBlockingFailure(row) };
 }
 
 const SNAG_STATUSES: SnagStatus[] = ["draft", "open", "assigned", "rectification_submitted", "reinspection", "closed", "cancelled"];
@@ -50,5 +52,7 @@ export function toHold(row: Record<string, unknown>): HoldRow {
     assigned_operative_id: (row.assigned_operative_id as string | null) ?? null, target_date: (row.target_date as string | null) ?? null,
     // The engine derives this from open critical snags in the same location. It is never read from a stored flag.
     critical_snags_open: false,
+    stage: (row.stage as string | null) ?? null, activity: String(row.activity ?? ""), work_package_id: (row.work_package_id as string | null) ?? null,
+    work_package_name: (row.work_package_name as string | null) ?? null, location_path: (row.location_path as string[]) ?? [],
   };
 }

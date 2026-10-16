@@ -1,6 +1,6 @@
 # 8. Review response and Phase 2
 
-This answers the eight review points on Phase 1 and describes what Phase 2 adds. Phase 2 is behind feature flags that are off by default. There are no schema changes. Nothing is merged or deployed.
+This answers the eight review points on Phase 1 and describes what Phase 2 adds. Phase 1 is already on `main` at `9cebbbe`; this delivery replays only the seven Phase 2 commits through `cb0ce756`. Phase 2 stays behind feature flags that are off by default. There are no schema changes or production rollout.
 
 ## 8.1 The eight review points
 
@@ -34,7 +34,7 @@ FEATURE_NEXT_ACTIONS=1              # on for everyone ("1", "true", "on", "yes" 
 FEATURE_ROLE_SHELL=supervisor       # on for one role only (comma list of database roles)
 ```
 
-A value that is not recognised turns the flag off. Production is never turned on by this branch. Vercel Preview deployments default both flags to `supervisor` so the working Supervisor Today can be reviewed; an explicit empty value still turns a flag off.
+A value that is not recognised turns the flag off. Both flags stay off by default in local development, Vercel Preview and production. The fictional-data preview at `/preview/workflow/` is independent of these application flags. Reviewing the real Supervisor Today requires explicit role-scoped opt-in in an approved test environment. Unset, empty and `off` values all keep the application flags disabled.
 
 ### Configuration (all optional)
 
@@ -57,6 +57,42 @@ npm test                 # engine, flags, navigation, independence, owner counts
 npm run preview:check
 npm run preview:smoke    # 624 screen openings
 npm run preview:e2e      # 17 journeys
+npm run preview:mobile   # narrow-phone screenshots and overflow checks
+npm run test:browser     # existing boundaries plus both deployed preview URL forms
+npm run test:next-actions-ui # real components at 320px, 390px and 820px with read-only fixtures
+npm run build           # production build; both flags stay off unless explicitly set
 ```
 
 Mobile screenshots for every screen are in `screenshots/`. The preview itself is `prototype/index.html`.
+
+## 8.5 Phase 2 completion on the current main
+
+`feat/phase-2-next-actions` starts at the Phase 1 squash commit `9cebbbe` and
+replays exactly the seven Phase 2 commits from
+`cursor/phase-2-next-actions-0e69`, ending at saved commit
+`cb0ce7564259fe1af675e32a295822538477e7fe`. The initial replay has the same
+tree as that saved commit, and `git range-diff` matches all seven patches.
+The owner-count, idle-copy, action-routing and preview base-path fixes are retained.
+
+Focused completion fixes keep the implementation within that scope:
+
+- Both flags require explicit opt-in in every environment. The static fictional
+  preview remains separate, and only supervisors use the real new Today page.
+- Supervisor snapshot loading uses the signed-in identity instead of calling
+  the office-only recipient directory. Reads remain scoped to the site and page
+  through append-only inspection and hold histories.
+- A required inspection matches the exact location, checklist, package and
+  approval timestamp. Missing/replaced configuration stays outstanding; a room
+  pass cannot clear a floor or an earlier specification revision. PostgreSQL
+  fractional timestamp ordering is preserved.
+- Acknowledgements and handovers complete only the relevant supervisor's work.
+  Stopped-work cards retain the recorded activity and package, and reporting a
+  snag never implies that an existing restriction has been released.
+- Browser checks cover actual served preview assets and real components as well
+  as the existing fictional-data prototype. The shared preview bundle is current.
+
+All local checks listed in [7.1](07-acceptance-tests.md) pass. CI runs those
+checks and the existing operations regression suite, and uploads the preview
+and real-component mobile screenshots separately. The component fixtures do
+not establish hosted Auth/RLS/Storage behaviour. No migration, permission,
+financial calculation or live deployment was changed.

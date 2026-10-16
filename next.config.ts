@@ -7,7 +7,12 @@ import { workflowPreviewExposed } from './lib/operations/next-actions/flags';
 // It is generated at build/dev time for Vercel Preview and local next dev only.
 function syncWorkflowPreview() {
   const dest = path.join(process.cwd(), 'public', 'preview', 'workflow');
-  if (!workflowPreviewExposed()) return;
+  if (!workflowPreviewExposed()) {
+    // A prior local dev/preview run may have generated the public copy. Do not
+    // carry it into a later production build from the same checkout.
+    rmSync(dest, { recursive: true, force: true });
+    return;
+  }
   const src = path.join(process.cwd(), 'docs', 'redesign', 'prototype');
   if (!existsSync(src)) return;
   rmSync(dest, { recursive: true, force: true });

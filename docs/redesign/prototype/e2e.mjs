@@ -8,7 +8,7 @@ import path from "node:path";
 import assert from "node:assert/strict";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {});
 const results = [];
 
 async function scenario(name, qs, fn) {

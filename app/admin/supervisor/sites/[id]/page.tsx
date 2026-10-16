@@ -24,7 +24,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   if (!contract) return null;
   // Behind FEATURE_NEXT_ACTIONS: the shared Next Action engine decides what comes next. The
   // original page below is unchanged and remains the default until the flag is switched on.
-  if (flagEnabled("nextActions", member.role)) return <NextActionsToday supabase={supabase} member={member} contract={contract} />;
+  if (member.role === "supervisor" && flagEnabled("nextActions", member.role)) return <NextActionsToday supabase={supabase} member={member} contract={contract} />;
   const day = londonDate();
   const base = `/admin/supervisor/sites/${id}`;
   const issuesHref = `${base}/snags`;
