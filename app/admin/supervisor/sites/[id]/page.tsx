@@ -11,6 +11,8 @@ import { buildSiteDay } from "@/lib/operations/site-day";
 import { WorkReleaseList } from "@/components/site/work-release-list";
 import { qualityOverviewFor } from "@/lib/operations/quality-data";
 import { requireSite } from "../../site-access";
+import { flagEnabled } from "@/lib/operations/next-actions/flags";
+import { NextActionsToday } from "@/components/site/next-actions-today";
 import styles from "../../../admin.module.css";
 import dailyStyles from "@/components/site/daily.module.css";
 
@@ -20,6 +22,9 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const { supabase, contract, member } = await requireSite(id);
   if (!contract) return null;
+  // Behind FEATURE_NEXT_ACTIONS: the shared Next Action engine decides what comes next. The
+  // original page below is unchanged and remains the default until the flag is switched on.
+  if (flagEnabled("nextActions", member.role)) return <NextActionsToday supabase={supabase} member={member} contract={contract} />;
   const day = londonDate();
   const base = `/admin/supervisor/sites/${id}`;
   const issuesHref = `${base}/snags`;
