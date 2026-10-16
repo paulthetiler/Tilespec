@@ -6,7 +6,7 @@ import styles from "./daily.module.css";
 
 // The daily page already presents the common tasks. Other site screens have
 // one route home and secondary links, without a second row of daily actions.
-export function SiteNav({ base, contractId, siteName, reference }: { base: string; contractId: string; siteName: string; reference: string }) {
+export function SiteNav({ base, contractId, siteName, reference, reportIssue = false }: { base: string; contractId: string; siteName: string; reference: string; reportIssue?: boolean }) {
   const path = usePathname();
   if (path === base) return null;
   const items: [string, string][] = [[`${base}/checks`, "Morning checks"], [`${base}/workforce`, "Who's on site?"],
@@ -20,7 +20,7 @@ export function SiteNav({ base, contractId, siteName, reference }: { base: strin
       <details className={styles.more} key={path}><summary>More</summary><div className={styles.moreLinks}>
         {items.map(([href, label]) => <Link key={href} href={href} aria-current={path === href ? "page" : undefined}>{label}</Link>)}
       </div></details>
-      <Link href={`/admin/holds/new?contract=${contractId}`}>STOP WORK</Link>
+      {reportIssue ? <Link href={`${base}/report`} data-report="">Report an issue</Link> : <Link href={`/admin/holds/new?contract=${contractId}`}>STOP WORK</Link>}
     </nav>
   </div>;
 }
