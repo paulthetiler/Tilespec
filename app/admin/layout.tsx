@@ -4,6 +4,8 @@ import Link from "next/link";
 import { canReadFinancial, requireActor } from "@/lib/auth";
 import { roleLabels } from "@/lib/operations/types";
 import { signOut } from "@/app/auth/actions";
+import { flagEnabled } from "@/lib/operations/next-actions/flags";
+import { RoleTabs } from "@/components/admin/role-tabs";
 import styles from "./admin.module.css";
 
 export const metadata: Metadata = {
@@ -16,6 +18,8 @@ export const dynamic = "force-dynamic";
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const { member } = await requireActor();
   const supervisor = member.role === "supervisor";
+  // Behind FEATURE_ROLE_SHELL: at most four destinations for this role. Off by default.
+  const roleShell = flagEnabled("roleShell", member.role);
 
   return (
     <div className={styles.admin}>
@@ -36,7 +40,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </div>
         </div>
       </header>
-      {!supervisor && (
+      {roleShell && <div className={styles.shell}><RoleTabs role={member.role} financial={canReadFinancial(member)} /></div>}
+      {!supervisor && !roleShell && (
         <>
           <nav className={`${styles.shell} ${styles.nav} ${styles.desktopNav}`} aria-label="Admin navigation">
             <Link href="/admin">Overview</Link>
@@ -72,7 +77,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </nav>
         </>
       )}
-      <main id="admin-main" className={`${styles.shell} ${styles.main}`} tabIndex={-1}>
+      <main id="admin-main" className={`${styles.shell} ${styles.main}`} tabIndex={-1} style={roleShell ? { paddingBottom: "96px" } : undefined}>
         {children}
       </main>
     </div>
