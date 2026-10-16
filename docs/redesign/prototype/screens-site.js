@@ -27,10 +27,20 @@
     const saved = R.savedToday(P.S, v);
     const first = v.display_name.split(" ")[0];
     const counts = R.queueCounts(q);
+    // Alerts already in the banner are not listed or counted again under Risks.
+    const listedExceptions = exceptions.filter((a) => !alerts.some((b) => b.id === a.id));
     const activeHolds = P.S.work_holds.filter((h) => ["active", "correction_submitted", "awaiting_release"].includes(h.status) && visible(ctx).has(h.contract_id));
     const jobs = [...visible(ctx)].map((id) => P.L().contracts.get(id)).filter(Boolean);
+    const attention = role === "owner" ? alerts.length : 0;
+    const infoN = role === "owner" ? counts.informational : 0;
+    const bits = [];
+    if (counts.actions) bits.push(counts.actions === 1 ? "1 thing needs you" : `${counts.actions} things need you`);
+    else if (!attention && !infoN) bits.push("Nothing needs you right now");
+    if (attention) bits.push(attention === 1 ? "1 needs attention" : `${attention} need attention`);
+    if (infoN) bits.push(infoN === 1 ? "1 informational alert" : `${infoN} informational alerts`);
+    P.todayBadge = role === "owner" ? counts.actions + attention : null;
     const head = `<header class="gap-s"><p class="eyebrow">${esc(P.fd(P.S.today))}${role === "supervisor" ? " · " + esc(jobs.map((c) => c.name).join(", ")) : ""}</p><h1 class="title">Hello, ${esc(first)}</h1>
-      <p class="sub">${esc(R.todayCountCopy(counts.actions, role === "owner" ? counts.informational : 0))}</p></header>`;
+      <p class="sub">${esc(bits.join(". ") + ".")}</p></header>`;
     const idle = R.idleCopy({ activeRestrictions: activeHolds.length > 0, waitingOnOthers: waiting.length + alerts.length > 0 });
     const main = nxt ? P.hero(nxt) : P.empty(idle.title, idle.text);
     const list = (cls, rows) => `<div class="card flat list">${rows.map(P.actionRow).join("")}</div>`;
@@ -38,7 +48,7 @@
     const alertBox = alerts.length ? alerts.map((a) => `<section class="banner alert" role="status" data-hint><div class="chips">${P.kindChip(a)}${a.due ? P.chip("done", P.dueText(a), "clock") : ""}</div><strong>${esc(a.title)}</strong><span>${esc(a.why)}</span><span class="small muted">${esc(R.classNote(a))}</span></section>`).join("") : "";
     const thenList = more.length ? `<section class="gap-s"><h2 class="section">Then (${more.length})</h2>${list("", more)}</section>` : "";
     const infoList = info.length ? `<section class="gap-s"><h2 class="section">For your information</h2>${list("", info)}</section>` : "";
-    const riskList = exceptions.length ? `<section class="gap-s" aria-label="Risks and exceptions"><h2 class="section">Risks and exceptions (${exceptions.length})</h2><p class="small muted">Stopped work, defects, cover and money that are not yours to action today.</p>${list("", exceptions)}</section>` : "";
+    const riskList = listedExceptions.length ? `<section class="gap-s" aria-label="Risks and exceptions"><h2 class="section">Risks and exceptions (${listedExceptions.length})</h2><p class="small muted">Stopped work, defects, cover and money that are not yours to action today.</p>${list("", listedExceptions)}</section>` : "";
     const waitList = waiting.length ? `<section class="gap-s"><h2 class="section">Waiting on others (${waiting.length})</h2>${list("", waiting)}</section>` : "";
     const savedList = saved.length ? `<section class="gap-s"><h2 class="section">Saved today</h2><div class="card flat list">${saved.map((s) => `<div class="row" role="group"><span class="lead">${P.ic("check")}</span><span class="text"><strong>${esc(s.label)}</strong><span>${esc(s.job)} · ${esc(s.at)}</span></span>${P.chip("saved", "Saved", "check")}</div>`).join("")}</div></section>` : "";
     let extra = "";

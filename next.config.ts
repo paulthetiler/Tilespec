@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { NextConfig } from 'next';
 import { workflowPreviewExposed } from './lib/operations/next-actions/flags';
@@ -13,6 +13,13 @@ function syncWorkflowPreview() {
   rmSync(dest, { recursive: true, force: true });
   mkdirSync(path.dirname(dest), { recursive: true });
   cpSync(src, dest, { recursive: true });
+  // Relative scripts must resolve under /preview/workflow/ even when the review
+  // link has no trailing slash.
+  const indexPath = path.join(dest, 'index.html');
+  const html = readFileSync(indexPath, 'utf8');
+  if (!html.includes('<base ')) {
+    writeFileSync(indexPath, html.replace('<head>', '<head>\n<base href="/preview/workflow/">'));
+  }
 }
 syncWorkflowPreview();
 

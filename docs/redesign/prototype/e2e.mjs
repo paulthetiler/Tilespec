@@ -202,12 +202,19 @@ await scenario("Owner has three destinations and risks live under Today", "role=
   const counts = await page.evaluate(() => {
     const a = TSRules.compute(P.S, P.viewer());
     const q = TSRules.buildQueue(a, { groupExceptions: true });
-    return TSRules.queueCounts(q);
+    const c = TSRules.queueCounts(q);
+    const attention = q.alerts.filter((x) => x.state !== "ready");
+    const listed = q.exceptions.filter((x) => !attention.some((b) => b.id === x.id)).length;
+    return { ...c, attention: attention.length, listed };
   });
   assert.match(t, new RegExp(counts.actions === 1 ? "1 thing needs you" : `${counts.actions} things need you`));
+  assert.match(t, new RegExp(counts.attention === 1 ? "1 needs attention" : `${counts.attention} need attention`));
   assert.match(t, new RegExp(`${counts.informational} informational alert`));
   const risks = Number((t.match(/Risks and exceptions \((\d+)\)/) || [])[1]);
-  assert.equal(risks, counts.exceptions, "informational alerts are not mixed into the risks count");
+  assert.equal(risks, counts.listed, "banner alerts are not counted again under risks");
+  for (const title of ["Review the critical defect", "public liability has expired"]) {
+    assert.equal(t.split(title).length - 1, 1, `${title} is shown once`);
+  }
 });
 
 await scenario("Subcontractor has Today, Fixes and Paperwork and no Tell the supervisor", "role=u-marek&scenario=busy", async ({ page, go, text }) => {
