@@ -1,21 +1,21 @@
 # TileSpec Admin: Apple-simple workflow redesign
 
-**Status: Phase 1 only. Audit and clickable prototype, for review. Nothing here is wired into the app, merged or deployed.**
+**Status: Phase 1 reviewed and approved in direction. All eight review points are addressed (see [08-review-response.md](08-review-response.md)). Phase 2 (shared rules engine, Supervisor Today, role-specific navigation) is built behind feature flags that are off by default. No schema changes. Not merged or deployed.**
 
-Everything in this folder is documentation and a static prototype. No application code, database schema, business logic or production data was touched. See "What changed" below.
+The documents describe the design. The code is in `lib/operations/next-actions/`, `lib/operations/role-nav.ts` and `components/`. The mobile preview in `docs/redesign/prototype/` runs the same engine as the app.
 
 ## The idea
 
 Every person should know what to do next within three seconds. Underneath, the app stays as strict as it is today. On the surface:
 
-- four roles, each with at most four destinations
+- four roles, each with at most four destinations (owner and subcontractor have three)
 - one prominent next action per screen, chosen by rules from what has actually been saved
 - plain English
-- gates (mandatory controls) never dismissed, never completed by the system
+- required steps (gates), alerts and reminders kept honestly apart: only what the database really enforces is called a gate. None can be dismissed or completed by the system
 
-## Open the prototype
+## Open the mobile preview
 
-Open `docs/redesign/prototype/index.html` in any browser. No server or build is needed.
+Open `docs/redesign/prototype/index.html` in any browser, or serve the folder (`npx serve docs/redesign/prototype`) and open it on a phone. For a direct link to the phone view as a supervisor add `?role=u-dave&device=mobile`. The preview needs no build step (the bundled engine is committed).
 
 1. Pick a person in the bar at the top. Try Dave (supervisor), Sam (office), Alex (owner), Marek (subcontractor).
 2. Toggle **Phone** and **Desktop**.
@@ -23,7 +23,7 @@ Open `docs/redesign/prototype/index.html` in any browser. No server or build is 
 4. Tick **Backend reality check** to see which parts are already built and which are not.
 5. Tick **Poor signal** to see a failed save keep everything you typed.
 
-To see the system working across people: as Dave raise a STOP WORK, choose the Kowalski gang. Switch to Marek, send a fix, ask the office to check. Switch to Dave (he cannot decide it), then to Sam.
+To see the system working across people: as Dave tap **Report an issue**, choose "Yes: safety stop", then choose the Kowalski gang. Switch to Marek, send a fix, ask the office to check. Switch to Dave (he cannot decide it), then to Sam.
 
 ## Documents
 
@@ -32,10 +32,11 @@ To see the system working across people: as Dave raise a STOP WORK, choose the K
 | 1 | [Existing workflow audit](01-workflow-audit.md) | Audit: confusing navigation, hidden actions, tasks with no owner, missing handoffs, repeated entry, jargon, backend inventory, permission matrix |
 | 2 | [Proposed navigation](02-navigation.md) | Four destinations per role, old to new map |
 | 3 | [Screens](03-screens.md) | Mobile and desktop, screen by screen, with backend status |
-| 4 | [Next Action rules and responsibility matrix](04-next-actions.md) | Gate or reminder, rule catalogue, independence, ordering, thresholds, parallel processes |
+| 4 | [Next Action rules and responsibility matrix](04-next-actions.md) | Gate, alert or reminder, rule catalogue, independence, ordering, thresholds, parallel processes |
 | 5 | [Reusable components](05-reusable-components.md) | What exists and will be reused |
 | 6 | [Implementation plan](06-implementation-plan.md) | Small, reversible, flagged phases |
 | 7 | [Acceptance tests](07-acceptance-tests.md) | Realistic end-to-end journeys and the no-training test |
+| 8 | [Review response and Phase 2](08-review-response.md) | How each review point was addressed, feature flags, configuration, how to try it |
 
 ## Headline findings
 
@@ -48,40 +49,46 @@ To see the system working across people: as Dave raise a STOP WORK, choose the K
 7. **Two supervisor tiles go nowhere.** Variations and Dayworks lead to "will be added". Drawings are listed but cannot be opened. ([N-4, N-5](01-workflow-audit.md))
 8. **The strongest controls are already right** and are preserved: independent release, repairer is not re-inspector, unknown applicability never releases, append-only audit and cover records. ([1.2](01-workflow-audit.md))
 
-## Decisions needed before Phase 2
+## Decisions still needed
 
-1. Approve the four roles and destinations (section 2.2). In particular: should the subcontractor have three destinations, and should "Risks" and "Money" be separate owner destinations?
-2. Approve the plain-English vocabulary (audit 1.3). It changes screen labels only.
-3. Approve the thresholds in [4.7](04-next-actions.md): 10:00, 15:00, 17:30, 3 days, 7 days, 21 days.
-4. Approve the gate and reminder list in [4.3](04-next-actions.md). Which items would you add or move?
-5. Decide on each backend item: B1 (gang reads its own plan) and B5 (tender status) are small and unlock the most. B3 (owner margin acceptance) closes a promised control. B7 (expired cover blocks planning) and B8 (package access from a plan) change behaviour and are optional. B2, B4, B6 are larger.
-6. Confirm the first build is Phases 2 to 4 (rules engine, supervisor Today, role shell) behind flags, with no schema change.
+1. Approve the vocabulary and the three alert wordings in [4.2](04-next-actions.md).
+2. Approve the working-hours defaults and offsets in [4.7](04-next-actions.md). They are configuration, not code.
+3. Decide on each backend item: B1 (gang reads its own plan) and B5 (tender status) are small and unlock the most. B3 (owner margin acceptance) closes a promised control. B7 (expired cover blocks planning) and B8 change behaviour and are optional. B2, B4, B6 are larger. Until each exists, nothing on screen depends on it.
+4. Approve a staged rollout: `FEATURE_ROLE_SHELL` and `FEATURE_NEXT_ACTIONS` for one role first (for example `supervisor`).
 
 ## What the prototype is and is not
 
 | Is | Is not |
 | --- | --- |
 | Fictional data in the real table shapes | Connected to any database |
-| The real rules run in the browser, tested | A second implementation to ship |
-| Honest about gaps: variations, claims and owner sign-off are shown as not built | A promise those exist |
+| The **real** shared engine, bundled from the TypeScript source and tested | A separate copy of the logic |
+| Honest about gaps: nothing is shown for variations, dayworks, claims, tender replies or owner sign-off, because no record exists for them | A promise those exist |
 | Using the official TileSPEC logo, palette and fonts | A rebrand |
 
 ## Checks
 
 ```bash
-node --test docs/redesign/prototype/rules.test.mjs   # 24 rule tests
-node docs/redesign/prototype/smoke.mjs               # 648 screen openings
-node docs/redesign/prototype/e2e.mjs                 # 13 clickable journeys
-node docs/redesign/prototype/shots.mjs               # regenerate screenshots
+npm run typecheck        # tsc --noEmit
+npm test                 # 149 tests, including 38 for the engine
+npm run preview:check    # the bundled engine in the preview matches the TypeScript source
+npm run preview:smoke    # 624 screen openings
+npm run preview:e2e      # 17 clickable journeys
+node docs/redesign/prototype/shots.mjs   # regenerate screenshots
 ```
 
-The last three need Playwright (already a dev dependency) and a Chromium: `npx playwright install chromium`.
+After changing anything in `lib/operations/next-actions/`, run `npm run preview:build` to refresh `prototype/engine.js`. The preview scripts need Playwright (already a dev dependency) and Chromium: `npx playwright install chromium`.
 
 ## What changed
 
-The existing `npm run typecheck` and `npm test` (111 tests) pass on this branch, unchanged.
+Application code changed only behind flags that are off by default:
 
-Only files under `docs/redesign/` were added. `git diff --stat main -- . ':!docs/redesign'` is empty. The existing CI workflows are path-filtered and do not run for this change.
+- `lib/operations/next-actions/` (new engine), `lib/operations/role-nav.ts` (new)
+- `app/admin/supervisor/sites/[id]/page.tsx` renders the new Today only when `FEATURE_NEXT_ACTIONS` is on; the old page is otherwise untouched
+- `app/admin/supervisor/sites/[id]/report/page.tsx` (new) and `app/admin/money/page.tsx` (new), both 404 when the flag is off
+- `app/admin/layout.tsx` renders the role tabs only when `FEATURE_ROLE_SHELL` is on
+- `components/site/site-nav.tsx`, `components/holds/create-hold.tsx` and `app/admin/holds/new/page.tsx` gained optional props with unchanged defaults
+
+No migration, table, policy, RPC, financial calculation or quality control was touched. Existing records, permissions and audit trails are as before.
 
 ## Prototype files
 
@@ -89,8 +96,8 @@ Only files under `docs/redesign/` were added. `git diff --stat main -- . ':!docs
 | --- | --- |
 | `prototype/index.html` | Entry, review bar |
 | `prototype/data.js` | Fictional scenario data in the real schema shapes |
-| `prototype/rules.js` | Next Action rules (read-only) |
-| `prototype/rules.test.mjs` | Rule tests |
+| `prototype/engine.js` | **Generated** bundle of `lib/operations/next-actions` (do not edit; `npm run preview:build`) |
+| `prototype/preview-engine.js` | Thin adapter exposing the engine to the screens |
 | `prototype/ui.js`, `screens-site.js`, `screens-office.js` | Shell, components, screens |
 | `prototype/styles.css` | TileSPEC palette and fonts, 52 to 60 px targets |
 | `prototype/smoke.mjs`, `e2e.mjs`, `shots.mjs` | Automated checks and screenshots |
