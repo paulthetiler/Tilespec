@@ -14,20 +14,20 @@ export const siteBaseOf = (pathname: string) => {
   return match ? `/admin/supervisor/sites/${match[1]}` : null;
 };
 
-export function destinationsFor(role: MemberRole, pathname: string): Destination[] {
+export function destinationsFor(role: MemberRole, pathname: string, financial = role === "owner"): Destination[] {
   switch (role) {
     case "owner":
       return [
         { key: "today", label: "Today", href: "/admin", icon: "home" },
         { key: "jobs", label: "Jobs", href: "/admin/contracts", icon: "briefcase" },
-        { key: "money", label: "Money", href: "/admin/money", icon: "pound" },
+        ...(financial ? [{ key: "money", label: "Money", href: "/admin/money", icon: "pound" } as Destination] : []),
       ];
     case "contracts_manager":
       return [
         { key: "today", label: "Today", href: "/admin", icon: "home" },
         { key: "jobs", label: "Jobs", href: "/admin/contracts", icon: "briefcase" },
-        { key: "tenders", label: "Tenders", href: "/admin/tenders", icon: "inbox" },
-        { key: "labour", label: "Labour", href: "/admin/workforce", icon: "users" },
+        { key: "people", label: "People", href: "/admin/workforce", icon: "users" },
+        { key: "paperwork", label: "Paperwork", href: "/admin/paperwork", icon: "file" },
       ];
     case "supervisor": {
       const base = siteBaseOf(pathname);
@@ -50,7 +50,7 @@ export function destinationsFor(role: MemberRole, pathname: string): Destination
 
 /** The one destination that is current for a path. Longest matching link wins, so "Today" is not always highlighted. */
 export function currentDestination(items: Destination[], pathname: string): string | null {
-  const hits = items.filter(i => pathname === i.href || pathname.startsWith(`${i.href}/`));
+  const hits = items.filter(i => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(`${i.href}/`)));
   hits.sort((a, b) => b.href.length - a.href.length);
   return hits[0]?.key ?? null;
 }
@@ -65,7 +65,7 @@ export function everythingElse(role: MemberRole, financial: boolean): { label: s
     ...(office ? [{ label: "Workforce", href: "/admin/workforce" }] : []),
     { label: "Site dashboards", href: "/admin/supervisor" }, { label: "Snag register", href: "/admin/snags" }, { label: "Holds and releases", href: "/admin/holds" },
     { label: "Site alerts", href: "/admin/alerts" },
-    ...(office ? [{ label: "Quality control", href: "/admin/quality" }, { label: "Tenders", href: "/admin/tenders" }] : []),
+    ...(office ? [{ label: "Paperwork", href: "/admin/paperwork" }, { label: "Messages and handovers", href: "/admin/messages" }, { label: "Quality control", href: "/admin/quality" }, { label: "Tenders", href: "/admin/tenders" }] : []),
     ...(role === "owner" ? [{ label: "User access", href: "/admin/team" }] : []),
     ...(financial ? [{ label: "Estimator", href: "/admin/estimator" }, { label: "Money", href: "/admin/money" }] : []),
   ];

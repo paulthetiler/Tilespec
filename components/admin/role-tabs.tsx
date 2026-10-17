@@ -21,7 +21,7 @@ const ICONS: Record<Destination["icon"], string> = {
 // Primary destinations (never more than four) plus the original menu tucked under "Everything else".
 export function RoleTabs({ role, financial }: { role: MemberRole; financial: boolean }) {
   const pathname = usePathname() ?? "";
-  const items = destinationsFor(role, pathname);
+  const items = destinationsFor(role, pathname, financial);
   const current = currentDestination(items, pathname);
   const rest = everythingElse(role, financial);
   return <>

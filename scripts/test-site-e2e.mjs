@@ -23,6 +23,7 @@ import { storageFixture } from './snags-storage-fixture.mjs';
 const repository = fileURLToPath(new URL('..', import.meta.url));
 const screenshots = process.env.SCREENSHOT_DIR;
 const postgrestBinary = process.env.POSTGREST_BIN || 'postgrest';
+const adminTodayOnly = process.env.E2E_ADMIN_TODAY_ONLY === '1';
 const password = 'e2e-password-1';
 const users = {
   'sid.supervisor@e2e.invalid': 'e2e00000-0000-4000-8000-000000000001',
@@ -35,6 +36,8 @@ const users = {
   'ada.supervisor@e2e.invalid': 'e2e00000-0000-4000-8000-000000000008',
   'grace.owner@e2e.invalid': 'e2e00000-0000-4000-8000-000000000009',
   'dave.supervisor@e2e.invalid': 'e2e00000-0000-4000-8000-000000000010',
+  'faye.finance@e2e.invalid': 'e2e00000-0000-4000-8000-000000000011',
+  'otto.owner@e2e.invalid': 'e2e00000-0000-4000-8000-000000000012',
 };
 const contractId = 'e2e00000-0000-4000-8000-0000000000c1';
 const children = [];
@@ -73,6 +76,7 @@ async function startDatabase() {
   sql(await readFile(join(repository, 'tests/e2e/snags-seed.sql'), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/holds-seed.sql'), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/simple-seed.sql'), 'utf8'));
+  if (adminTodayOnly) sql(await readFile(join(repository, 'tests/e2e/admin-today-seed.sql'), 'utf8'));
 }
 
 // --- Tokens and the Supabase stand-in ------------------------------------------
@@ -169,7 +173,11 @@ async function startNext(gatewayPort) {
   const child = spawn(process.execPath, [join(repository, 'node_modules/next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], {
     cwd: repository, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, TILESPEC_E2E_OUTPUT: '1', NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${gatewayPort}`, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: anonKey,
-      NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: serviceKey } });
+      NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: serviceKey,
+      // The existing regression always proves the default admin. Phase 3 is a
+      // separate invocation with an explicit office/owner-only opt-in.
+      FEATURE_NEXT_ACTIONS: adminTodayOnly ? 'owner,contracts_manager' : '',
+      FEATURE_ROLE_SHELL: adminTodayOnly ? 'owner,contracts_manager' : '' } });
   for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { log = (log + bytes).slice(-8000); });
   children.push({ kill: async () => {
     if (child.exitCode !== null || child.signalCode !== null) return;
@@ -278,6 +286,14 @@ async function main() {
   await compileAuthenticatedRoutes(next.origin, gateway.port);
   browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, headless: true });
   await warm(next.origin);
+  if (adminTodayOnly) {
+    const { runAdminToday } = await import('./admin-today-e2e-flows.mjs');
+    await runAdminToday({ browser, origin: next.origin, sql, signIn, screenshots, pass,
+      gatewayOrigin: `http://127.0.0.1:${gateway.port}`, tokenFor: email => session(users[email], email).access_token });
+    return;
+  }
+  const { checkLegacyAdmin } = await import('./admin-today-e2e-flows.mjs');
+  await checkLegacyAdmin({ browser, origin: next.origin, signIn, pass });
   // Optional developer focus while diagnosing a snag, hold or simple journey. The normal npm
   // test:e2e command always executes the complete existing regression suite.
   if (process.env.E2E_SNAGS_ONLY !== '1' && process.env.E2E_HOLDS_ONLY !== '1' && process.env.E2E_SIMPLE_ONLY !== '1') {

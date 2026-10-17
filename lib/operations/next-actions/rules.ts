@@ -135,7 +135,7 @@ rule("G06_G07_G08_inspections", ({ s, L, cfg }) => {
         due: plan.planned_start, requires: ["The specification or manufacturer document", "Whether a mandatory inspection is needed"],
         doneWhen: "An inspection decision is saved for this location and activity", next: "Supervisors see exactly which checks to do",
         audience: { office: "act", supervisor: "see" }, blocks: INSPECTION_BLOCKS, enforcedByBackend: true,
-        source: { table: "location_inspection_requirements", id: reqs[0]?.id ?? null }, route: { screen: "job", id: plan.contract_id },
+        source: { table: "location_inspection_requirements", id: reqs[0]?.id ?? null }, route: { screen: "job", id: plan.contract_id, locationId: plan.work_area_id, stage: plan.stage },
       });
       continue;
     }
@@ -385,16 +385,17 @@ rule("R06_handover", c => c.s.contracts.filter(k => workToday(c.s, k.id) && !eve
 rule("R08_job_setup", ({ s, L, cfg }) => {
   const out: NextAction[] = [];
   for (const c of s.contracts) {
-    if (!(c.start_date <= addDays(s.today, cfg.jobSetupLeadDays) && c.end_date >= s.today)) continue;
+    if ((c.start_date && c.start_date > addDays(s.today, cfg.jobSetupLeadDays)) || (c.end_date && c.end_date < s.today)) continue;
     const job = L.job(c.id);
     const steps: [string, string, string, string[], string, string][] = [];
     const locs = s.work_areas.filter(a => a.contract_id === c.id);
     const planned = s.planned_allocations.some(p => p.contract_id === c.id && p.planned_end >= s.today && p.planned_start <= addDays(s.today, cfg.planHorizonDays));
     const docs = s.document_revisions.filter(d => d.contract_id === c.id);
+    if (!c.start_date || !c.end_date) steps.push(["details", "Complete the job dates", "The saved job has no complete programme dates. Add the agreed start and finish dates.", ["Agreed start date", "Agreed finish date"], "Programme dates are saved", "Plan the job against the agreed dates"]);
     if (!locs.length) steps.push(["locations", "Add the locations", "Blocks, floors, flats or rooms you will work in.", ["Names of areas"], "Locations are saved", "Plan who works where"]);
     if (!L.supervisorOf(c.id)) steps.push(["supervisor", "Give the job a supervisor", "Nobody is looking after this job on site yet.", ["Which supervisor"], "A supervisor is allocated", "They see the job on their phone"]);
     if (!docs.length || !c.tile_specification) steps.push(["spec", "Add the specification and drawings", "Supervisors and gangs need them on site.", ["Specification", "Drawings"], "Documents and spec fields are saved", "Gangs can open them"]);
-    if (locs.length && c.start_date <= addDays(s.today, cfg.planHorizonDays) && !planned) steps.push(["plan", "Plan who works where", `Nothing is planned for the next ${cfg.planHorizonDays} days.`, ["Gang", "Location", "Stage", "Dates"], "A plan covers the next working days", "The supervisor confirms it on site"]);
+    if (locs.length && (!c.start_date || c.start_date <= addDays(s.today, cfg.planHorizonDays)) && !planned) steps.push(["plan", "Plan who works where", `Nothing is planned for the next ${cfg.planHorizonDays} days.`, ["Gang", "Location", "Stage", "Dates"], "A plan covers the next working days", "The supervisor confirms it on site"]);
     steps.forEach(([key, title, why, requires, doneWhen, next], idx) => out.push({
       id: `setup:${c.id}:${key}`, rule: "R08", process: "job-setup", kind: "reminder", priority: 3, order: 20 + idx, job, location: null, responsible: OFFICE,
       title, why, due: c.start_date, requires, doneWhen, next, audience: { office: "act", owner: null }, blocks: null, enforcedByBackend: false,
@@ -404,12 +405,25 @@ rule("R08_job_setup", ({ s, L, cfg }) => {
   return out;
 });
 
+// Existing morning-check findings use their original workflow, not a made-up
+// snag severity/repair assignment. They need office attention but stop no work
+// by themselves; deliberate holds remain separate saved controls.
+rule("R17_morning_finding", ({ s, L }) => (s.readiness_issues ?? []).filter(issue => issue.state !== "closed").map(issue => ({
+  id: `readiness:${issue.id}`, rule: "R17", process: "daily-site", kind: "reminder", priority: 2, order: 10,
+  job: L.job(issue.contract_id), location: null, responsible: OFFICE,
+  title: `Review the morning finding: ${issue.check_label}`, why: `${issue.description} This finding does not release or stop work by itself. Existing restrictions still apply.`,
+  due: null, requires: ["Review the saved finding", "Record the follow-up in its existing workflow"],
+  doneWhen: "The original finding is closed through its existing workflow", next: null,
+  audience: { office: "act", owner: "see", supervisor: "see" }, blocks: null, enforcedByBackend: false,
+  source: { table: "supervisor_issues", id: issue.id }, route: { screen: "snag", id: issue.id },
+})));
+
 rule("R09_missing_checklist", ({ s, L, cfg }) => s.planned_allocations.filter(p => p.planned_end >= s.today && p.planned_start <= addDays(s.today, cfg.planHorizonDays)
   && !s.location_inspection_templates.some(t => t.contract_id === p.contract_id && t.stage === p.stage && L.under(p.work_area_id, t.work_area_id))).map(p => ({
   id: `checklist:${p.id}`, rule: "R09", process: "inspection", kind: "reminder", priority: 3, order: 21, job: L.job(p.contract_id), location: L.path(p.work_area_id),
   responsible: OFFICE, title: `Publish the ${STAGE_LABEL[p.stage]} checks`, why: `A gang is planned here from ${p.planned_start} but the supervisor has no checklist to inspect against.`,
   due: p.planned_start, requires: ["The approved specification", "The checks to do"], doneWhen: "A current checklist covers this location and activity", next: "Supervisor can inspect",
-  audience: { office: "act", supervisor: "see" }, blocks: null, enforcedByBackend: false, source: { table: "location_inspection_templates", id: null }, route: { screen: "job", id: p.contract_id },
+  audience: { office: "act", supervisor: "see" }, blocks: null, enforcedByBackend: false, source: { table: "location_inspection_templates", id: null }, route: { screen: "job", id: p.contract_id, locationId: p.work_area_id, stage: p.stage },
 })));
 
 rule("R10_installer_cannot_see_job", ({ s, L, cfg }) => {

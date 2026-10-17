@@ -65,6 +65,9 @@ jobs:
       - run: npm run test:next-actions-ui
         env:
           SCREENSHOT_DIR: ${{ runner.temp }}/next-actions-app-mobile
+      - run: npm run test:admin-today-ui
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/admin-today-ui-mobile
       # The end-to-end test runs the real app against PostgREST and a disposable
       # PostgreSQL. The PostgREST release is pinned and checksum-verified.
       - name: PostgREST for the end-to-end test
@@ -76,6 +79,9 @@ jobs:
       - run: npm run test:e2e
         env:
           SCREENSHOT_DIR: ${{ runner.temp }}/site-screenshots
+      - run: npm run test:admin-today
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/admin-today-authenticated
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -93,4 +99,16 @@ jobs:
         with:
           name: next-actions-app-mobile
           path: ${{ runner.temp }}/next-actions-app-mobile
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-today-ui-mobile
+          path: ${{ runner.temp }}/admin-today-ui-mobile
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-today-authenticated
+          path: ${{ runner.temp }}/admin-today-authenticated
           if-no-files-found: ignore

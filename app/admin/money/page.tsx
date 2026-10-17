@@ -10,12 +10,12 @@ import styles from "../admin.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Money (behind FEATURE_ROLE_SHELL). A read-only view of budget fields the application already stores.
+// Money (behind the role shell or Next Action opt-in). A read-only view of saved budget fields.
 // Variations, dayworks, payment claims, actual costs and margin sign-off are not recorded anywhere yet,
 // so this page offers no button for any of them.
 export default async function MoneyPage() {
   const { supabase, member } = await requireActor();
-  if (!flagEnabled("roleShell", member.role) || !canReadFinancial(member)) notFound();
+  if ((!flagEnabled("roleShell", member.role) && !flagEnabled("nextActions", member.role)) || !canReadFinancial(member)) notFound();
   const [contracts, commercials] = await Promise.all([contractsFor(supabase), supabase.from("contract_commercials").select("*")]);
   checkDatabase(commercials.error);
   const rows = (commercials.data ?? []) as Commercial[];

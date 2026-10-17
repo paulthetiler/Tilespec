@@ -27,6 +27,7 @@ var TSEngine = (() => {
     STAGE_LABEL: () => STAGE_LABEL,
     actionHref: () => actionHref,
     addDays: () => addDays,
+    adminActionHref: () => adminActionHref,
     budgetOf: () => budgetOf,
     buildQueue: () => buildQueue,
     classChip: () => classChip,
@@ -390,7 +391,7 @@ var TSEngine = (() => {
           blocks: INSPECTION_BLOCKS,
           enforcedByBackend: true,
           source: { table: "location_inspection_requirements", id: (_b = (_a = reqs[0]) == null ? void 0 : _a.id) != null ? _b : null },
-          route: { screen: "job", id: plan.contract_id }
+          route: { screen: "job", id: plan.contract_id, locationId: plan.work_area_id, stage: plan.stage }
         });
         continue;
       }
@@ -850,16 +851,17 @@ var TSEngine = (() => {
   rule("R08_job_setup", ({ s, L, cfg }) => {
     const out = [];
     for (const c of s.contracts) {
-      if (!(c.start_date <= addDays(s.today, cfg.jobSetupLeadDays) && c.end_date >= s.today)) continue;
+      if (c.start_date && c.start_date > addDays(s.today, cfg.jobSetupLeadDays) || c.end_date && c.end_date < s.today) continue;
       const job = L.job(c.id);
       const steps = [];
       const locs = s.work_areas.filter((a) => a.contract_id === c.id);
       const planned = s.planned_allocations.some((p) => p.contract_id === c.id && p.planned_end >= s.today && p.planned_start <= addDays(s.today, cfg.planHorizonDays));
       const docs = s.document_revisions.filter((d) => d.contract_id === c.id);
+      if (!c.start_date || !c.end_date) steps.push(["details", "Complete the job dates", "The saved job has no complete programme dates. Add the agreed start and finish dates.", ["Agreed start date", "Agreed finish date"], "Programme dates are saved", "Plan the job against the agreed dates"]);
       if (!locs.length) steps.push(["locations", "Add the locations", "Blocks, floors, flats or rooms you will work in.", ["Names of areas"], "Locations are saved", "Plan who works where"]);
       if (!L.supervisorOf(c.id)) steps.push(["supervisor", "Give the job a supervisor", "Nobody is looking after this job on site yet.", ["Which supervisor"], "A supervisor is allocated", "They see the job on their phone"]);
       if (!docs.length || !c.tile_specification) steps.push(["spec", "Add the specification and drawings", "Supervisors and gangs need them on site.", ["Specification", "Drawings"], "Documents and spec fields are saved", "Gangs can open them"]);
-      if (locs.length && c.start_date <= addDays(s.today, cfg.planHorizonDays) && !planned) steps.push(["plan", "Plan who works where", `Nothing is planned for the next ${cfg.planHorizonDays} days.`, ["Gang", "Location", "Stage", "Dates"], "A plan covers the next working days", "The supervisor confirms it on site"]);
+      if (locs.length && (!c.start_date || c.start_date <= addDays(s.today, cfg.planHorizonDays)) && !planned) steps.push(["plan", "Plan who works where", `Nothing is planned for the next ${cfg.planHorizonDays} days.`, ["Gang", "Location", "Stage", "Dates"], "A plan covers the next working days", "The supervisor confirms it on site"]);
       steps.forEach(([key, title, why, requires, doneWhen, next], idx) => out.push({
         id: `setup:${c.id}:${key}`,
         rule: "R08",
@@ -885,6 +887,31 @@ var TSEngine = (() => {
     }
     return out;
   });
+  rule("R17_morning_finding", ({ s, L }) => {
+    var _a;
+    return ((_a = s.readiness_issues) != null ? _a : []).filter((issue) => issue.state !== "closed").map((issue) => ({
+      id: `readiness:${issue.id}`,
+      rule: "R17",
+      process: "daily-site",
+      kind: "reminder",
+      priority: 2,
+      order: 10,
+      job: L.job(issue.contract_id),
+      location: null,
+      responsible: OFFICE,
+      title: `Review the morning finding: ${issue.check_label}`,
+      why: `${issue.description} This finding does not release or stop work by itself. Existing restrictions still apply.`,
+      due: null,
+      requires: ["Review the saved finding", "Record the follow-up in its existing workflow"],
+      doneWhen: "The original finding is closed through its existing workflow",
+      next: null,
+      audience: { office: "act", owner: "see", supervisor: "see" },
+      blocks: null,
+      enforcedByBackend: false,
+      source: { table: "supervisor_issues", id: issue.id },
+      route: { screen: "snag", id: issue.id }
+    }));
+  });
   rule("R09_missing_checklist", ({ s, L, cfg }) => s.planned_allocations.filter((p) => p.planned_end >= s.today && p.planned_start <= addDays(s.today, cfg.planHorizonDays) && !s.location_inspection_templates.some((t) => t.contract_id === p.contract_id && t.stage === p.stage && L.under(p.work_area_id, t.work_area_id))).map((p) => ({
     id: `checklist:${p.id}`,
     rule: "R09",
@@ -905,7 +932,7 @@ var TSEngine = (() => {
     blocks: null,
     enforcedByBackend: false,
     source: { table: "location_inspection_templates", id: null },
-    route: { screen: "job", id: p.contract_id }
+    route: { screen: "job", id: p.contract_id, locationId: p.work_area_id, stage: p.stage }
   })));
   rule("R10_installer_cannot_see_job", ({ s, L, cfg }) => {
     const out = [];
@@ -1120,7 +1147,8 @@ var TSEngine = (() => {
     R13: "Choose who fixes it",
     R14: "See the budget",
     R15: "Respond",
-    R16: "Start inspection"
+    R16: "Start inspection",
+    R17: "Review morning finding"
   };
   var ctaLabel = (a) => {
     var _a;
@@ -1189,6 +1217,39 @@ var TSEngine = (() => {
       default:
         return siteBase;
     }
+  }
+  function adminActionHref(a) {
+    var _a;
+    const contractId = a.job.id;
+    const base = contractId ? `/admin/supervisor/sites/${contractId}` : "/admin/supervisor";
+    if ((a.rule === "G08" || a.rule === "R09") && contractId) {
+      const query = new URLSearchParams({ ...a.route.locationId ? { location: a.route.locationId } : {}, ...a.route.stage ? { stage: a.route.stage } : {} });
+      return `${base}/inspections${query.size ? `?${query}` : ""}`;
+    }
+    if (a.route.screen === "job") {
+      const id = (_a = a.route.id) != null ? _a : contractId;
+      if (!id) return "/admin/contracts";
+      const job = `/admin/contracts/${id}`;
+      switch (a.route.step) {
+        case "details":
+          return `${job}#contract-information`;
+        case "locations":
+          return `${job}/locations`;
+        case "plan":
+          return `${job}/plan`;
+        case "supervisor":
+          return `${job}#staff-allocations`;
+        case "spec":
+          return `${job}#documents`;
+      }
+      return a.rule === "R10" ? `${job}#staff-allocations` : job;
+    }
+    if (a.route.screen === "handover" || a.route.screen === "messages") {
+      return contractId ? `/admin/messages?contract_id=${encodeURIComponent(contractId)}` : "/admin/messages";
+    }
+    if (a.rule === "R04") return "/admin/workforce#people-heading";
+    const href = actionHref(a, base);
+    return href === base ? contractId ? `/admin/contracts/${contractId}` : "/admin/contracts" : href;
   }
   function hrefIsExistingForm(href, siteBase) {
     if (!href || href === siteBase || href === `${siteBase}/`) return false;

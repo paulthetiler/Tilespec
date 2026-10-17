@@ -13,7 +13,7 @@ export type InstallationStageKey = "preparation" | "waterproofing" | "installati
 
 export interface MemberRow { user_id: string; display_name: string; role: MemberRole; financial_access: boolean }
 export interface ContractRow {
-  id: string; reference: string; name: string; start_date: string; end_date: string;
+  id: string; reference: string; name: string; start_date: string | null; end_date: string | null;
   working_hours: string; tile_specification: string;
 }
 export interface CommercialRow {
@@ -70,6 +70,9 @@ export interface OfficeItemRow {
 }
 export interface AcknowledgementRow { item_id: string; user_id: string }
 export interface QaSubmissionRow { item_id: string }
+export interface ReadinessIssueRow {
+  id: string; contract_id: string; inspection_id: string; check_label: string; description: string; state: string; created_at: string;
+}
 
 export interface NextActionSnapshot {
   /** Today in Europe/London, YYYY-MM-DD. */
@@ -95,6 +98,8 @@ export interface NextActionSnapshot {
   location_inspection_requirements: InspectionRequirementRow[];
   location_inspections: InspectionRow[];
   supervisor_issues: SnagRow[];
+  /** Existing morning findings retain their original state/history, separately from the snag lifecycle. */
+  readiness_issues?: ReadinessIssueRow[];
   work_holds: HoldRow[];
   supervisor_office_items: OfficeItemRow[];
   supervisor_office_acknowledgements: AcknowledgementRow[];
@@ -119,7 +124,7 @@ export type ViewerState = "ready" | "waiting" | "blocked" | "info";
 
 export interface JobRef { id: string | null; reference: string; name: string }
 export interface Responsible { role: RoleKey; who: string | null; label: string }
-export interface ActionRoute { screen: string; id?: string | null; kind?: string; stage?: string; qa?: string; step?: string; earlier?: boolean }
+export interface ActionRoute { screen: string; id?: string | null; kind?: string; stage?: string; qa?: string; step?: string; earlier?: boolean; locationId?: string }
 
 export interface NextAction {
   id: string;
