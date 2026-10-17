@@ -1,8 +1,13 @@
 # TileSpec Admin: Apple-simple workflow redesign
 
-**Status: Phase 1 was squash-merged into `main` as `9cebbbe`. Phase 2 continues the seven saved commits through `cb0ce756` on a fresh branch, without replaying Phase 1. The shared rules engine, Supervisor Today and role navigation are behind flags that stay off by default in every environment. No schema changes or production rollout. See [08-review-response.md](08-review-response.md) for scope and validation.**
+**Status: Phases 1 and 2 are merged into `main` (`9cebbbe`, then `53bc87c`). Phase 3 adds real Office and Owner Today screens on the same shared engine. Application flags stay off by default in every environment. No schema changes or production rollout. See [09-office-owner-today.md](09-office-owner-today.md) for current scope and validation, and [08-review-response.md](08-review-response.md) for the Phase 2 delivery.**
 
 The documents describe the design. The code is in `lib/operations/next-actions/`, `lib/operations/role-nav.ts` and `components/`. The mobile preview in `docs/redesign/prototype/` runs the same engine as the app.
+
+Phase 3 adds the real, feature-flagged Office and Owner Today pages and live
+paperwork/message indexes. See [09-office-owner-today.md](09-office-owner-today.md)
+for their saved-data boundaries, tests and rollout prerequisites. Both application
+flags still default off; the fictional-data prototype remains separate.
 
 ## The idea
 

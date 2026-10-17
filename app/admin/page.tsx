@@ -5,11 +5,23 @@ import { checkDatabase, contractsFor } from "@/lib/operations/data";
 import { budgetSummary, contractWarnings } from "@/lib/operations/summary";
 import type { Commercial } from "@/lib/operations/types";
 import { calendarDate, money } from "@/components/operations/format";
+import { configFromEnv, flagEnabled } from "@/lib/operations/next-actions";
+import { loadOfficeSnapshot } from "@/lib/operations/next-actions/office-snapshot";
+import { AdminToday } from "@/components/admin/admin-today";
 import styles from "./admin.module.css";
 
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
   const { supabase, member } = await requireActor();
   if (member.role === "supervisor") redirect("/admin/supervisor");
+  const params = await searchParams;
+  if ((member.role === "owner" || member.role === "contracts_manager") && flagEnabled("nextActions", member.role)) {
+    const config = configFromEnv(process.env);
+    const { snapshot, viewer } = await loadOfficeSnapshot(supabase, member, config);
+    return <>
+      {params.error === "permission" && <p className={styles.error} role="alert">Your account does not have permission to access that page.</p>}
+      <AdminToday snapshot={snapshot} viewer={viewer} member={member} config={config} />
+    </>;
+  }
   const financial = canReadFinancial(member);
   const contracts = await contractsFor(supabase);
   const [areaResult, documentResult, budgetResult] = await Promise.all([
@@ -24,7 +36,6 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const recordedProfit = summaries.reduce((sum, budget) => sum + budget.riskAdjustedProfit, 0);
   const areaCount = (id: string) => (areaResult.data ?? []).filter(area => area.contract_id === id).length;
   const documentCount = (id: string) => (documentResult.data ?? []).filter(document => document.contract_id === id && document.uploaded_at).length;
-  const params = await searchParams;
   return <>
     <div className={styles.pageHeader}>
       <div><p className={styles.eyebrow}>TileSPEC operations</p><h1 className={styles.title}>{member.role === "owner" ? "Portfolio overview" : "Your site overview"}</h1><p className={styles.description}>Welcome, {member.display_name}. Review your contracts, work areas and outstanding setup.</p></div>

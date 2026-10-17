@@ -3,7 +3,7 @@ import type { MemberRole } from "./types";
 /*
  * Feature flags for Phase 2. Both are OFF unless set, so merging changes nothing for anyone.
  *
- *   FEATURE_NEXT_ACTIONS   the shared rules engine drives the supervisor's Today page
+ *   FEATURE_NEXT_ACTIONS   the shared rules engine drives Supervisor, Office and Owner Today
  *   FEATURE_ROLE_SHELL     role-specific navigation (at most four destinations per role)
  *
  * A flag can be "off", "on" (everyone) or a comma list of roles for a staged rollout,

@@ -84,11 +84,11 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
     {manage && <SiteSetup contractId={id} locationCount={activeLocations.length} activeTeamCount={teamCount?.count ?? 0} plannedThisWeek={planCount?.count ?? 0} />}
     <section className={styles.warning} aria-label="Contract release status"><span className={styles.warningBadge}>Draft · unreleased</span><h2>Installation is not authorised</h2><ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><p className={styles.small}>No inspection, approval or signature has been recorded by this setup workflow. Quality gates must be implemented and completed before release.</p></section>
 
-    <section className={styles.panel}><h2>Contract information</h2><ContractReadout contract={contract} />
+    <section className={styles.panel} id="contract-information"><h2>Contract information</h2><ContractReadout contract={contract} />
       {manage && <details className={styles.details}><summary>Edit operational contract details</summary><OperationsForm key={`contract-${contract.version}`} action={updateContractAction} submitLabel="Save contract details"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="version" value={contract.version} /><input type="hidden" name="request_key" value={randomUUID()} /><ContractFields contract={contract} /></OperationsForm></details>}
     </section>
 
-    {financial && <section className={styles.panel}><h2>Original commercial budget</h2>
+    {financial && <section className={styles.panel} id="commercial-budget"><h2>Original commercial budget</h2>
       {summary ? <div className={styles.metrics}>
         <div className={styles.metric}><span className={styles.metricLabel}>Contract value</span><strong className={styles.metricValue}>{money(summary.value)}</strong></div>
         <div className={styles.metric}><span className={styles.metricLabel}>Budgeted costs</span><strong className={styles.metricValue}>{money(summary.originalCost)}</strong></div>
@@ -113,7 +113,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       </details>
     </section>}
 
-    <section className={styles.panel}><h2>Work packages</h2><p className={styles.muted}>Measured packages of work, each at a location. An installer allocation is access permission, not installation release.</p>
+    <section className={styles.panel} id="work-packages"><h2>Work packages</h2><p className={styles.muted}>Measured packages of work, each at a location. An installer allocation is access permission, not installation release.</p>
       <ul className={styles.documentList}>{packages.map(pack => <li key={pack.id} className={styles.documentRow}><div><strong>{pack.name}</strong>
         <p>{areaLabel(pack.work_area_id)} · {Number(pack.quantity).toLocaleString("en-GB")} {pack.unit === "m2" ? "m²" : pack.unit === "lm" ? "linear metres" : "items"}</p>
         {packageAssignments.filter(assignment => assignment.work_package_id === pack.id).length === 0 && <p className={styles.small}>No installer allocated.</p>}
@@ -131,7 +131,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       </>}
     </section>
 
-    <section className={styles.panel}><h2>{manage ? "Staff allocations" : "Your allocation"}</h2>
+    <section className={styles.panel} id="staff-allocations"><h2>{manage ? "Staff allocations" : "Your allocation"}</h2>
       {contractAssignments.length > 0 && <div className={styles.stack}>{contractAssignments.map(assignment => {
         const target = team.find(person => person.user_id === assignment.user_id);
         const canRemove = manage && (member.role === "owner" || target?.role === "supervisor");
@@ -149,7 +149,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       </>}
     </section>
 
-    <section className={styles.panel}><h2>Private documents and evidence</h2><p className={styles.muted}>Revisions are immutable. Files remain private and are opened through an authenticated download. Evidence uploads do not create an approval.</p>
+    <section className={styles.panel} id="documents"><h2>Private documents and evidence</h2><p className={styles.muted}>Revisions are immutable. Files remain private and are opened through an authenticated download. Evidence uploads do not create an approval.</p>
       <div className={styles.documentList}>{documents.map(document => <article className={styles.documentRow} key={document.id}>
         <div><strong>{document.title}</strong><p>{document.document_reference} · revision {document.revision} · {areaLabel(document.work_area_id)}</p><p className={styles.small}>{document.classification === "commercial" ? "Commercial" : "Operational"} · {(document.bytes / 1024 / 1024).toFixed(2)} MB · {eventDate(document.created_at)}</p>
           {!document.uploaded_at && (document.created_by === member.user_id ? <details className={styles.details}><summary>Retry this pending upload</summary>

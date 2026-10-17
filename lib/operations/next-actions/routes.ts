@@ -23,6 +23,37 @@ export function actionHref(a: Pick<NextAction, "route">, siteBase: string): stri
   }
 }
 
+/** Office/owner actions open the actual saved job or its existing relevant form. */
+export function adminActionHref(a: Pick<NextAction, "route" | "job" | "rule">): string {
+  const contractId = a.job.id;
+  const base = contractId ? `/admin/supervisor/sites/${contractId}` : "/admin/supervisor";
+  if ((a.rule === "G08" || a.rule === "R09") && contractId) {
+    const query = new URLSearchParams({ ...(a.route.locationId ? { location: a.route.locationId } : {}), ...(a.route.stage ? { stage: a.route.stage } : {}) });
+    return `${base}/inspections${query.size ? `?${query}` : ""}`;
+  }
+  if (a.route.screen === "job") {
+    const id = a.route.id ?? contractId;
+    if (!id) return "/admin/contracts";
+    const job = `/admin/contracts/${id}`;
+    switch (a.route.step) {
+      case "details": return `${job}#contract-information`;
+      case "locations": return `${job}/locations`;
+      case "plan": return `${job}/plan`;
+      case "supervisor": return `${job}#staff-allocations`;
+      case "spec": return `${job}#documents`;
+    }
+    return a.rule === "R10" ? `${job}#staff-allocations` : job;
+  }
+  // The office reads the saved daily records. It must not be sent to a form
+  // that pretends to finish another supervisor's own handover.
+  if (a.route.screen === "handover" || a.route.screen === "messages") {
+    return contractId ? `/admin/messages?contract_id=${encodeURIComponent(contractId)}` : "/admin/messages";
+  }
+  if (a.rule === "R04") return "/admin/workforce#people-heading";
+  const href = actionHref(a, base);
+  return href === base ? (contractId ? `/admin/contracts/${contractId}` : "/admin/contracts") : href;
+}
+
 /** True when the href is one of the existing forms, not a dump back onto Today. */
 export function hrefIsExistingForm(href: string, siteBase: string): boolean {
   if (!href || href === siteBase || href === `${siteBase}/`) return false;
