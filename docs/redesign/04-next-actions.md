@@ -152,7 +152,7 @@ Daily site inspections, stop work and snags are different record streams. They n
 
 These processes have no tables today (B4, B6). **No rule or Next Action exists for them** in the engine or the prototype; the earlier draft's V01 to V04 and P01 to P04 proposals were removed. They return as actions only when the matching records exist, each with its own approval. A test fails if any variation, daywork, claim or margin-approval action appears.
 
-Variations and dayworks are essential commercial functions, so each job keeps a way in through its secondary navigation (Today → More, the original dashboard's site details, the office job page). The link and the page both say "Not built yet": the page tells the supervisor what to do today and lists what the record will hold. It has no form or button, so nothing can look submitted. A test enforces this.
+Variations and dayworks are essential commercial functions, so each job keeps a way in through its secondary navigation (Today → More, the original dashboard's site details, the office job page). The link and the page both say "Not built yet": the page tells the supervisor what to do today and lists what the record will hold. It has no form or button, so nothing can look submitted. A test enforces this. The proposed records and their next actions are in [11-two-way-communication.md](11-two-way-communication.md).
 
 ## 4.7 Timings and thresholds (configurable, review point 5)
 

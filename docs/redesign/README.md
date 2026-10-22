@@ -46,6 +46,7 @@ To see the system working across people: as Dave tap **Report an issue**, choose
 | 8 | [Review response and Phase 2](08-review-response.md) | How each review point was addressed, feature flags, configuration, how to try it |
 | 9 | [Office and Owner Today](09-office-owner-today.md) | Phase 3: real Office and Owner Today, paperwork and messages |
 | 10 | [Real job trial](10-real-job-trial.md) | Approvals, office set-up and the supervisor's trial day on one real job |
+| 11 | [Two-way communication](11-two-way-communication.md) | Shared Job Activity (built, Query only), and the proposed messages, instruction changes, office reviews, dayworks and variations (New backend, needs approval) |
 
 ## Headline findings
 
