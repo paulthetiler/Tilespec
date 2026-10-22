@@ -276,6 +276,9 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
     const actionIds = await office.locator('main [data-action-id]').evaluateAll(nodes => nodes.map(node => node.dataset.actionId));
     assert.equal(new Set(actionIds).size, actionIds.length, 'no task is duplicated between next, then and waiting');
     pass('Phase 3 F: all 36 saved setup actions remain visible without truncation; Then counts and unique next/waiting assignment are exact');
+    // The supervisor acknowledges the instruction before the read-only checks begin, so Job Activity
+    // and the Messages index can show who acknowledged it and when (Phase 3 I2).
+    await rpc(email.supervisor, 'acknowledge_supervisor_office_item', { p_item: instruction, p_request_key: randomUUID() });
     const readOnlyHistory = snapshot(['contracts', 'work_areas', 'planned_allocations', 'actual_allocations',
       'supervisor_inspections', 'location_inspections', 'supervisor_issues', 'supervisor_issue_events',
       'work_holds', 'work_hold_events', 'document_revisions', 'supervisor_office_items', 'audit_events']);
@@ -336,7 +339,6 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
     pass('Phase 3 I: Paperwork opens verified operational bytes and hides commercial metadata/files; Messages shows actual saved instructions and QA requests');
 
     // Shared Job Activity: one story built from the records saved above, for the office and the site.
-    await rpc(email.supervisor, 'acknowledge_supervisor_office_item', { p_item: instruction, p_request_key: randomUUID() });
     await office.goto(`${origin}/admin/messages?contract_id=${contract}`);
     await office.locator('article').filter({ hasText: 'Phase 3 real instruction' }).getByText(/^Acknowledged by Sid Supervisor at \d{2}:\d{2}, /).waitFor();
     await office.locator('article').filter({ hasText: 'Phase 3 real QA request' }).getByText('Waiting for Sid Supervisor to send the result', { exact: true }).waitFor();
