@@ -80,7 +80,9 @@ test("job activity covers results, handovers, checks, inspections, plans, stops 
 
 test("job activity reads only, is shared by office and supervisor, and stays behind the opt-in", () => {
   const loader = source("lib/operations/activity-data.ts");
-  assert.ok(!/\.(insert|update|upsert|delete|rpc)\(/.test(loader), "no writes or RPC calls");
+  assert.ok(!/\.(insert|update|upsert|delete)\(/.test(loader), "no writes");
+  assert.deepEqual(loader.match(/\.rpc\("[a-z_]+"/g), ['.rpc("snag_events"'], "the only function call is the existing read-only snag history, with its own permission check");
+  assert.ok(!/from\("supervisor_issue_events"\)/.test(loader), "snag history is never read past its revoked table grant");
   assert.match(loader, /checkDatabase\(result\.error\)/, "a failed read is an error, not an empty timeline");
   const page = source("app/admin/supervisor/sites/[id]/activity/page.tsx");
   assert.match(page, /requireSite\(id\)/);

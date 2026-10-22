@@ -20,7 +20,8 @@ export default async function JobActivity({ params, searchParams }: { params: Pr
   if (!contract) return null;
   if (!flagEnabled("nextActions", member.role) && !flagEnabled("roleShell", member.role)) notFound();
   const { before } = await searchParams;
-  const cursor = typeof before === "string" && !Number.isNaN(Date.parse(before)) ? new Date(before).toISOString() : null;
+  // Keep the saved timestamp exactly as the database wrote it, so paging never drops or repeats a record.
+  const cursor = typeof before === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/.test(before) && !Number.isNaN(Date.parse(before)) ? before : null;
   const { entries, nextBefore } = await activityFor(supabase, member, id, cursor);
   const days = [...new Set(entries.map(entry => londonDay(entry.at)))];
   return <>
