@@ -31,9 +31,9 @@ export function RoleTabs({ role, financial }: { role: MemberRole; financial: boo
         <span>{item.label}</span>
       </Link>)}
     </nav>
-    <details className={styles.more}>
+    {rest.length > 0 && <details className={styles.more}>
       <summary>Everything else</summary>
       <div className={styles.moreLinks}>{rest.map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}</div>
-    </details>
+    </details>}
   </>;
 }

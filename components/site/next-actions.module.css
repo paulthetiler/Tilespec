@@ -7,6 +7,7 @@
 .sub { color: var(--admin-muted); }
 .report { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 16px; border: 1px solid #b7c9cf; border-radius: 8px; background: #fff; font-weight: 800; }
 .report:hover { border-color: var(--admin-teal); background: #f7fbfa; }
+.change { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; text-decoration: underline; }
 .hero { display: grid; gap: 12px; padding: 20px; border: 2px solid var(--admin-teal); border-radius: 14px; background: #fff; }
 .hero.gate { border-color: #8d3023; }
 .hero.alert { border-color: #b97814; }

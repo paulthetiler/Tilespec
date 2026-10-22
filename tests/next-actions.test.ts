@@ -60,6 +60,32 @@ test("saving the morning checks changes the next action with no manual tick-box"
   assert.equal(nextAction(compute(s, dave))?.rule, "R05");
 });
 
+test("a supervisor who opens a site with no gang planned still has the daily routine", () => {
+  const s = make("start");
+  const dave = who(s, "Dave");
+  s.planned_allocations = [];
+  s.actual_allocations = [];
+  assert.ok(!ids(compute(s, dave)).includes("R01"), "nothing is invented for a site nobody is working on");
+  s.attended_sites = ["c1"];
+  assert.equal(nextAction(compute(s, dave))?.rule, "R01");
+  s.supervisor_inspections.push({ id: "mc", contract_id: "c1", created_at: "2026-10-15T07:50:00Z" });
+  assert.ok(!ids(compute(s, dave)).includes("R01"), "a saved morning check still completes it");
+  s.now = "15:30";
+  assert.ok(compute(s, dave).some(a => a.rule === "R06" && a.state === "ready"), "handover reminder from the job's working hours");
+  // Only the supervisor's own site loader marks a site as attended. Office views are unchanged.
+  assert.match(source("lib/operations/next-actions/snapshot-data.ts"), /attended_sites: options\.attended && member\.role === "supervisor"/);
+  assert.ok(!source("lib/operations/next-actions/office-snapshot.ts").includes("attended_sites"));
+  assert.match(source("components/site/next-actions-today.tsx"), /\{ attended: true \}/);
+  assert.match(source("app/admin/supervisor/page.tsx"), /\{ attended: false \}/);
+});
+
+test("the site picker says what is next and never hides stopped work", () => {
+  assert.deepEqual(engine.siteSummaryCopy({ next: null, todo: 0, stopped: 0 }), { line: "No tasks waiting for you here", stopped: null });
+  assert.deepEqual(engine.siteSummaryCopy({ next: null, todo: 0, stopped: 2 }), { line: "No tasks waiting for you here", stopped: "Work stopped here: 2" });
+  assert.deepEqual(engine.siteSummaryCopy({ next: "Check the repair", todo: 1, stopped: 0 }), { line: "Next: Check the repair", stopped: null });
+  assert.deepEqual(engine.siteSummaryCopy({ next: "Check the repair", todo: 3, stopped: 1 }), { line: "Next: Check the repair (+2 more)", stopped: "Work stopped here: 1" });
+});
+
 test("a mandatory inspection stays a gate until a passing inspection is SAVED", () => {
   const s = make("start");
   const dave = who(s, "Dave");
@@ -441,6 +467,21 @@ test("no dead-end buttons: the supervisor's Today offers no variation, daywork, 
   assert.ok(!/<button|<Link[^>]*(variation|daywork|claim)/i.test(money.replace(/Estimator/g, "")));
   const report = source("app/admin/supervisor/sites/[id]/report/page.tsx");
   assert.ok(!/STOP WORK/.test(report), "no prominent Stop Work button");
+  const dashboard = source("app/admin/supervisor/sites/[id]/page.tsx");
+  assert.ok(!/variation|daywork|\/commercial/i.test(dashboard), "the original dashboard has no variation or daywork tiles");
+  assert.ok(!existsSync(path.join(root, "app/admin/supervisor/sites/[id]/commercial/page.tsx")), "no placeholder page for unbuilt features");
+});
+
+test("the supervisor's navigation is Today plus one Report an issue, with drawings that open", () => {
+  assert.deepEqual(everythingElse("supervisor", false), [], "no second menu for a supervisor");
+  const nav = source("components/site/site-nav.tsx");
+  assert.ok(!/<details|More</.test(nav), "site screens have no More menu");
+  assert.match(nav, /← Today/);
+  assert.match(nav, /Report an issue/);
+  for (const file of ["components/site/next-actions-today.tsx", "app/admin/supervisor/sites/[id]/page.tsx"]) {
+    assert.match(source(file), /href=\{`\/admin\/documents\/\$\{\w+\.id\}`\}/, `${file}: each drawing opens through the authorised download route`);
+  }
+  assert.ok(existsSync(path.join(root, "app/admin/documents/[id]/route.ts")));
 });
 
 test("Report an issue replaces Stop Work and still reaches the existing hold and snag forms", () => {

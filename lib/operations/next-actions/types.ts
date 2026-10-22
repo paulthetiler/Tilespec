@@ -106,6 +106,12 @@ export interface NextActionSnapshot {
   supervisor_qa_submissions: QaSubmissionRow[];
   site_handovers: HandoverRow[];
   document_revisions: { id: string; contract_id: string }[];
+  /**
+   * Sites the signed-in supervisor has opened today. Their daily routine (morning
+   * checks, handover) applies there even when the office has planned no gang.
+   * Only the supervisor's own site loader sets this; office views never do.
+   */
+  attended_sites?: string[];
 }
 
 export interface Viewer { user_id: string; role: MemberRole; financial_access: boolean }

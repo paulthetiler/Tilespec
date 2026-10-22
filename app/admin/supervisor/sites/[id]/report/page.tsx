@@ -16,7 +16,6 @@ export default async function ReportIssue({ params }: { params: Promise<{ id: st
   if (!flagEnabled("nextActions", member.role)) notFound();
   return <div className={dailyStyles.day}>
     <header className={dailyStyles.intro}>
-      <p className={dailyStyles.greeting}>{contract.name}</p>
       <h1 className={dailyStyles.title}>Report an issue</h1>
       <p className={dailyStyles.muted}>Does work need to stop here?</p>
     </header>

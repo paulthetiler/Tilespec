@@ -24,7 +24,7 @@ Changed after review: the owner has **no Risks destination** (risks and exceptio
 | Destination 4 | (three is enough) | **Labour** | **Issues** snags and stopped work | (three is enough) |
 | Always visible | | | Report an issue | |
 
-The owner and subcontractor have three destinations because nothing else is theirs. Fewer is better. "Everything else" in the real app's menu keeps the whole original menu reachable, so nothing is lost while the new shell is behind a flag.
+The owner and subcontractor have three destinations because nothing else is theirs. Fewer is better. "Everything else" in the real app's menu keeps the whole original menu reachable, so nothing is lost while the new shell is behind a flag. A supervisor has no "Everything else": every site record is reached from Today, and other site screens show only "← Today" and "Report an issue".
 
 ## 2.3 What each destination holds
 

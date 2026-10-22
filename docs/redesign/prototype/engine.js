@@ -50,6 +50,7 @@ var TSEngine = (() => {
     resolveTimings: () => resolveTimings,
     roleKey: () => roleKey,
     rules: () => rules,
+    siteSummaryCopy: () => siteSummaryCopy,
     toClock: () => toClock,
     toMinutes: () => toMinutes,
     todayCountCopy: () => todayCountCopy,
@@ -692,7 +693,10 @@ var TSEngine = (() => {
     }
     return out;
   });
-  var workToday = (s, contractId) => s.planned_allocations.some((p) => p.contract_id === contractId && p.planned_start <= s.today && p.planned_end >= s.today) || s.actual_allocations.some((a) => a.contract_id === contractId && a.work_date === s.today && !a.voided_at);
+  var workToday = (s, contractId) => {
+    var _a;
+    return ((_a = s.attended_sites) != null ? _a : []).includes(contractId) || s.planned_allocations.some((p) => p.contract_id === contractId && p.planned_start <= s.today && p.planned_end >= s.today) || s.actual_allocations.some((a) => a.contract_id === contractId && a.work_date === s.today && !a.voided_at);
+  };
   rule("R01_morning_checks", (c) => c.s.contracts.filter((k) => workToday(c.s, k.id) && !c.s.supervisor_inspections.some((m) => m.contract_id === k.id && isoDate(m.created_at) === c.s.today)).map((k) => ({
     id: `morning:${k.id}:${c.s.today}`,
     rule: "R01",
@@ -1182,6 +1186,11 @@ var TSEngine = (() => {
     if (!informational) return need;
     const info = informational === 1 ? "1 informational alert." : `${informational} informational alerts.`;
     return `${need} ${info}`;
+  }
+  function siteSummaryCopy(opts) {
+    const stopped = opts.stopped ? `Work stopped here: ${opts.stopped}` : null;
+    if (!opts.next) return { line: "No tasks waiting for you here", stopped };
+    return { line: `Next: ${opts.next}${opts.todo > 1 ? ` (+${opts.todo - 1} more)` : ""}`, stopped };
   }
 
   // lib/operations/next-actions/routes.ts

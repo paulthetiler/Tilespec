@@ -52,3 +52,13 @@ export function todayCountCopy(actions: number, informational = 0): string {
   const info = informational === 1 ? "1 informational alert." : `${informational} informational alerts.`;
   return `${need} ${info}`;
 }
+
+/**
+ * One line per site on the supervisor's site picker. Stopped work is always said
+ * separately, so a site is never presented as clear while a restriction is active.
+ */
+export function siteSummaryCopy(opts: { next: string | null; todo: number; stopped: number }): { line: string; stopped: string | null } {
+  const stopped = opts.stopped ? `Work stopped here: ${opts.stopped}` : null;
+  if (!opts.next) return { line: "No tasks waiting for you here", stopped };
+  return { line: `Next: ${opts.next}${opts.todo > 1 ? ` (+${opts.todo - 1} more)` : ""}`, stopped };
+}

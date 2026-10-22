@@ -55,9 +55,12 @@ export function currentDestination(items: Destination[], pathname: string): stri
   return hits[0]?.key ?? null;
 }
 
-/** The full original menu, kept as a secondary "Everything else" list so no page becomes unreachable. */
+/**
+ * The full original menu, kept as a secondary "Everything else" list so no page becomes unreachable.
+ * A supervisor has none: every site record is reached from Today, which also offers "Change site".
+ */
 export function everythingElse(role: MemberRole, financial: boolean): { label: string; href: string }[] {
-  if (role === "supervisor") return [{ label: "Choose another site", href: "/admin/supervisor" }, { label: "Snag register", href: "/admin/snags" }, { label: "Holds and releases", href: "/admin/holds" }];
+  if (role === "supervisor") return [];
   if (role === "lead_installer" || role === "subcontract_installer") return [{ label: "Assigned holds", href: "/admin/holds" }];
   const office = role === "owner" || role === "contracts_manager";
   return [

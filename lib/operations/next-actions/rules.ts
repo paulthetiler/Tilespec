@@ -305,9 +305,11 @@ rule("R07_overdue_fix", ({ s, L, cfg }) => {
   return out;
 });
 
-// R01..R06: the supervisor's day.
+// R01..R06: the supervisor's day. A supervisor working on a site today keeps the
+// daily routine whether or not the office has planned anyone there.
 const workToday = (s: NextActionSnapshot, contractId: string) =>
-  s.planned_allocations.some(p => p.contract_id === contractId && p.planned_start <= s.today && p.planned_end >= s.today)
+  (s.attended_sites ?? []).includes(contractId)
+  || s.planned_allocations.some(p => p.contract_id === contractId && p.planned_start <= s.today && p.planned_end >= s.today)
   || s.actual_allocations.some(a => a.contract_id === contractId && a.work_date === s.today && !a.voided_at);
 
 rule("R01_morning_checks", c => c.s.contracts.filter(k => workToday(c.s, k.id) && !c.s.supervisor_inspections.some(m => m.contract_id === k.id && isoDate(m.created_at) === c.s.today)).map(k => ({

@@ -20,6 +20,9 @@ export async function loadSiteSnapshot(
   member: { user_id: string; display_name: string; role: MemberRole; financial_access: boolean },
   contractId: string,
   horizonDays: number,
+  // True when the supervisor has opened this site's Today: their daily routine applies.
+  // False for a summary (the site picker), so no site is treated as attended.
+  options: { attended: boolean },
 ): Promise<{ snapshot: NextActionSnapshot; viewer: Viewer }> {
   const today = londonDate();
   const now = londonClock(new Date().toISOString());
@@ -110,6 +113,7 @@ export async function loadSiteSnapshot(
     supervisor_qa_submissions: (daily?.submissions ?? []).map(q => ({ item_id: q.item_id })),
     site_handovers: (daily?.handovers ?? []).map(h => ({ id: h.id, contract_id: h.contract_id, actor_id: h.actor_id, work_date: h.work_date, created_at: h.created_at })),
     document_revisions: (documents.data ?? []) as { id: string; contract_id: string }[],
+    attended_sites: options.attended && member.role === "supervisor" ? [contractId] : [],
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: member.financial_access } };
 }

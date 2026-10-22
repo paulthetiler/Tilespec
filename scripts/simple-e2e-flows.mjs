@@ -74,7 +74,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await page.getByRole('heading', { name: 'Riverside practical supervisor acceptance', exact: true }).waitFor();
     await page.getByText(/^(Morning|Afternoon|Evening), Dave$/).waitFor();
     await page.getByRole('link', { name: 'START MORNING CHECKS', exact: true }).waitFor();
-    for (const name of ["Who's on site?", 'Check workmanship', 'Raise a snag', 'Office messages', 'Variations', 'Dayworks']) await page.getByRole('link', { name, exact: true }).waitFor();
+    for (const name of ["Who's on site?", 'Check workmanship', 'Raise a snag', 'Office messages']) await page.getByRole('link', { name, exact: true }).waitFor();
+    for (const name of ['Variations', 'Dayworks']) assert.equal(await page.getByRole('link', { name, exact: true }).count(), 0, `no ${name} button leads to an unbuilt feature`);
     assert.equal(await page.getByRole('link', { name: 'INSPECT WORK', exact: true }).count(), 0, 'no office inspection task is invented');
     pass('Simple A: Dave signs in through the real password form, reaches his assigned site, and sees a personal daily dashboard with one clear next task');
 
@@ -280,12 +281,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await officeHandover.getByText(notes.work_completed, { exact: true }).waitFor();
     pass('Simple J/M: five short handover notes persist for the office and finish existing workforce periods; null HTTP 200 and lost replies cannot show false success or duplicate the handover');
 
-    // Explicitly honest deferred destinations, not fake commercial entry forms.
-    for (const kind of ['variations', 'dayworks']) {
-      await page.goto(`${site}/commercial?kind=${kind}`);
-      assert.equal(await page.locator('main form').count(), 0, `${kind} does not present a fake recording form`);
-      assert.match(await page.locator('main').innerText(), /next|future|separate|planned/i);
-    }
+    // Variations and dayworks are not recorded anywhere, so there is no page or form for them.
+    for (const kind of ['variations', 'dayworks']) assert.equal((await page.request.get(`${site}/commercial?kind=${kind}`)).status(), 404, `${kind} has no placeholder page`);
     const other = await account(emails.other);
     for (const path of ['/messages', `/tasks/${taskId}`, '/finish']) assert.equal((await other.goto(`${site}${path}`)).status(), 404);
     const hidden = await rest(emails.other, `supervisor_office_items?id=eq.${taskId}`);
