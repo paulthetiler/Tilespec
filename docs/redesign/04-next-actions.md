@@ -148,9 +148,11 @@ Daily site inspections, stop work and snags are different record streams. They n
 - Several can be in flight at once. A supervisor can have a failed inspection, an unacknowledged instruction and a late handover. The list shows the highest first and the rest in order.
 - Completing one never completes another. A test checks parallel actions coexist with no duplicate ids.
 
-### Variations, dayworks, payment claims (not built, nothing shown)
+### Variations, dayworks, payment claims (not built, no actions)
 
-These processes have no tables today (B4, B6). Review point 6: **no rule, button, tile or placeholder for them exists** in the engine, the app or the prototype. The earlier draft's V01 to V04 and P01 to P04 proposals were removed from the engine. They return only when the matching records exist, each with its own approval. A test fails if any variation, daywork, claim or margin-approval action appears.
+These processes have no tables today (B4, B6). **No rule or Next Action exists for them** in the engine or the prototype; the earlier draft's V01 to V04 and P01 to P04 proposals were removed. They return as actions only when the matching records exist, each with its own approval. A test fails if any variation, daywork, claim or margin-approval action appears.
+
+Variations and dayworks are essential commercial functions, so each job keeps a way in through its secondary navigation (Today → More, the original dashboard's site details, the office job page). The link and the page both say "Not built yet": the page tells the supervisor what to do today and lists what the record will hold. It has no form or button, so nothing can look submitted. A test enforces this.
 
 ## 4.7 Timings and thresholds (configurable, review point 5)
 

@@ -106,7 +106,12 @@ try {
     assert.equal(await page.getByRole('link', { name: /Money|Estimator/ }).count(), 0);
     assert.equal(await href(page, 'Change site'), '/admin/supervisor');
     const more = page.getByRole('region', { name: 'More', exact: true });
-    assert.deepEqual(await more.locator('strong').allTextContents(), ['Office messages', 'Finish today'], 'More does not repeat the tab bar');
+    assert.deepEqual(await more.locator('strong').allTextContents(), ['Office messages', 'Finish today', 'Variations', 'Dayworks'], 'More does not repeat the tab bar');
+    for (const kind of ['Variations', 'Dayworks']) {
+      const link = more.getByRole('link', { name: new RegExp(`^${kind}`) });
+      assert.equal(await link.getAttribute('href'), `${base}/commercial?kind=${kind.toLowerCase()}`);
+      assert.match(await link.textContent(), /Not built yet/, `${kind} is clearly marked as not built`);
+    }
     const drawing = page.getByRole('region', { name: 'Drawings and documents', exact: true }).getByRole('link', { name: /Bathroom tile layout/ });
     assert.equal(await drawing.getAttribute('href'), '/admin/documents/a0000000-0000-4000-8000-000000000003', 'each drawing opens through the authorised download route');
     assert.equal(await drawing.getAttribute('target'), '_blank');

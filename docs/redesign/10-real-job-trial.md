@@ -53,8 +53,9 @@ the first correct tap, wrong taps and any question asked.
 | S9 | Report an issue → quality hold on `TRIAL AREA – not real work` | Saved. Today shows the stopped work for that area only |
 | S10 | Owner releases the trial hold (supervisor cannot, as the raiser) | Supervisor sees "This decision is for the office". After release it leaves both Todays |
 | S11 | Finish today: handover | Saved. The owner reads it under Messages |
+| S12 | Today → More → Dayworks | The page says "Not built yet. Nothing on this page is saved." and says what to do instead. There is no form to fill in |
 
-Pass overall: S1 to S11 done without help, every save confirmed, and the owner's
+Pass overall: S1 to S12 done without help, every save confirmed, and the owner's
 Today showed each item when it needed the owner and not after.
 
 ## 4. Record and roll back
@@ -66,4 +67,4 @@ Saved records stay: they are the real job's history.
 ## 5. Not covered by this trial
 
 Subcontractor Today (needs B1), tender replies (B5), owner margin sign-off (B3),
-variations, dayworks and claims (B4, B6), and inviting staff from inside the app.
+recording variations, dayworks and claims (B4, B6; reachable but not built), and inviting staff from inside the app.

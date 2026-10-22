@@ -460,16 +460,35 @@ test("nothing is lost: the original office menu stays reachable under Everything
   for (const href of ["/admin/contracts", "/admin/workforce", "/admin/snags", "/admin/holds", "/admin/alerts", "/admin/quality", "/admin/tenders", "/admin/team", "/admin/estimator"]) assert.ok(links.includes(href), href);
 });
 
-test("no dead-end buttons: the supervisor's Today offers no variation, daywork, claim or margin controls", () => {
+test("no dead-end buttons: no claim or margin controls, and no prominent Stop Work on Report an issue", () => {
   const today = source("components/site/next-actions-today.tsx");
-  assert.ok(!/variation|daywork|payment claim|margin/i.test(today));
+  assert.ok(!/payment claim|margin/i.test(today));
   const money = source("app/admin/money/page.tsx");
   assert.ok(!/<button|<Link[^>]*(variation|daywork|claim)/i.test(money.replace(/Estimator/g, "")));
   const report = source("app/admin/supervisor/sites/[id]/report/page.tsx");
   assert.ok(!/STOP WORK/.test(report), "no prominent Stop Work button");
+});
+
+test("variations and dayworks stay reachable from each job, clearly not built, and can never look submitted", () => {
+  const links = /href=\{`\$\{base\}\/commercial\?kind=variations`\}[\s\S]*href=\{`\$\{base\}\/commercial\?kind=dayworks`\}/;
+  // Supervisor: the new Today's secondary More list and the original dashboard's secondary links, never the main tiles.
+  const today = source("components/site/next-actions-today.tsx");
+  assert.match(today, links);
+  assert.match(today.slice(today.indexOf('aria-label="More"')), /Not built yet[\s\S]*Not built yet/, "each says it is not built yet");
+  assert.ok(!/commercial/.test(today.slice(0, today.indexOf('aria-label="More"'))), "not in the main action area");
   const dashboard = source("app/admin/supervisor/sites/[id]/page.tsx");
-  assert.ok(!/variation|daywork|\/commercial/i.test(dashboard), "the original dashboard has no variation or daywork tiles");
-  assert.ok(!existsSync(path.join(root, "app/admin/supervisor/sites/[id]/commercial/page.tsx")), "no placeholder page for unbuilt features");
+  const tiles = dashboard.match(/const actions = \[([\s\S]*?)\];/)![1];
+  assert.ok(!/commercial|Variation|Daywork/i.test(tiles), "not among the everyday tiles");
+  assert.match(dashboard, links);
+  assert.match(dashboard, /Variations \(not built yet\)[\s\S]*Dayworks \(not built yet\)/);
+  // Office: the job page links to the same page.
+  assert.match(source("app/admin/contracts/[id]/page.tsx"), /commercial\?kind=variations[\s\S]*commercial\?kind=dayworks/);
+  // The page itself saves nothing: no form, button, server action or record write, and says so.
+  const page = source("app/admin/supervisor/sites/[id]/commercial/page.tsx");
+  for (const forbidden of [/<form/i, /<button/i, /OperationsForm|DailyForm/, /action=/, /"use server"/, /\.rpc\(|\.insert\(|\.from\(/]) assert.ok(!forbidden.test(page), `no ${forbidden}`);
+  assert.match(page, /Not built yet\. Nothing on this page is saved\./);
+  assert.match(page, /New backend, awaiting approval/);
+  for (const field of ["labour hours", "Materials used", "Who instructed it", "Authorisation and sign-off", "agreed scope", "Associated costs", "Approval status"]) assert.ok(page.includes(field), field);
 });
 
 test("the supervisor's navigation is Today plus one Report an issue, with drawings that open", () => {

@@ -82,6 +82,11 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       </div>
     </div>
     {manage && <SiteSetup contractId={id} locationCount={activeLocations.length} activeTeamCount={teamCount?.count ?? 0} plannedThisWeek={planCount?.count ?? 0} />}
+    {!installer && <nav className={styles.inline} aria-label="Extra work">
+      <span className={styles.small}>Extra work:</span>
+      <Link href={`/admin/supervisor/sites/${id}/commercial?kind=variations`}>Variations (not built yet)</Link>
+      <Link href={`/admin/supervisor/sites/${id}/commercial?kind=dayworks`}>Dayworks (not built yet)</Link>
+    </nav>}
     <section className={styles.warning} aria-label="Contract release status"><span className={styles.warningBadge}>Draft · unreleased</span><h2>Installation is not authorised</h2><ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><p className={styles.small}>No inspection, approval or signature has been recorded by this setup workflow. Quality gates must be implemented and completed before release.</p></section>
 
     <section className={styles.panel} id="contract-information"><h2>Contract information</h2><ContractReadout contract={contract} />

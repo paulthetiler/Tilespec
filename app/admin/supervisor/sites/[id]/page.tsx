@@ -167,6 +167,8 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
         <Link href={fullRegisterHref}>Detailed snag register</Link>
         <Link href={`${base}/history`}>Workforce history</Link>
         <Link href={`${base}/checks`}>Earlier morning checks</Link>
+        <Link href={`${base}/commercial?kind=variations`}>Variations (not built yet)</Link>
+        <Link href={`${base}/commercial?kind=dayworks`}>Dayworks (not built yet)</Link>
         <Link href="/admin/supervisor">Choose another site</Link>
       </div>
       {coverWarnings.length > 0 && <><h2>Insurance to check with the office</h2><ul>{coverWarnings.map(text => <li key={text}>{text}</li>)}</ul></>}
