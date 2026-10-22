@@ -14,9 +14,11 @@ import { restoreSnagForm, snapshotSnagForm, type SnagFormSnapshot } from "@/lib/
 import { MAX_FILE_BYTES } from "@/lib/operations/validation";
 import { installationStages, installationStageLabels } from "@/lib/operations/types";
 import styles from "@/app/admin/admin.module.css";
-export function CreateSnag({contractId,locations,packages,requestKey,submitKey,proposalKey,inspection,initialLocation,simple=false}:{
+export function CreateSnag({contractId,locations,packages,requestKey,submitKey,proposalKey,inspection,initialLocation,simple=false,offerStop=true}:{
  contractId:string;locations:Location[];packages:{id:string;label:string}[];requestKey:string;submitKey:string;proposalKey:string;initialLocation?:string;
  simple?:boolean;
+ /** False when the person already answered "does work need to stop?" on Report an issue. */
+ offerStop?:boolean;
  inspection?:{id:string;locationId:string;stage:string;description:string};
 }) {
  const router=useRouter(),photos=usePhotos();
@@ -90,7 +92,7 @@ export function CreateSnag({contractId,locations,packages,requestKey,submitKey,p
  }}>
   <input type="hidden" name="contract_id" value={contractId}/><input type="hidden" name="request_key" value={requestKey}/>
   {inspection&&<input type="hidden" name="inspection_id" value={inspection.id}/>}
-  {simple&&<p><Link className={styles.secondaryButton} href={`/admin/holds/new?contract=${contractId}${location?`&location=${location}`:""}`}>STOP WORK</Link> <span>Serious concern? Stop affected work and alert the office.</span></p>}
+  {simple&&offerStop&&<p><Link className={styles.secondaryButton} href={`/admin/holds/new?contract=${contractId}${location?`&location=${location}`:""}`}>STOP WORK</Link> <span>Serious concern? Stop affected work and alert the office.</span></p>}
   {findingsLocked&&!draft&&!busy&&<p role="status">We could not confirm whether the original findings were recorded. Retry keeps the same findings and responsibility choices. <Link href={`/admin/snags?contract_id=${contractId}`}>Check saved snags</Link> before starting a different record.</p>}
   {draft&&!submissionConfirmed&&<p role="status">Draft findings saved; snag submission has not yet been confirmed. <Link href={`/admin/snags/${draft}`}>Review saved status and continue after a reload</Link>. {submissionStarted?"Retry sends the same verified photographs; selections are locked until the outcome is confirmed.":"Retry here to verify photographs and submit the snag."}</p>}
   {draft&&submissionConfirmed&&<p role="status">Snag submitted with verified photographs. The responsibility proposal has not yet been confirmed; retry records only that proposal. <Link href={`/admin/snags/${draft}`}>Open the submitted snag</Link>.</p>}

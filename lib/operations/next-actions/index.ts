@@ -6,4 +6,5 @@ export { rules, latestCover } from "./rules";
 export { makeLookups, roleKey, visibleContractIds, STAGE_LABEL, addDays, dayDiff, isoDate } from "./lookups";
 export { budgetOf, pounds } from "./budget";
 export * from "./labels";
+export * from "./site-updates";
 export { actionHref, adminActionHref, hrefIsExistingForm } from "./routes";

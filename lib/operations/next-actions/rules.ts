@@ -50,7 +50,7 @@ rule("G03_hold_awaiting_fix", ({ s, L }) => s.work_holds.filter(h => h.status ==
   id: `hold-fix:${h.id}`, rule: "G03", process: "stop-work", kind: "gate", priority: h.hold_type === "safety" ? 0 : 1, order: 1,
   job: L.job(h.contract_id), location: L.path(h.work_area_id),
   responsible: { role: "subcontractor", who: L.teamLead(h.assigned_team_id), label: L.teams.get(h.assigned_team_id ?? "")?.name ?? "Assigned gang" },
-  title: "Fix it and send photos", why: h.required_action || h.reason,
+  title: "Fix it and send photos", why: h.reason, instruction: h.required_action || null,
   due: h.target_date, requires: ["Photos of the finished fix", "When the work was finished"], doneWhen: "A correction with photos is saved",
   next: "Ask the office to check it", audience: { subcontractor: "act", supervisor: "see", office: "see" },
   blocks: HOLD_BLOCKS, enforcedByBackend: true, parties: { teamIds: [h.assigned_team_id] },
@@ -177,12 +177,14 @@ rule("A01_critical_snag_unassigned", ({ s, L }) => s.supervisor_issues.filter(i 
   blocks: null, enforcedByBackend: false, source: { table: "supervisor_issues", id: i.id }, route: { screen: "snag", id: i.id },
 })));
 
-// R13: an ordinary snag nobody has been told to fix. Without this rule it would have no owner.
+// R13: an ordinary snag nobody has been told to fix. Without this rule it would have no owner. It has
+// one owner: the supervisor reports, the office decides who fixes it. (Permissions are unchanged: a
+// supervisor can still assign it from the snag page.)
 rule("R13_snag_needs_gang", ({ s, L }) => s.supervisor_issues.filter(i => i.snag_status === "open" && !i.assigned_team_id && i.severity !== "critical").map(i => ({
   id: `snag-assign:${i.id}`, rule: "R13", process: "snag", kind: "reminder", priority: 2, order: 8, job: L.job(i.contract_id), location: L.path(i.work_area_id),
-  responsible: { role: "supervisor", who: L.supervisorOf(i.contract_id)?.display_name ?? null, label: "Site supervisor" }, title: "Say who will fix this snag",
-  why: `${i.check_label}. ${i.description}`, due: null, requires: ["Which gang", "A target date"], doneWhen: "A gang and a target date are saved on the snag",
-  next: "The gang fixes it and sends a photo", audience: { supervisor: "act", office: "act" }, blocks: null, enforcedByBackend: false,
+  responsible: OFFICE, title: "Say who will fix this snag",
+  why: `${i.check_label}. ${i.description}`, due: null, requires: ["Which gang", "What they must do", "A target date"], doneWhen: "A gang, repair instructions and a target date are saved on the snag",
+  next: "The gang fixes it and sends a photo", audience: { office: "act", supervisor: "see" }, blocks: null, enforcedByBackend: false,
   source: { table: "supervisor_issues", id: i.id }, route: { screen: "snag", id: i.id },
 })));
 
@@ -274,7 +276,8 @@ rule("S03_snag_repair_assigned", ({ s, L }) => s.supervisor_issues.filter(i => [
   id: `snag-fix:${i.id}`, rule: "S03", process: "snag", kind: "reminder", priority: i.severity === "critical" || (i.target_date && i.target_date < s.today) ? 1 : 2, order: 8,
   job: L.job(i.contract_id), location: L.path(i.work_area_id),
   responsible: { role: "subcontractor", who: L.teamLead(i.assigned_team_id), label: L.teams.get(i.assigned_team_id ?? "")?.name ?? "Assigned gang" },
-  title: "Fix this snag and send a photo", why: `${i.check_label}. ${i.description}`, due: i.target_date, requires: ["Photo of the repair", "The date the work was done"],
+  title: "Fix this snag and send a photo", why: `${i.check_label}. ${i.description}`, instruction: i.assigned_action || null,
+  due: i.target_date, requires: ["Photo of the repair", "The date the work was done"],
   doneWhen: "The repair is submitted with a photo", next: "The supervisor checks it in person",
   audience: { subcontractor: "act", supervisor: "see", office: "see" }, blocks: null, enforcedByBackend: false, parties: { teamIds: [i.assigned_team_id] },
   source: { table: "supervisor_issues", id: i.id }, route: { screen: "fix", id: i.id, kind: "snag" },

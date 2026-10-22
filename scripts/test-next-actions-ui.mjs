@@ -106,7 +106,8 @@ try {
     assert.equal(await page.getByRole('link', { name: /Money|Estimator/ }).count(), 0);
     assert.equal(await href(page, 'Change site'), '/admin/supervisor');
     const more = page.getByRole('region', { name: 'More', exact: true });
-    assert.deepEqual(await more.locator('strong').allTextContents(), ['Office messages', 'Finish today', 'Variations', 'Dayworks'], 'More does not repeat the tab bar');
+    assert.deepEqual(await more.locator('strong').allTextContents(), ['Office messages', 'Finish today', 'Job activity', 'Variations', 'Dayworks'], 'More does not repeat the tab bar');
+    assert.equal(await more.getByRole('link', { name: /^Job activity/ }).getAttribute('href'), `${base}/activity`);
     for (const kind of ['Variations', 'Dayworks']) {
       const link = more.getByRole('link', { name: new RegExp(`^${kind}`) });
       assert.equal(await link.getAttribute('href'), `${base}/commercial?kind=${kind.toLowerCase()}`);

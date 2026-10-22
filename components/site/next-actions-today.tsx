@@ -62,6 +62,7 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
     const inner = <>
       <strong>{a.title}</strong>
       {where && <span>{where}</span>}
+      {a.instruction && <span className={styles.instruction}>Office instructions: {a.instruction}{a.due ? ` · Target ${a.due}` : ""}</span>}
       {a.state === "blocked" && <span>{a.blockedBy}</span>}
       {a.state === "waiting" && <span>Waiting on {a.responsible.who ?? a.responsible.label}</span>}
       <Chips a={a} today={today} />
@@ -106,6 +107,7 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
           <h2 id="next-title" className={styles.heroTitle}>{hero.title}</h2>
           {hero.location && <p className={styles.where}>{hero.location}</p>}
           <p className={styles.why}>{hero.why}</p>
+          {hero.instruction && <p className={styles.instruction}>Office instructions: {hero.instruction}{hero.due ? ` · Target ${hero.due}` : ""}</p>}
           <Link className={styles.cta} href={actionHref(hero, base)}>{ctaLabel(hero)}</Link>
           {hero.requires.length > 0 && <p className={styles.fine}>You will need: {hero.requires.join(", ")}.</p>}
           {hero.kind !== "reminder" && <p className={styles.fine}>{classNote(hero)}</p>}
@@ -134,6 +136,7 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
             </>}
             <Link className={styles.row} href={`${base}/messages`}><strong>Office messages</strong><span>Instructions and requests</span></Link>
             <Link className={styles.row} href={`${base}/finish`}><strong>Finish today</strong><span>Send the handover</span></Link>
+            <Link className={styles.row} href={`${base}/activity`}><strong>Job activity</strong><span>Everything you and the office have recorded, newest first</span></Link>
             {/* Essential commercial records with no backend yet: reachable, never presented as working. */}
             <Link className={styles.row} href={`${base}/commercial?kind=variations`}><strong>Variations</strong><span>Changes to the agreed work</span><span className={styles.chips}><span className={styles.chip}>Not built yet</span></span></Link>
             <Link className={styles.row} href={`${base}/commercial?kind=dayworks`}><strong>Dayworks</strong><span>Extra work on day rates</span><span className={styles.chips}><span className={styles.chip}>Not built yet</span></span></Link>

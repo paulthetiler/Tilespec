@@ -23,6 +23,8 @@ export interface NextActionConfig {
   planHorizonDays: number;
   jobSetupLeadDays: number;
   overdueEscalatesToOwnerAfterDays: number;
+  /** Inspection results with problems and handovers with notes stay highlighted for the office this many days. */
+  siteUpdateDays: number;
 }
 
 export const DEFAULT_CONFIG: NextActionConfig = {
@@ -34,6 +36,7 @@ export const DEFAULT_CONFIG: NextActionConfig = {
   planHorizonDays: 7,
   jobSetupLeadDays: 21,
   overdueEscalatesToOwnerAfterDays: 3,
+  siteUpdateDays: 7,
 };
 
 const MINUTES_IN_DAY = 24 * 60;
@@ -106,5 +109,6 @@ export function configFromEnv(env: Record<string, string | undefined> = {}): Nex
     planHorizonDays: wholeNumber(env.NEXT_ACTIONS_PLAN_HORIZON_DAYS, 1, 60) ?? DEFAULT_CONFIG.planHorizonDays,
     jobSetupLeadDays: wholeNumber(env.NEXT_ACTIONS_JOB_SETUP_LEAD_DAYS, 1, 180) ?? DEFAULT_CONFIG.jobSetupLeadDays,
     overdueEscalatesToOwnerAfterDays: wholeNumber(env.NEXT_ACTIONS_OVERDUE_ESCALATES_AFTER_DAYS, 0, 60) ?? DEFAULT_CONFIG.overdueEscalatesToOwnerAfterDays,
+    siteUpdateDays: wholeNumber(env.NEXT_ACTIONS_SITE_UPDATE_DAYS, 1, 30) ?? DEFAULT_CONFIG.siteUpdateDays,
   };
 }

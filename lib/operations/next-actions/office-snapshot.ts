@@ -101,9 +101,10 @@ export async function loadOfficeSnapshot(
     && (datedAssignments.has(row) || (member.role === "contracts_manager" && row.user_id === member.user_id)))
     .map(row => ({ contract_id: String(row.contract_id), user_id: String(row.user_id) }));
   const scope = { contractIds };
+  const updatesSince = addDays(today, -(config.siteUpdateDays - 1));
   const [areas, packages, packageAssignments, companies, insurance, teams, operatives, memberships,
     plans, actualToday, actualEarlier, absences, checks, templates, requirements, inspections, snags, readinessIssues, holds,
-    items, acknowledgements, submissions, handovers, documents] = await Promise.all([
+    items, acknowledgements, submissions, handovers, documents, handoverNotes] = await Promise.all([
     rows("work_areas", "id,contract_id,name,parent_id,path_ids", scope),
     rows("work_packages", "id,contract_id,name", scope),
     rows("package_assignments", "contract_id,work_package_id,user_id", { ...scope, order: ["work_package_id", "user_id"] }),
@@ -122,15 +123,25 @@ export async function loadOfficeSnapshot(
     rows("location_inspection_templates", "id,contract_id,work_area_id,stage,supersedes_id,checklist,wet_area", scope),
     rows("location_inspection_requirements", "id,contract_id,work_area_id,work_package_id,stage,applicability,template_id,created_at,supersedes_id", scope),
     rows("location_inspections", "id,contract_id,work_area_id,work_package_id,template_id,issues_count,answers,created_at", scope),
-    rows("supervisor_issues", "id,contract_id,work_area_id,check_label,description,severity,snag_status,assigned_team_id,target_date,inspector_id,rectified_by,escalated,responsibility_state,responsibility_team_id", { ...scope, oneOf: { snag_status: ["open", "assigned", "rectification_submitted", "reinspection"] } }),
+    rows("supervisor_issues", "id,contract_id,work_area_id,check_label,description,severity,snag_status,assigned_team_id,target_date,inspector_id,rectified_by,escalated,responsibility_state,responsibility_team_id,assigned_action", { ...scope, oneOf: { snag_status: ["open", "assigned", "rectification_submitted", "reinspection"] } }),
     rows("supervisor_issues", "id,contract_id,inspection_id,check_label,description,state,created_at", { ...scope, isNull: ["snag_status"], neq: { state: "closed" } }),
     rows("work_holds", "id,contract_id,work_area_id,work_package_id,stage,activity,location_path,hold_type,status,reason,required_action,raised_by,corrected_by,assigned_team_id,assigned_operative_id,target_date", { ...scope, oneOf: { status: ["active", "correction_submitted", "awaiting_release"] } }),
-    rows("supervisor_office_items", "id,contract_id,kind,title,body,recipient_id,acknowledgement_required,work_area_id,stage,created_by,created_at,due_on", scope),
+    rows("supervisor_office_items", "id,contract_id,kind,title,body,recipient_id,acknowledgement_required,work_area_id,location_path,stage,created_by,created_at,due_on", scope),
     rows("supervisor_office_acknowledgements", "id,item_id,actor_id", scope),
-    rows("supervisor_qa_submissions", "id,item_id", scope),
+    rows("supervisor_qa_submissions", "id,item_id,inspection_id,has_issues,submitted_by,submitted_at", scope),
     rows("site_handovers", "id,contract_id,actor_id,work_date,created_at", { ...scope, eq: { work_date: today } }),
     rows("document_revisions", "id,contract_id", { ...scope, eq: { classification: "operational" }, notNull: ["uploaded_at"] }),
+    // What site sent back recently, for the office's "From site" list. Reads only.
+    rows("site_handovers", "id,contract_id,actor_name,work_date,created_at,outstanding_problems,areas_awaiting_attention,office_notes", { ...scope, gte: { work_date: updatesSince } }),
   ]);
+  // An inspection result with problems is being tracked once a snag or stop has been raised from it.
+  const failedInspections = submissions.filter(row => row.has_issues === true).map(row => String(row.inspection_id));
+  const [linkedSnags, linkedHolds] = failedInspections.length ? await Promise.all([
+    rows("supervisor_issues", "id,location_inspection_id", { ...scope, oneOf: { location_inspection_id: failedInspections } }),
+    rows("work_holds", "id,source_inspection_id", { ...scope, oneOf: { source_inspection_id: failedInspections } }),
+  ]) : [[], []];
+  const followedUp = new Set([...linkedSnags.map(row => String(row.location_inspection_id)), ...linkedHolds.map(row => String(row.source_inspection_id))]);
+  const memberNames = new Map(memberRows.map(row => [String(row.user_id), String(row.display_name)]));
   const currentTemplates = currentRows(templates as unknown as (InspectionTemplate & { contract_id: string; stage: InstallationStageKey })[]);
   const currentTemplateIds = new Set(currentTemplates.map(template => template.id));
   const stageByTemplate = new Map(templates.map(template => [String(template.id), template.stage as InstallationStageKey] as const));
@@ -174,6 +185,13 @@ export async function loadOfficeSnapshot(
     supervisor_qa_submissions: submissions.map(row => ({ item_id: String(row.item_id) })),
     site_handovers: handovers as unknown as NextActionSnapshot["site_handovers"],
     document_revisions: documents as unknown as NextActionSnapshot["document_revisions"],
+    qa_results: submissions.flatMap(row => {
+      const item = items.find(candidate => candidate.id === row.item_id);
+      return item ? [{ item_id: String(row.item_id), contract_id: String(item.contract_id), title: String(item.title), location_path: (item.location_path as string[]) ?? [],
+        inspection_id: String(row.inspection_id), has_issues: row.has_issues === true, submitted_at: String(row.submitted_at),
+        submitted_by_name: memberNames.get(String(row.submitted_by)) ?? null, followed_up: followedUp.has(String(row.inspection_id)) }] : [];
+    }),
+    handover_notes: handoverNotes as unknown as NextActionSnapshot["handover_notes"],
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: financial } };
 }

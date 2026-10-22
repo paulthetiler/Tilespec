@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageContracts, canReadFinancial, requireActor } from "@/lib/auth";
@@ -82,8 +83,9 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       </div>
     </div>
     {manage && <SiteSetup contractId={id} locationCount={activeLocations.length} activeTeamCount={teamCount?.count ?? 0} plannedThisWeek={planCount?.count ?? 0} />}
-    {!installer && <nav className={styles.inline} aria-label="Extra work">
-      <span className={styles.small}>Extra work:</span>
+    {!installer && <nav className={styles.inline} aria-label="This job">
+      <span className={styles.small}>This job:</span>
+      {(flagEnabled("nextActions", member.role) || flagEnabled("roleShell", member.role)) && <Link href={`/admin/supervisor/sites/${id}/activity`}>Job activity</Link>}
       <Link href={`/admin/supervisor/sites/${id}/commercial?kind=variations`}>Variations (not built yet)</Link>
       <Link href={`/admin/supervisor/sites/${id}/commercial?kind=dayworks`}>Dayworks (not built yet)</Link>
     </nav>}

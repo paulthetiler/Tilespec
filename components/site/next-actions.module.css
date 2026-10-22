@@ -50,3 +50,4 @@ a.row:hover { background: #f7fbfa; }
   .cta { min-height: 56px; font-size: 16px; }
   .row { padding: 12px; }
 }
+.instruction, .row .instruction { display: block; padding: 8px 10px; border-radius: 6px; background: #eef6f4; color: #1d4a44; font-size: 14px; }

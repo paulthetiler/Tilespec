@@ -65,6 +65,12 @@ export function fixtureFor(key: ScenarioKey, ordinary = false) {
     ],
     supervisor_office_acknowledgements: [], supervisor_qa_submissions: [], site_handovers: [],
     document_revisions: [{ id: id(20), contract_id: siteId }],
+    // What came back from site: one inspection result with problems and one handover with long notes for the office.
+    qa_results: [{ item_id: id(21), contract_id: siteId, title: "Check the kitchen splashback before grout", location_path: ["Block B", "Level 3", "Flat 31", "Kitchen"],
+      inspection_id: id(22), has_issues: true, submitted_at: "2026-10-16T11:00:00Z", submitted_by_name: "Dave Collins With A Deliberately Long Display Name", followed_up: false }],
+    handover_notes: [{ id: id(23), contract_id: siteId, actor_name: "Dave Collins", work_date: "2026-10-16", created_at: "2026-10-16T16:30:00Z",
+      outstanding_problems: "Lippage at the socket cut-out needs resetting before grout.", areas_awaiting_attention: "",
+      office_notes: "Possible daywork: the main contractor asked us to tile the bin store wall, about six square metres. Not authorised yet; please confirm before Monday so the gang can plan the work." }],
   };
   if (ordinary) {
     snapshot.contracts[0].reference = "J-2041";

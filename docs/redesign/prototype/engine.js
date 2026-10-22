@@ -51,6 +51,7 @@ var TSEngine = (() => {
     roleKey: () => roleKey,
     rules: () => rules,
     siteSummaryCopy: () => siteSummaryCopy,
+    siteUpdates: () => siteUpdates,
     toClock: () => toClock,
     toMinutes: () => toMinutes,
     todayCountCopy: () => todayCountCopy,
@@ -70,7 +71,8 @@ var TSEngine = (() => {
     insuranceWarningDays: 30,
     planHorizonDays: 7,
     jobSetupLeadDays: 21,
-    overdueEscalatesToOwnerAfterDays: 3
+    overdueEscalatesToOwnerAfterDays: 3,
+    siteUpdateDays: 7
   };
   var MINUTES_IN_DAY = 24 * 60;
   var pad = (n) => String(n).padStart(2, "0");
@@ -122,7 +124,7 @@ var TSEngine = (() => {
     return Number.isInteger(n) && n >= min && n <= max ? n : null;
   };
   function configFromEnv(env = {}) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     const start = validClock(env.NEXT_ACTIONS_WORKDAY_START), end = validClock(env.NEXT_ACTIONS_WORKDAY_END);
     const day = start && end && toMinutes(end) > toMinutes(start) ? { start, end } : DEFAULT_CONFIG.defaultWorkingDay;
     return {
@@ -133,7 +135,8 @@ var TSEngine = (() => {
       insuranceWarningDays: (_d = wholeNumber(env.NEXT_ACTIONS_INSURANCE_WARNING_DAYS, 1, 365)) != null ? _d : DEFAULT_CONFIG.insuranceWarningDays,
       planHorizonDays: (_e = wholeNumber(env.NEXT_ACTIONS_PLAN_HORIZON_DAYS, 1, 60)) != null ? _e : DEFAULT_CONFIG.planHorizonDays,
       jobSetupLeadDays: (_f = wholeNumber(env.NEXT_ACTIONS_JOB_SETUP_LEAD_DAYS, 1, 180)) != null ? _f : DEFAULT_CONFIG.jobSetupLeadDays,
-      overdueEscalatesToOwnerAfterDays: (_g = wholeNumber(env.NEXT_ACTIONS_OVERDUE_ESCALATES_AFTER_DAYS, 0, 60)) != null ? _g : DEFAULT_CONFIG.overdueEscalatesToOwnerAfterDays
+      overdueEscalatesToOwnerAfterDays: (_g = wholeNumber(env.NEXT_ACTIONS_OVERDUE_ESCALATES_AFTER_DAYS, 0, 60)) != null ? _g : DEFAULT_CONFIG.overdueEscalatesToOwnerAfterDays,
+      siteUpdateDays: (_h = wholeNumber(env.NEXT_ACTIONS_SITE_UPDATE_DAYS, 1, 30)) != null ? _h : DEFAULT_CONFIG.siteUpdateDays
     };
   }
 
@@ -272,7 +275,8 @@ var TSEngine = (() => {
       location: L.path(h.work_area_id),
       responsible: { role: "subcontractor", who: L.teamLead(h.assigned_team_id), label: (_c = (_b = L.teams.get((_a = h.assigned_team_id) != null ? _a : "")) == null ? void 0 : _b.name) != null ? _c : "Assigned gang" },
       title: "Fix it and send photos",
-      why: h.required_action || h.reason,
+      why: h.reason,
+      instruction: h.required_action || null,
       due: h.target_date,
       requires: ["Photos of the finished fix", "When the work was finished"],
       doneWhen: "A correction with photos is saved",
@@ -475,31 +479,28 @@ var TSEngine = (() => {
     source: { table: "supervisor_issues", id: i.id },
     route: { screen: "snag", id: i.id }
   })));
-  rule("R13_snag_needs_gang", ({ s, L }) => s.supervisor_issues.filter((i) => i.snag_status === "open" && !i.assigned_team_id && i.severity !== "critical").map((i) => {
-    var _a, _b;
-    return {
-      id: `snag-assign:${i.id}`,
-      rule: "R13",
-      process: "snag",
-      kind: "reminder",
-      priority: 2,
-      order: 8,
-      job: L.job(i.contract_id),
-      location: L.path(i.work_area_id),
-      responsible: { role: "supervisor", who: (_b = (_a = L.supervisorOf(i.contract_id)) == null ? void 0 : _a.display_name) != null ? _b : null, label: "Site supervisor" },
-      title: "Say who will fix this snag",
-      why: `${i.check_label}. ${i.description}`,
-      due: null,
-      requires: ["Which gang", "A target date"],
-      doneWhen: "A gang and a target date are saved on the snag",
-      next: "The gang fixes it and sends a photo",
-      audience: { supervisor: "act", office: "act" },
-      blocks: null,
-      enforcedByBackend: false,
-      source: { table: "supervisor_issues", id: i.id },
-      route: { screen: "snag", id: i.id }
-    };
-  }));
+  rule("R13_snag_needs_gang", ({ s, L }) => s.supervisor_issues.filter((i) => i.snag_status === "open" && !i.assigned_team_id && i.severity !== "critical").map((i) => ({
+    id: `snag-assign:${i.id}`,
+    rule: "R13",
+    process: "snag",
+    kind: "reminder",
+    priority: 2,
+    order: 8,
+    job: L.job(i.contract_id),
+    location: L.path(i.work_area_id),
+    responsible: OFFICE,
+    title: "Say who will fix this snag",
+    why: `${i.check_label}. ${i.description}`,
+    due: null,
+    requires: ["Which gang", "What they must do", "A target date"],
+    doneWhen: "A gang, repair instructions and a target date are saved on the snag",
+    next: "The gang fixes it and sends a photo",
+    audience: { office: "act", supervisor: "see" },
+    blocks: null,
+    enforcedByBackend: false,
+    source: { table: "supervisor_issues", id: i.id },
+    route: { screen: "snag", id: i.id }
+  })));
   rule("G10_snag_reinspect", ({ s, L }) => s.supervisor_issues.filter((i) => ["rectification_submitted", "reinspection"].includes(i.snag_status)).map((i) => {
     var _a, _b;
     const needsOffice = i.severity === "critical" || i.escalated;
@@ -644,6 +645,7 @@ var TSEngine = (() => {
       responsible: { role: "subcontractor", who: L.teamLead(i.assigned_team_id), label: (_c = (_b = L.teams.get((_a = i.assigned_team_id) != null ? _a : "")) == null ? void 0 : _b.name) != null ? _c : "Assigned gang" },
       title: "Fix this snag and send a photo",
       why: `${i.check_label}. ${i.description}`,
+      instruction: i.assigned_action || null,
       due: i.target_date,
       requires: ["Photo of the repair", "The date the work was done"],
       doneWhen: "The repair is submitted with a photo",
@@ -1191,6 +1193,48 @@ var TSEngine = (() => {
     const stopped = opts.stopped ? `Work stopped here: ${opts.stopped}` : null;
     if (!opts.next) return { line: "No tasks waiting for you here", stopped };
     return { line: `Next: ${opts.next}${opts.todo > 1 ? ` (+${opts.todo - 1} more)` : ""}`, stopped };
+  }
+
+  // lib/operations/next-actions/site-updates.ts
+  var brief = (text, length = 180) => text.length > length ? `${text.slice(0, length - 1).trimEnd()}\u2026` : text;
+  function siteUpdates(s, viewer, cfg = DEFAULT_CONFIG) {
+    var _a, _b;
+    if (viewer.role !== "owner" && viewer.role !== "contracts_manager") return [];
+    const since = addDays(s.today, -(cfg.siteUpdateDays - 1));
+    const job = (id) => {
+      const contract = s.contracts.find((c) => c.id === id);
+      return contract ? [contract.reference, contract.name].filter(Boolean).join(" \xB7 ") : "Recorded job";
+    };
+    const results = ((_a = s.qa_results) != null ? _a : []).filter((r) => r.has_issues && !r.followed_up && isoDate(r.submitted_at) >= since).map((r) => ({
+      id: `qa-result:${r.item_id}`,
+      kind: "inspection",
+      contractId: r.contract_id,
+      job: job(r.contract_id),
+      title: `Inspection found problems: ${r.title}`,
+      detail: [r.location_path.join(" \u203A "), r.submitted_by_name ? `Sent by ${r.submitted_by_name}` : null, "No snag or stop has been raised from it yet."].filter(Boolean).join(" \xB7 "),
+      at: r.submitted_at,
+      href: `/admin/supervisor/sites/${r.contract_id}/tasks/${r.item_id}`
+    }));
+    const handovers = ((_b = s.handover_notes) != null ? _b : []).filter((h) => h.work_date >= since).flatMap((h) => {
+      const parts = [
+        ["notes for the office", "For the office", h.office_notes],
+        ["problems", "Problems", h.outstanding_problems],
+        ["areas needing attention", "Needs attention", h.areas_awaiting_attention]
+      ];
+      const filled = parts.filter(([, , text]) => text.trim());
+      if (!filled.length) return [];
+      return [{
+        id: `handover:${h.id}`,
+        kind: "handover",
+        contractId: h.contract_id,
+        job: job(h.contract_id),
+        title: `Handover from ${h.actor_name}: ${filled.map(([summary]) => summary).join(", ")}`,
+        detail: brief(`${filled[0][1]}: ${filled[0][2].trim()}`),
+        at: h.created_at,
+        href: `/admin/messages?contract_id=${h.contract_id}#handover-${h.id}`
+      }];
+    });
+    return [...results, ...handovers].sort((a, b) => b.at.localeCompare(a.at) || a.id.localeCompare(b.id));
   }
 
   // lib/operations/next-actions/routes.ts

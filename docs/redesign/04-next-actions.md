@@ -76,7 +76,7 @@ Priority: 0 safety, 1 quality or compliance gate, 2 required action, 3 housekeep
 | R09 | Plan has no checklist for that activity | Office | Office | Supervisor | Checklist published |
 | R10 | Plan names a gang whose login has no package access | Office | Office | | Access saved. **Entered twice today (D-1)** |
 | R11 | Cover expires within the warning period | Office | Office | | New certificate saved |
-| R13 | Ordinary snag `open` with no gang | Supervisor | Supervisor, office | | Gang and date saved |
+| R13 | Ordinary snag `open` with no gang | Office | Office | Supervisor (waiting on the office) | Gang, repair instructions and date saved. One owner: the supervisor reports, the office decides who fixes it. A supervisor can still assign it from the snag page |
 | R14 | Budget margin below target | Owner | Owner (information only, no button) | Office with money | Nothing to press. Owner acceptance needs B3 |
 | R15 | Responsibility proposed or disputed | The gang, then office if disputed | Subcontractor, office | Supervisor | Accepted, disputed or decided |
 | R16 | Office QA request not yet answered | The supervisor it was sent to | That supervisor | Office | Result sent back |
@@ -96,7 +96,7 @@ Who does what across the parallel processes. `A` = acts, `S` = sees, `—` = doe
 | | Ask for the check | — | S | S | **A** |
 | | Decide release | A* | A* | S | S |
 | Snag | Raise | A | A | A | A in their areas |
-| | Choose the gang | — | A | A (not critical) | — |
+| | Choose the gang | — | **A** | S (can still assign on the snag page) | — |
 | | Critical review | S | **A** | S | — |
 | | Repair | — | S | S | **A** |
 | | Re-inspect | — | A† | A† | S |
@@ -173,6 +173,7 @@ Nothing is a fixed clock time. Reminder times are **derived from the job's worki
 | Planning horizon | 7 days | `NEXT_ACTIONS_PLAN_HORIZON_DAYS` | G07, G08, R09, R10, A02 |
 | Job set-up lead time | 21 days | `NEXT_ACTIONS_JOB_SETUP_LEAD_DAYS` | R08 |
 | Overdue fix escalates to owner after | 3 days | `NEXT_ACTIONS_OVERDUE_ESCALATES_AFTER_DAYS` | R07 |
+| "From site" list keeps results and handovers | 7 days | `NEXT_ACTIONS_SITE_UPDATE_DAYS` | Office Today |
 
 For a "07:30 to 16:30" job the offsets give 10:00, 15:00 and 17:30, but those numbers are an output, not an input. A job on "06:00 to 14:00" gets 08:30, 12:30 and 15:00. Invalid environment values are ignored (the default stays). Changing any value changes **reminders and who sees them only, never a gate**. A test asserts that no `HH:MM` literal appears in `rules.ts` or `engine.ts`.
 

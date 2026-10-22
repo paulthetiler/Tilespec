@@ -3,11 +3,12 @@ import Link from "next/link";
 import { canManageContracts } from "@/lib/auth";
 import { checkDatabase, locationsFor } from "@/lib/operations/data";
 import { siteSupervisorsFor, supervisorDailyFor } from "@/lib/operations/daily-data";
-import { dayLabel, londonClock } from "@/lib/operations/planning";
+import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
 import { DailyForm } from "@/components/site/daily-form";
 import { OfficeMessageForm } from "@/components/site/office-message-form";
 import { acknowledgeOfficeItemAction, sendOfficeItemAction } from "../../../daily-actions";
 import { requireSite } from "../../../site-access";
+import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import styles from "../../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +18,15 @@ export default async function OfficeMessages({ params }: { params: Promise<{ id:
   if (!contract) return null;
   const base = `/admin/supervisor/sites/${id}`, office = canManageContracts(member);
   const daily = await supervisorDailyFor(supabase, id);
-  const [recipients, locations, packages] = daily && office ? await Promise.all([
+  const [recipients, locations, packages, members] = daily && office ? await Promise.all([
     siteSupervisorsFor(supabase, id), locationsFor(supabase, id), supabase.from("work_packages").select("*").eq("contract_id", id),
-  ]) : [[], [], { data: [], error: null }];
+    supabase.from("organisation_members").select("user_id,display_name"),
+  ]) : [[], [], { data: [], error: null }, { data: [], error: null }];
   checkDatabase(packages.error);
+  checkDatabase(members.error);
+  // The office already reads the member list, so it can see who acknowledged and when.
+  const nameOf = new Map(((members.data ?? []) as { user_id: string; display_name: string }[]).map(row => [row.user_id, row.display_name]));
+  const shared = flagEnabled("nextActions", member.role) || flagEnabled("roleShell", member.role);
   return <>
     <h2 className={styles.title}>Office messages</h2>
     {!daily ? <p className={styles.warning}>Office messages are not available yet. Contact the office directly for today’s instructions.</p> : <>
@@ -45,7 +51,9 @@ export default async function OfficeMessages({ params }: { params: Promise<{ id:
               {mine ? <p className={styles.success}>You acknowledged this at {londonClock(mine.acknowledged_at)}.</p> : !office && item.acknowledgement_required ? <DailyForm action={acknowledgeOfficeItemAction} label="Acknowledge message">
                 <input type="hidden" name="item_id" value={item.id} /><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="request_key" value={randomUUID()} />
               </DailyForm> : null}
-              {office && item.acknowledgement_required && <p>{acknowledgements.length ? `${acknowledgements.length} supervisor acknowledgement${acknowledgements.length === 1 ? "" : "s"} received.` : "Awaiting acknowledgement."}</p>}
+              {office && item.acknowledgement_required && (acknowledgements.length
+                ? <ul>{acknowledgements.map(row => <li key={row.id}>Acknowledged by {nameOf.get(row.actor_id) ?? "a supervisor"} at {londonClock(row.acknowledged_at)}, {dayLabel(londonDate(new Date(row.acknowledged_at)))}</li>)}</ul>
+                : <p>Waiting for {item.recipient_name ?? "a supervisor"} to acknowledge.</p>)}
             </>}
           </article>;
         })}
@@ -58,6 +66,6 @@ export default async function OfficeMessages({ params }: { params: Promise<{ id:
         </details>) : <p>No handovers saved yet.</p>}
       </section>}
     </>}
-    <div className={styles.rowActions}><Link className={styles.secondaryButton} href={`${base}`}>Back to today</Link><Link className={styles.secondaryButton} href={`/admin/alerts?contract_id=${id}`}>Safety and quality alerts</Link>{office && <Link className={styles.secondaryButton} href={`/admin/snags?contract_id=${id}`}>Morning blockers and snags</Link>}</div>
+    <div className={styles.rowActions}>{shared && <Link className={styles.secondaryButton} href={`${base}/activity`}>Job activity</Link>}<Link className={styles.secondaryButton} href={`/admin/alerts?contract_id=${id}`}>Safety and quality alerts</Link>{office && <Link className={styles.secondaryButton} href={`/admin/snags?contract_id=${id}`}>Morning blockers and snags</Link>}</div>
   </>;
 }

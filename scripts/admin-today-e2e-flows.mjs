@@ -335,6 +335,28 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
     await handovers.getByText('Phase 3 saved handover: bathroom prepared and kitchen remains stopped.', { exact: true }).waitFor();
     pass('Phase 3 I: Paperwork opens verified operational bytes and hides commercial metadata/files; Messages shows actual saved instructions and QA requests');
 
+    // Shared Job Activity: one story built from the records saved above, for the office and the site.
+    await rpc(email.supervisor, 'acknowledge_supervisor_office_item', { p_item: instruction, p_request_key: randomUUID() });
+    await office.goto(`${origin}/admin/messages?contract_id=${contract}`);
+    await office.locator('article').filter({ hasText: 'Phase 3 real instruction' }).getByText(/^Acknowledged by Sid Supervisor at \d{2}:\d{2}, /).waitFor();
+    await office.locator('article').filter({ hasText: 'Phase 3 real QA request' }).getByText('Waiting for Sid Supervisor to send the result', { exact: true }).waitFor();
+    await office.goto(`${origin}${site}/activity`);
+    await office.getByRole('heading', { name: 'Job activity', exact: true }).waitFor();
+    const story = (await office.locator('main ol').allInnerTexts()).join('\n');
+    for (const line of [/sent an instruction to Sid Supervisor: “Phase 3 real instruction”/, /Sid Supervisor\s+acknowledged “Phase 3 real instruction”/,
+      /asked Sid Supervisor to inspect .*“Phase 3 real QA request”/, /Sid Supervisor\s+sent the end-of-day handover/, /stopped work \((safety stop|quality hold)\)/,
+      /uploaded Phase 3 approved operational drawing/]) assert.match(story, line);
+    assert.doesNotMatch(story, /SECRET-PHASE3|P3-COMMERCIAL/, 'commercial documents are not part of the shared story');
+    const order = await office.locator('[data-activity]').evaluateAll(rows => rows.map(row => row.getAttribute('data-activity')));
+    assert.ok(order.indexOf(`message:${instruction}`) > order.findIndex(entry => entry.startsWith('ack:')), 'newest first: the acknowledgement is above the instruction');
+    for (const href of await office.locator('[data-activity] a[href]').evaluateAll(links => links.map(link => link.getAttribute('href')))) {
+      if (href.startsWith('/admin/documents/')) continue;
+      assert.equal((await office.request.get(`${origin}${href.split('#')[0]}`)).status(), 200, `activity link ${href} opens a healthy saved record`);
+    }
+    // The opt-in in this run covers office and owner only; the shared page follows the same boundary.
+    assert.equal((await supervisor.request.get(`${origin}${site}/activity`)).status(), 404, 'a role that is not opted in does not get the new page');
+    pass('Phase 3 I2: Job Activity tells the saved story newest first, names who acknowledged and when, and every line opens a healthy record');
+
     await other.goto(`${origin}/admin`);
     await other.getByRole('heading', { name: 'Today', exact: true }).waitFor();
     assert.doesNotMatch(await other.content(), /PHASE3-LIVE|Phase 3 saved office job|Phase 3 real instruction|unsafe kitchen access|731,?923\.45/);
