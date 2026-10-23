@@ -221,8 +221,12 @@ rule("R15_responsibility", ({ s, L }) => s.supervisor_issues.filter(i => i.respo
   };
 }));
 
+// An office message stops asking for anything once it has been withdrawn or replaced by a changed version.
+const withdrawnItem = (s: NextActionSnapshot, id: string) => (s.office_item_withdrawals ?? []).some(w => w.item_id === id);
+const currentItem = (s: NextActionSnapshot, id: string) => !withdrawnItem(s, id) && !s.supervisor_office_items.some(m => m.replaces_id === id);
+
 // R16: the office has asked this supervisor to inspect something.
-rule("R16_qa_request", ({ s, L }) => s.supervisor_office_items.filter(m => m.kind === "qa_request" && !s.supervisor_qa_submissions.some(q => q.item_id === m.id)).map(m => ({
+rule("R16_qa_request", ({ s, L }) => s.supervisor_office_items.filter(m => m.kind === "qa_request" && !s.supervisor_qa_submissions.some(q => q.item_id === m.id) && currentItem(s, m.id)).map(m => ({
   id: `qa:${m.id}`, rule: "R16", process: "inspection", kind: "reminder", priority: 2, order: 11.5, job: L.job(m.contract_id), location: L.path(m.work_area_id),
   responsible: { role: "supervisor", who: L.person(m.recipient_id), label: "Site supervisor" }, title: `Inspect ${L.path(m.work_area_id)} for the office`,
   why: `${L.person(m.created_by)} asked for this. ${m.body} Sending your result does not approve payment or lift any stop.`,
@@ -362,14 +366,46 @@ const everyoneCompleted = (s: NextActionSnapshot, contractId: string, completed:
   return supervisors.length > 0 && supervisors.every(id => completed.includes(id));
 };
 const acknowledgers = (s: NextActionSnapshot, itemId: string) => s.supervisor_office_acknowledgements.filter(a => a.item_id === itemId).map(a => a.user_id);
-rule("R05_instruction_unread", ({ s, L }) => s.supervisor_office_items.filter(m => m.kind === "instruction" && m.acknowledgement_required
-  && !(m.recipient_id ? acknowledgers(s, m.id).includes(m.recipient_id) : everyoneCompleted(s, m.contract_id, acknowledgers(s, m.id)))).map(m => ({
-  id: `ack:${m.id}`, rule: "R05", process: "daily-site", kind: "reminder", priority: 2, order: 9.5, job: L.job(m.contract_id), location: null,
-  responsible: { role: "supervisor", who: L.person(m.recipient_id), label: "Site supervisor" }, title: `Read: ${m.title}`, why: m.body, due: null, requires: ["Tap Got it"],
-  doneWhen: "You acknowledge it", next: null, audience: { supervisor: "act", office: "see" }, actUsers: m.recipient_id ? [m.recipient_id] : null,
-  completedUsers: acknowledgers(s, m.id),
-  blocks: null, enforcedByBackend: false, source: { table: "supervisor_office_items", id: m.id }, route: { screen: "messages" },
+// An urgent instruction sits above everything except safety stops. A changed one says what it replaces.
+rule("R05_instruction_unread", ({ s, L }) => s.supervisor_office_items.filter(m => m.kind === "instruction" && m.acknowledgement_required && currentItem(s, m.id)
+  && !(m.recipient_id ? acknowledgers(s, m.id).includes(m.recipient_id) : everyoneCompleted(s, m.contract_id, acknowledgers(s, m.id)))).map(m => {
+  const replaced = m.replaces_id ? s.supervisor_office_items.find(o => o.id === m.replaces_id) : undefined;
+  return {
+    id: `ack:${m.id}`, rule: "R05", process: "daily-site", kind: "reminder", priority: m.urgent ? 0 : 2, order: m.urgent ? 3 : 9.5, job: L.job(m.contract_id), location: null,
+    responsible: { role: "supervisor", who: L.person(m.recipient_id), label: "Site supervisor" },
+    title: `${m.urgent ? "Urgent" : replaced ? "Changed" : "Read"}: ${m.title}`, why: replaced ? `${m.body} This replaces “${replaced.title}”.` : m.body,
+    due: null, requires: ["Tap Got it"],
+    doneWhen: "You acknowledge it", next: null, audience: { supervisor: "act", office: "see" }, actUsers: m.recipient_id ? [m.recipient_id] : null,
+    completedUsers: acknowledgers(s, m.id),
+    blocks: null, enforcedByBackend: false, source: { table: "supervisor_office_items", id: m.id }, route: { screen: "messages" },
+  } satisfies NextAction;
+}));
+
+// R18/R19: what site sent back that the office has not reviewed yet. Only once office reviews
+// exist in the database; before that the same records are listed under "From site" instead.
+const reviewSince = (s: NextActionSnapshot, cfg: NextActionConfig) => addDays(s.today, -(cfg.siteUpdateDays - 1));
+const briefly = (text: string, length = 180) => (text.length > length ? `${text.slice(0, length - 1).trimEnd()}…` : text);
+rule("R18_review_result", ({ s, L, cfg }) => !s.office_reviews ? [] : (s.qa_results ?? []).filter(r => r.has_issues && !!r.submission_id
+  && isoDate(r.submitted_at) >= reviewSince(s, cfg) && !s.office_reviews!.some(v => v.qa_submission_id === r.submission_id)).map(r => ({
+  id: `review-result:${r.submission_id}`, rule: "R18", process: "inspection", kind: "reminder", priority: 2, order: 11.6,
+  job: L.job(r.contract_id), location: r.location_path.join(" › ") || null, responsible: OFFICE,
+  title: `Review the inspection result: ${r.title}`,
+  why: `${r.submitted_by_name ?? "The supervisor"} found problems.${r.followed_up ? " A snag or stop has already been raised from it." : ""} Decide what happens next and record it.`,
+  due: null, requires: ["What you did about it", "A short note if useful"], doneWhen: "The office review is saved", next: "The supervisor sees it was reviewed",
+  audience: { office: "act", owner: "act", supervisor: "see" }, blocks: null, enforcedByBackend: false,
+  source: { table: "supervisor_qa_submissions", id: r.submission_id ?? null }, route: { screen: "inspect", qa: r.item_id },
 })));
+rule("R19_review_handover", ({ s, L, cfg }) => !s.office_reviews ? [] : (s.handover_notes ?? []).filter(h => h.work_date >= reviewSince(s, cfg)
+  && [h.office_notes, h.outstanding_problems, h.areas_awaiting_attention].some(text => (text ?? "").trim()) && !s.office_reviews!.some(v => v.handover_id === h.id)).map(h => {
+  const [label, text] = ([["For the office", h.office_notes], ["Problems", h.outstanding_problems], ["Needs attention", h.areas_awaiting_attention]] as const).find(([, value]) => (value ?? "").trim())!;
+  return {
+    id: `review-handover:${h.id}`, rule: "R19", process: "daily-site", kind: "reminder", priority: 2, order: 15.5, job: L.job(h.contract_id), location: null,
+    responsible: OFFICE, title: `Read ${h.actor_name}’s handover`, why: briefly(`${h.work_date === s.today ? "Today" : h.work_date}. ${label}: ${text.trim()}`),
+    due: null, requires: ["What you did about it", "A short note if useful"], doneWhen: "The office review is saved", next: "The supervisor sees it was reviewed",
+    audience: { office: "act", owner: "act" }, blocks: null, enforcedByBackend: false,
+    source: { table: "site_handovers", id: h.id }, route: { screen: "handover-review", id: h.id },
+  } satisfies NextAction;
+}));
 
 const handoverAuthors = (s: NextActionSnapshot, contractId: string) => s.site_handovers.filter(h => h.contract_id === contractId && h.work_date === s.today)
   .map(h => h.actor_id).filter((id): id is string => !!id);

@@ -1,8 +1,9 @@
 # 11. Two-way communication and commercial records
 
-**Status: proposal. Nothing in sections 3 to 7 is built.** Every item labelled
-New backend needs the owner's approval before any migration is written. The
-Query-only stage (section 2) is in the same pull request as this document.
+**Status: M3 and M2 are approved and built (section 8). M1, M4 and M5 are still
+proposals.** Every item labelled New backend needs the owner's approval before any
+migration is written, and applying a migration to a hosted project is a separate
+approval. The Query-only stage (section 2) is in the pull request before the M3/M2 one.
 
 The aim is one connected job workflow. The office and the supervisor work on the
 same job story, and every time information moves from one side to the other, the
@@ -80,8 +81,8 @@ Supervisor sends a result with problems, or a handover with problems or notes
       Job Activity
 ```
 
-The Stage A "From site" list becomes real Next Actions that complete when reviewed,
-instead of disappearing after 7 days.
+The Stage A "From site" list becomes real Next Actions that complete when reviewed
+(as built: offered for the configured number of days, see section 8).
 
 ### B4. Dayworks
 
@@ -172,7 +173,7 @@ All forms follow the existing pattern: a failed save keeps everything typed, and
 
 | Step | Contents | Size | Why first |
 | --- | --- | --- | --- |
-| 1 | M3 office reviews and M2 instruction changes | Small | Closes the loops found in the audit, using records that already exist |
+| 1 | M3 office reviews and M2 instruction changes (**approved and built**) | Small | Closes the loops found in the audit, using records that already exist |
 | 2 | M1 messages and replies | Medium | Lets the supervisor talk to the office about any record |
 | 3 | M4 dayworks | Large | Direct commercial value; reuses M1 for questions |
 | 4 | M5 variations | Large | Builds on the daywork pattern |
@@ -182,7 +183,8 @@ and screens behind the existing flags, then a hosted rehearsal before production
 
 ## 7. Decisions needed from the owner
 
-1. Approve M1 to M5 individually, and the order above.
+1. Approve M1 to M5 individually, and the order above. M3 and M2 were approved on
+   23 October 2026; M1, M4 and M5 are awaiting a decision.
 2. Dayworks: who may authorise (any office user, a named manager, or the owner)? Is
    the client's signature required on every daywork, or only above a value or for
    some clients?
@@ -195,3 +197,33 @@ and screens behind the existing flags, then a hosted rehearsal before production
 6. Notifications: is an email or phone notification needed for urgent instructions
    and safety stops? This is separate from the records above and needs its own
    approval.
+
+## 8. As built: M3 office reviews and M2 instruction changes
+
+Migration `20261023090000_office_reviews_instruction_changes.sql`, with the read-only
+report `supabase/inspection/office-reviews-preflight.sql`. Additive and transactional;
+it refuses to run twice or before the daily workflow. Not applied to any hosted project.
+
+| What | Who | Where | Notes |
+| --- | --- | --- | --- |
+| Mark an inspection result as reviewed | Office or owner | The request page (`/tasks/<id>`), from Office Today "Review the inspection result" | One review per result. Outcome: Noted, Snag raised, Stop raised or Instruction sent |
+| Mark a handover as reviewed | Office or owner | The job's Messages page, from Office Today "Read Dave's handover" | Same outcomes. Only handovers with problems or notes for the office become actions |
+| Link the follow-up | Office or owner | The review form, optional | Must be a snag, stop or instruction on the same job. The office raises it with the existing forms first; the review does not create it |
+| See the review | The supervisor who can see the result or handover | Request page, Finish today, Job activity | "Reviewed by Sam at 11:20: Snag raised", with the note. The form says the supervisor sees the note |
+| Change an instruction | Office or owner | The job's Messages page, "Change it" | A new version naming the one it replaces, to the same person. The original stays as sent and stops asking for acknowledgement |
+| Mark it urgent | Office or owner | When sending or changing an instruction | Urgent instructions sit above everything except safety stops on Supervisor Today |
+| Withdraw an instruction or inspection request | Office or owner | The job's Messages page or the request page | A reason is required and shown to the supervisor. A request whose result is in cannot be withdrawn |
+
+Differences from the proposal above, kept small on purpose:
+
+- Results and handovers are offered for review for `NEXT_ACTIONS_SITE_UPDATE_DAYS`
+  (default 7, maximum 30), so the first day after installing does not flood Office
+  Today with old handovers. Older unreviewed ones stay marked "Not reviewed yet" on
+  the record and in the Messages index.
+- The follow-up form is not pre-filled. The office uses the existing snag, stop and
+  message forms, then links the record in the review.
+- Owners act on reviews as well as contracts managers, because in a small company the
+  owner is often the office.
+- An inspection request can be withdrawn but not changed; send a new request instead.
+- Until the migration is applied, every screen works exactly as before: the "From
+  site" list stays, and no Change, Withdraw, Urgent or Review control is shown.

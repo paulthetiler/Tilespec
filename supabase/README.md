@@ -205,3 +205,24 @@ name collisions absent. Apply the migration unmodified under its own filename
 only after approval. Rerun the report and compare preserved row counts. A second
 application is refused. Local `npm run test:db` applies it only to a disposable
 cluster and checks RLS, RPCs and preservation of every earlier row/grant/policy.
+
+### Office reviews and instruction changes (M3, M2)
+
+`20261023090000_office_reviews_instruction_changes.sql` lets the office mark an
+inspection result or handover as reviewed (`office_reviews`), and change, mark urgent
+or withdraw an instruction (`replaces_id` and `urgent` on `supervisor_office_items`,
+and `supervisor_office_item_withdrawals`). A change is a new instruction that names
+the one it replaces; nothing existing is rewritten. The acknowledgement and result
+functions keep their original checks, now in `private`, behind wrappers that only
+refuse a new acknowledgement of a changed or withdrawn instruction and a new result
+for a withdrawn request. Additive and transactional; it refuses to run before
+`20261015130000` or a second time.
+
+1. Take a database backup.
+2. Run `inspection/office-reviews-preflight.sql` (read-only) as the applying role and
+   keep the output. Every prerequisite must be present and every name collision absent.
+3. Apply the migration unmodified, recorded under its own filename, only after approval.
+4. Re-run the report: the preserved counts must be unchanged.
+
+The application hides every review, change, urgent and withdrawal control until this
+migration is applied, so it can be deployed first.

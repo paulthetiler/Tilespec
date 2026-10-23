@@ -417,6 +417,59 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
       'the real office writes retain their audit records');
     assert.deepEqual(errors, [], 'no unhandled authenticated browser errors');
     pass('Phase 3 L: all earlier jobs, allocations, inspections, issues, hold histories and audit rows remain unchanged; dashboards never create release decisions');
+
+    // M2 and M3 (approved by the owner): change and withdraw from the job's Messages page, review a
+    // handover from Office Today, and see each step in the Messages index and Job activity.
+    await office.goto(`${origin}${site}/messages`);
+    const sent = office.locator(`article#message-${instruction}`);
+    await sent.getByText('Change it', { exact: true }).click();
+    const change = sent.locator('form').filter({ has: office.getByRole('button', { name: 'Send the changed instruction', exact: true }) });
+    await change.locator('input[name=title]').fill('Phase 3 changed instruction');
+    await change.locator('input[name=urgent]').check();
+    await change.getByRole('button', { name: 'Send the changed instruction', exact: true }).click();
+    await office.locator(`article#message-${instruction}[data-message-state="replaced"]`).waitFor();
+    const changedInstruction = sql(`select id from public.supervisor_office_items where replaces_id='${instruction}'`);
+    assert.match(changedInstruction, /^[0-9a-f-]{36}$/);
+    const request = office.locator(`article#message-${qa}`);
+    await request.getByText('Withdraw this request', { exact: true }).click();
+    await request.locator('textarea[name=reason]').fill('Bathroom not ready; a new request will follow.');
+    await request.getByRole('button', { name: 'Withdraw the request', exact: true }).click();
+    await office.locator(`article#message-${qa}[data-message-state="withdrawn"]`).waitFor();
+    assert.equal(sql(`select reason from public.supervisor_office_item_withdrawals where item_id='${qa}'`), 'Bathroom not ready; a new request will follow.');
+    const late = await rest(email.supervisor, 'rpc/submit_supervisor_qa_result', 'POST', { p_item: qa, p_inspection: randomUUID(), p_request_key: randomUUID() });
+    assert.notEqual(late.status, 200); assert.match(await late.text(), /withdrew/, 'a withdrawn request takes no new result');
+    const noted = await rpc(email.supervisor, 'record_site_handover', { p_request_key: randomUUID(), p_data: {
+      contract_id: contract, finished_at: new Date().toISOString(), finish_workforce: false,
+      work_completed: 'Bathroom prepared.', office_notes: 'Possible daywork: main contractor asked for the bin store wall.',
+    } });
+    await office.goto(`${origin}/admin`);
+    assert.equal(await office.locator('#today-from-site').count(), 0, 'once reviews exist, the From site list gives way to real actions');
+    const read = office.locator(`[data-action-id="review-handover:${noted}"]`);
+    await read.getByText('Read Sid Supervisor’s handover', { exact: true }).waitFor();
+    await read.getByRole('link').last().click();
+    await office.waitForURL(url => url.pathname === `${site}/messages` && url.searchParams.get('handover') === noted);
+    const details = office.locator(`details#handover-${noted}`);
+    assert.equal(await details.getAttribute('open'), '', 'the linked handover opens with its review form in view');
+    await details.locator('select[name=outcome]').selectOption('instruction_sent');
+    await details.locator('select[name=follow_up]').selectOption(`instruction_sent:${changedInstruction}`);
+    await details.getByRole('button', { name: 'Mark as reviewed', exact: true }).click();
+    await details.getByText(/Review saved|Reviewed by/).first().waitFor();
+    assert.equal(sql(`select outcome||':'||follow_up_id from public.office_reviews where handover_id='${noted}'`), `instruction_sent:${changedInstruction}`);
+    await office.goto(`${origin}/admin`);
+    await office.getByRole('heading', { name: 'Today', exact: true }).waitFor();
+    assert.equal(await office.locator(`[data-action-id="review-handover:${noted}"]`).count(), 0, 'the saved review completes the action');
+    await office.goto(`${origin}/admin/messages?contract_id=${contract}`);
+    await office.locator('article').filter({ hasText: 'Phase 3 real QA request' }).getByText(/^Withdrawn by .+: Bathroom not ready; a new request will follow\.$/).waitFor();
+    await office.locator('article').filter({ hasText: 'Phase 3 real instruction' }).getByText('Changed: replaced by “Phase 3 changed instruction”', { exact: true }).waitFor();
+    await office.locator(`details#handover-${noted}`).locator('summary').click();
+    await office.locator(`details#handover-${noted}`).getByText(/^Reviewed by .+: Instruction sent\.$/).waitFor();
+    await office.goto(`${origin}${site}/activity`);
+    await office.getByRole('heading', { name: 'Job activity', exact: true }).waitFor();
+    const reviewed = (await office.locator('main ol').allInnerTexts()).join('\n');
+    for (const line of [/changed “Phase 3 real instruction” to Sid Supervisor: “Phase 3 changed instruction” \(urgent\)/,
+      /withdrew the inspection request “Phase 3 real QA request”/, /reviewed Sid Supervisor’s handover: instruction sent/]) assert.match(reviewed, line);
+    assert.deepEqual(errors, [], 'no unhandled authenticated browser errors');
+    pass('Phase 4 M2/M3: the office changes an instruction, withdraws a request and reviews a handover from Office Today; each is saved once and shown in Messages and Job activity');
   } catch (error) {
     for (const context of contexts) for (const page of context.pages()) {
       console.error(`Phase 3 page: ${page.url()}\n${(await page.locator('body').innerText({ timeout: 5000 }).catch(() => '(unreadable)')).slice(0, 7000)}`);

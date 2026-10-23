@@ -4,10 +4,10 @@ import type { NextActionSnapshot, Viewer } from "./types";
 
 /*
  * Information arriving from site that the office should look at: inspection results with
- * problems, and handovers that mention problems or carry notes for the office. These are not
- * Next Actions: nothing records that the office has reviewed them yet (new backend), so they
- * cannot be completed. They are shown for a configured number of days instead, and an
- * inspection result drops off as soon as a snag or stop is raised from it.
+ * problems, and handovers that mention problems or carry notes for the office. Without office
+ * reviews in the database nothing records that the office has looked, so they are listed here
+ * for a configured number of days, and an inspection result drops off as soon as a snag or stop
+ * is raised from it. Once reviews exist, rules R18 and R19 make them real Next Actions instead.
  */
 export interface SiteUpdate {
   id: string;
@@ -23,7 +23,7 @@ export interface SiteUpdate {
 const brief = (text: string, length = 180) => (text.length > length ? `${text.slice(0, length - 1).trimEnd()}…` : text);
 
 export function siteUpdates(s: NextActionSnapshot, viewer: Viewer, cfg: NextActionConfig = DEFAULT_CONFIG): SiteUpdate[] {
-  if (viewer.role !== "owner" && viewer.role !== "contracts_manager") return [];
+  if ((viewer.role !== "owner" && viewer.role !== "contracts_manager") || s.office_reviews) return [];
   const since = addDays(s.today, -(cfg.siteUpdateDays - 1));
   const job = (id: string) => {
     const contract = s.contracts.find(c => c.id === id);

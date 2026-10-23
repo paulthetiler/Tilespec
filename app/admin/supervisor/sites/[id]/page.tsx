@@ -62,8 +62,8 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     const kind = insuranceTypeLabels[summary.attention.entry.insurance_type];
     return [`${company.name} is on site and its ${kind.toLowerCase()} insurance ${summary.status === "expired" ? "has expired" : "expires soon"}. Tell the office.`];
   });
-  const qaRequests = daily ? outstandingQa(daily.items, daily.submissions) : [];
-  const unread = daily ? unacknowledgedInstructions(daily.items, daily.acknowledgements, member.user_id).length : 0;
+  const qaRequests = daily ? outstandingQa(daily.items, daily.submissions, daily.withdrawals) : [];
+  const unread = daily ? unacknowledgedInstructions(daily.items, daily.acknowledgements, member.user_id, daily.withdrawals).length : 0;
   const handover = daily?.handovers.find(row => row.work_date === day && row.actor_id === member.user_id);
   const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "numeric", hourCycle: "h23" }).format(new Date()));
   const greeting = hour < 12 ? "Morning" : hour < 18 ? "Afternoon" : "Evening";

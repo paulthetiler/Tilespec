@@ -23,7 +23,10 @@ type ReadOptions = {
   lte?: Record<string, string>;
   lt?: Record<string, string>;
   oneOf?: Record<string, string[]>;
+  /** A table from a later reviewed migration: reading it before that migration is applied returns null, not an error. */
+  optional?: boolean;
 };
+class MissingTable extends Error {}
 const READ_ERROR = "The daily records could not be read. Check the backend connection and try again.";
 
 /**
@@ -69,6 +72,7 @@ export async function loadOfficeSnapshot(
         let result;
         try { result = await query.range(start, start + 499); }
         catch { throw new Error(READ_ERROR); }
+        if (options.optional && result.error && ["42P01", "PGRST205"].includes(result.error.code)) throw new MissingTable();
         checkDatabase(result.error);
         if (!Array.isArray(result.data)) throw new Error(READ_ERROR);
         saved.push(...result.data as unknown as Row[]);
@@ -77,6 +81,8 @@ export async function loadOfficeSnapshot(
     }
     return saved;
   }
+  const optionalRows = (table: string, columns: string, options: ReadOptions) => rows(table, columns, { ...options, optional: true })
+    .catch(error => { if (error instanceof MissingTable) return null; throw error; });
 
   const [contractRows, memberRows] = await Promise.all([
     rows("contracts", "id,reference,name,start_date,end_date,working_hours,tile_specification"),
@@ -104,7 +110,7 @@ export async function loadOfficeSnapshot(
   const updatesSince = addDays(today, -(config.siteUpdateDays - 1));
   const [areas, packages, packageAssignments, companies, insurance, teams, operatives, memberships,
     plans, actualToday, actualEarlier, absences, checks, templates, requirements, inspections, snags, readinessIssues, holds,
-    items, acknowledgements, submissions, handovers, documents, handoverNotes] = await Promise.all([
+    items, acknowledgements, submissions, handovers, documents, handoverNotes, reviews, withdrawals] = await Promise.all([
     rows("work_areas", "id,contract_id,name,parent_id,path_ids", scope),
     rows("work_packages", "id,contract_id,name", scope),
     rows("package_assignments", "contract_id,work_package_id,user_id", { ...scope, order: ["work_package_id", "user_id"] }),
@@ -126,14 +132,19 @@ export async function loadOfficeSnapshot(
     rows("supervisor_issues", "id,contract_id,work_area_id,check_label,description,severity,snag_status,assigned_team_id,target_date,inspector_id,rectified_by,escalated,responsibility_state,responsibility_team_id,assigned_action", { ...scope, oneOf: { snag_status: ["open", "assigned", "rectification_submitted", "reinspection"] } }),
     rows("supervisor_issues", "id,contract_id,inspection_id,check_label,description,state,created_at", { ...scope, isNull: ["snag_status"], neq: { state: "closed" } }),
     rows("work_holds", "id,contract_id,work_area_id,work_package_id,stage,activity,location_path,hold_type,status,reason,required_action,raised_by,corrected_by,assigned_team_id,assigned_operative_id,target_date", { ...scope, oneOf: { status: ["active", "correction_submitted", "awaiting_release"] } }),
-    rows("supervisor_office_items", "id,contract_id,kind,title,body,recipient_id,acknowledgement_required,work_area_id,location_path,stage,created_by,created_at,due_on", scope),
+    // Every column, so instruction changes (replaces_id, urgent) appear once their migration is applied.
+    rows("supervisor_office_items", "*", scope),
     rows("supervisor_office_acknowledgements", "id,item_id,actor_id", scope),
     rows("supervisor_qa_submissions", "id,item_id,inspection_id,has_issues,submitted_by,submitted_at", scope),
     rows("site_handovers", "id,contract_id,actor_id,work_date,created_at", { ...scope, eq: { work_date: today } }),
     rows("document_revisions", "id,contract_id", { ...scope, eq: { classification: "operational" }, notNull: ["uploaded_at"] }),
     // What site sent back recently, for the office's "From site" list. Reads only.
     rows("site_handovers", "id,contract_id,actor_name,work_date,created_at,outstanding_problems,areas_awaiting_attention,office_notes", { ...scope, gte: { work_date: updatesSince } }),
+    optionalRows("office_reviews", "id,contract_id,qa_submission_id,handover_id", scope),
+    optionalRows("supervisor_office_item_withdrawals", "id,contract_id,item_id", scope),
   ]);
+  // Both arrive with one migration. Until it is applied, results and handovers stay in "From site".
+  const followUp = reviews !== null && withdrawals !== null;
   // An inspection result with problems is being tracked once a snag or stop has been raised from it.
   const failedInspections = submissions.filter(row => row.has_issues === true).map(row => String(row.inspection_id));
   const [linkedSnags, linkedHolds] = failedInspections.length ? await Promise.all([
@@ -187,11 +198,15 @@ export async function loadOfficeSnapshot(
     document_revisions: documents as unknown as NextActionSnapshot["document_revisions"],
     qa_results: submissions.flatMap(row => {
       const item = items.find(candidate => candidate.id === row.item_id);
-      return item ? [{ item_id: String(row.item_id), contract_id: String(item.contract_id), title: String(item.title), location_path: (item.location_path as string[]) ?? [],
+      return item ? [{ item_id: String(row.item_id), submission_id: String(row.id), contract_id: String(item.contract_id), title: String(item.title), location_path: (item.location_path as string[]) ?? [],
         inspection_id: String(row.inspection_id), has_issues: row.has_issues === true, submitted_at: String(row.submitted_at),
         submitted_by_name: memberNames.get(String(row.submitted_by)) ?? null, followed_up: followedUp.has(String(row.inspection_id)) }] : [];
     }),
     handover_notes: handoverNotes as unknown as NextActionSnapshot["handover_notes"],
+    ...(followUp ? {
+      office_reviews: reviews!.map(row => ({ qa_submission_id: (row.qa_submission_id as string | null) ?? null, handover_id: (row.handover_id as string | null) ?? null })),
+      office_item_withdrawals: withdrawals!.map(row => ({ item_id: String(row.item_id) })),
+    } : {}),
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: financial } };
 }
