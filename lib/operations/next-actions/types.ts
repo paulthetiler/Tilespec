@@ -69,10 +69,14 @@ export interface HoldRow {
 export interface OfficeItemRow {
   id: string; contract_id: string; kind: "instruction" | "qa_request"; title: string; body: string; recipient_id: string | null;
   acknowledgement_required: boolean; work_area_id: string | null; stage: string | null; created_by: string; created_at: string; due_on: string | null;
+  /** Once instruction changes are installed: the instruction this one replaces, and whether it is urgent. */
+  replaces_id?: string | null; urgent?: boolean;
 }
 /** A saved inspection result sent back for an office request (office views only). */
 export interface QaResultRow {
   item_id: string; contract_id: string; title: string; location_path: string[]; inspection_id: string;
+  /** The saved result itself, which an office review names. */
+  submission_id?: string;
   has_issues: boolean; submitted_at: string; submitted_by_name: string | null;
   /** A snag or stop has already been raised from this inspection, so the problem is being tracked. */
   followed_up: boolean;
@@ -126,10 +130,17 @@ export interface NextActionSnapshot {
    * Only the supervisor's own site loader sets this; office views never do.
    */
   attended_sites?: string[];
-  /** Office views only: recent inspection results and handovers sent from site. */
+  /** Recent inspection results (office, and the supervisor's own) and handovers sent from site (office views only). */
   qa_results?: QaResultRow[];
   handover_notes?: HandoverNoteRow[];
+  /**
+   * Present only once office reviews and instruction changes are installed in the database.
+   * Absent means the feature is not available, so nothing can be marked reviewed or withdrawn.
+   */
+  office_reviews?: OfficeReviewRow[];
+  office_item_withdrawals?: { item_id: string }[];
 }
+export interface OfficeReviewRow { qa_submission_id: string | null; handover_id: string | null }
 
 export interface Viewer { user_id: string; role: MemberRole; financial_access: boolean }
 

@@ -556,7 +556,12 @@ var TSEngine = (() => {
       route: { screen: "snag", id: i.id }
     };
   }));
-  rule("R16_qa_request", ({ s, L }) => s.supervisor_office_items.filter((m) => m.kind === "qa_request" && !s.supervisor_qa_submissions.some((q) => q.item_id === m.id)).map((m) => {
+  var withdrawnItem = (s, id) => {
+    var _a;
+    return ((_a = s.office_item_withdrawals) != null ? _a : []).some((w) => w.item_id === id);
+  };
+  var currentItem = (s, id) => !withdrawnItem(s, id) && !s.supervisor_office_items.some((m) => m.replaces_id === id);
+  rule("R16_qa_request", ({ s, L }) => s.supervisor_office_items.filter((m) => m.kind === "qa_request" && !s.supervisor_qa_submissions.some((q) => q.item_id === m.id) && currentItem(s, m.id)).map((m) => {
     var _a;
     return {
       id: `qa:${m.id}`,
@@ -803,30 +808,91 @@ var TSEngine = (() => {
     return supervisors.length > 0 && supervisors.every((id) => completed.includes(id));
   };
   var acknowledgers = (s, itemId) => s.supervisor_office_acknowledgements.filter((a) => a.item_id === itemId).map((a) => a.user_id);
-  rule("R05_instruction_unread", ({ s, L }) => s.supervisor_office_items.filter((m) => m.kind === "instruction" && m.acknowledgement_required && !(m.recipient_id ? acknowledgers(s, m.id).includes(m.recipient_id) : everyoneCompleted(s, m.contract_id, acknowledgers(s, m.id)))).map((m) => ({
-    id: `ack:${m.id}`,
-    rule: "R05",
-    process: "daily-site",
-    kind: "reminder",
-    priority: 2,
-    order: 9.5,
-    job: L.job(m.contract_id),
-    location: null,
-    responsible: { role: "supervisor", who: L.person(m.recipient_id), label: "Site supervisor" },
-    title: `Read: ${m.title}`,
-    why: m.body,
-    due: null,
-    requires: ["Tap Got it"],
-    doneWhen: "You acknowledge it",
-    next: null,
-    audience: { supervisor: "act", office: "see" },
-    actUsers: m.recipient_id ? [m.recipient_id] : null,
-    completedUsers: acknowledgers(s, m.id),
-    blocks: null,
-    enforcedByBackend: false,
-    source: { table: "supervisor_office_items", id: m.id },
-    route: { screen: "messages" }
-  })));
+  rule("R05_instruction_unread", ({ s, L }) => s.supervisor_office_items.filter((m) => m.kind === "instruction" && m.acknowledgement_required && currentItem(s, m.id) && !(m.recipient_id ? acknowledgers(s, m.id).includes(m.recipient_id) : everyoneCompleted(s, m.contract_id, acknowledgers(s, m.id)))).map((m) => {
+    const replaced = m.replaces_id ? s.supervisor_office_items.find((o) => o.id === m.replaces_id) : void 0;
+    return {
+      id: `ack:${m.id}`,
+      rule: "R05",
+      process: "daily-site",
+      kind: "reminder",
+      priority: m.urgent ? 0 : 2,
+      order: m.urgent ? 3 : 9.5,
+      job: L.job(m.contract_id),
+      location: null,
+      responsible: { role: "supervisor", who: L.person(m.recipient_id), label: "Site supervisor" },
+      title: `${m.urgent ? "Urgent" : replaced ? "Changed" : "Read"}: ${m.title}`,
+      why: replaced ? `${m.body} This replaces \u201C${replaced.title}\u201D.` : m.body,
+      due: null,
+      requires: ["Tap Got it"],
+      doneWhen: "You acknowledge it",
+      next: null,
+      audience: { supervisor: "act", office: "see" },
+      actUsers: m.recipient_id ? [m.recipient_id] : null,
+      completedUsers: acknowledgers(s, m.id),
+      blocks: null,
+      enforcedByBackend: false,
+      source: { table: "supervisor_office_items", id: m.id },
+      route: { screen: "messages" }
+    };
+  }));
+  var reviewSince = (s, cfg) => addDays(s.today, -(cfg.siteUpdateDays - 1));
+  var briefly = (text, length = 180) => text.length > length ? `${text.slice(0, length - 1).trimEnd()}\u2026` : text;
+  rule("R18_review_result", ({ s, L, cfg }) => {
+    var _a;
+    return !s.office_reviews ? [] : ((_a = s.qa_results) != null ? _a : []).filter((r) => r.has_issues && !!r.submission_id && isoDate(r.submitted_at) >= reviewSince(s, cfg) && !s.office_reviews.some((v) => v.qa_submission_id === r.submission_id)).map((r) => {
+      var _a2, _b;
+      return {
+        id: `review-result:${r.submission_id}`,
+        rule: "R18",
+        process: "inspection",
+        kind: "reminder",
+        priority: 2,
+        order: 11.6,
+        job: L.job(r.contract_id),
+        location: r.location_path.join(" \u203A ") || null,
+        responsible: OFFICE,
+        title: `Review the inspection result: ${r.title}`,
+        why: `${(_a2 = r.submitted_by_name) != null ? _a2 : "The supervisor"} found problems.${r.followed_up ? " A snag or stop has already been raised from it." : ""} Decide what happens next and record it.`,
+        due: null,
+        requires: ["What you did about it", "A short note if useful"],
+        doneWhen: "The office review is saved",
+        next: "The supervisor sees it was reviewed",
+        audience: { office: "act", owner: "act", supervisor: "see" },
+        blocks: null,
+        enforcedByBackend: false,
+        source: { table: "supervisor_qa_submissions", id: (_b = r.submission_id) != null ? _b : null },
+        route: { screen: "inspect", qa: r.item_id }
+      };
+    });
+  });
+  rule("R19_review_handover", ({ s, L, cfg }) => {
+    var _a;
+    return !s.office_reviews ? [] : ((_a = s.handover_notes) != null ? _a : []).filter((h) => h.work_date >= reviewSince(s, cfg) && [h.office_notes, h.outstanding_problems, h.areas_awaiting_attention].some((text) => (text != null ? text : "").trim()) && !s.office_reviews.some((v) => v.handover_id === h.id)).map((h) => {
+      const [label, text] = [["For the office", h.office_notes], ["Problems", h.outstanding_problems], ["Needs attention", h.areas_awaiting_attention]].find(([, value]) => (value != null ? value : "").trim());
+      return {
+        id: `review-handover:${h.id}`,
+        rule: "R19",
+        process: "daily-site",
+        kind: "reminder",
+        priority: 2,
+        order: 15.5,
+        job: L.job(h.contract_id),
+        location: null,
+        responsible: OFFICE,
+        title: `Read ${h.actor_name}\u2019s handover`,
+        why: briefly(`${h.work_date === s.today ? "Today" : h.work_date}. ${label}: ${text.trim()}`),
+        due: null,
+        requires: ["What you did about it", "A short note if useful"],
+        doneWhen: "The office review is saved",
+        next: "The supervisor sees it was reviewed",
+        audience: { office: "act", owner: "act" },
+        blocks: null,
+        enforcedByBackend: false,
+        source: { table: "site_handovers", id: h.id },
+        route: { screen: "handover-review", id: h.id }
+      };
+    });
+  });
   var handoverAuthors = (s, contractId) => s.site_handovers.filter((h) => h.contract_id === contractId && h.work_date === s.today).map((h) => h.actor_id).filter((id) => !!id);
   rule("R06_handover", (c) => c.s.contracts.filter((k) => workToday(c.s, k.id) && !everyoneCompleted(c.s, k.id, handoverAuthors(c.s, k.id))).map((k) => {
     const t = c.timingsFor(k.id);
@@ -1154,7 +1220,9 @@ var TSEngine = (() => {
     R14: "See the budget",
     R15: "Respond",
     R16: "Start inspection",
-    R17: "Review morning finding"
+    R17: "Review morning finding",
+    R18: "Review the result",
+    R19: "Read and review"
   };
   var ctaLabel = (a) => {
     var _a;
@@ -1199,7 +1267,7 @@ var TSEngine = (() => {
   var brief = (text, length = 180) => text.length > length ? `${text.slice(0, length - 1).trimEnd()}\u2026` : text;
   function siteUpdates(s, viewer, cfg = DEFAULT_CONFIG) {
     var _a, _b;
-    if (viewer.role !== "owner" && viewer.role !== "contracts_manager") return [];
+    if (viewer.role !== "owner" && viewer.role !== "contracts_manager" || s.office_reviews) return [];
     const since = addDays(s.today, -(cfg.siteUpdateDays - 1));
     const job = (id) => {
       const contract = s.contracts.find((c) => c.id === id);
@@ -1261,6 +1329,8 @@ var TSEngine = (() => {
         return `${siteBase}/messages`;
       case "handover":
         return `${siteBase}/finish`;
+      case "handover-review":
+        return `${siteBase}/messages?handover=${r.id}#handover-${r.id}`;
       case "job":
         return `/admin/contracts/${r.id}`;
       case "labour":

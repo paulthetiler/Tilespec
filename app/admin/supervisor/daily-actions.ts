@@ -2,15 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/auth";
-import { handoverInput, isRecordId, officeItemInput } from "@/lib/operations/daily-input";
+import { handoverInput, isRecordId, officeItemInput, reviewInput, withdrawalInput } from "@/lib/operations/daily-input";
 import { rpcErrorMessage } from "@/lib/operations/errors";
 import { uuid, ValidationError } from "@/lib/operations/validation";
 import type { DailyActionState } from "@/components/site/daily-form";
 
 const uncertainError = "We could not confirm the save. Your entries are kept here. Check the saved records, then retry the same details.";
 function refresh(contract: string) {
-  for (const path of ["", "/messages", "/finish", "/inspections", "/workforce", "/history"]) revalidatePath(`/admin/supervisor/sites/${contract}${path}`);
+  for (const path of ["", "/messages", "/finish", "/inspections", "/workforce", "/history", "/activity"]) revalidatePath(`/admin/supervisor/sites/${contract}${path}`);
   revalidatePath("/admin/quality");
+  revalidatePath("/admin/messages");
 }
 function declined(error: { code?: string; message?: string }): DailyActionState {
   return { error: rpcErrorMessage(error), uncertain: !error.code || !(/^[A-Z0-9]{5}$/.test(error.code) || error.code.startsWith("PGRST")) };
@@ -32,7 +33,8 @@ export async function sendOfficeItemAction(_: DailyActionState, form: FormData):
     if (saved.error || !saved.data || saved.data.id !== result.data || saved.data.created_by !== member.user_id
       || saved.data.request_key !== key || Object.entries(data).some(([name, value]) => saved.data[name] !== value)) throw new Error("Unconfirmed message");
     refresh(data.contract_id);
-    return { id: result.data, success: data.kind === "qa_request" ? "Inspection request sent to the supervisor." : "Office message saved and sent." };
+    return { id: result.data, success: data.kind === "qa_request" ? "Inspection request sent to the supervisor."
+      : "replaces_id" in data ? "Instruction changed. The supervisor sees the new version and the old one no longer asks for a reply." : "Office message saved and sent." };
   } catch (error) { return failure(error, attempted); }
 }
 
@@ -50,6 +52,45 @@ export async function acknowledgeOfficeItemAction(_: DailyActionState, form: For
       || saved.data.contract_id !== contract || saved.data.request_key !== key || !saved.data.acknowledged_at) throw new Error("Unconfirmed acknowledgement");
     refresh(contract);
     return { id: result.data, success: "Message acknowledged. The office can see your reply." };
+  } catch (error) { return failure(error, attempted); }
+}
+
+export async function withdrawOfficeItemAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase, member } = await requireActor();
+  let attempted = false;
+  try {
+    const { item_id, contract_id, reason } = withdrawalInput(form), key = uuid(form, "request_key");
+    attempted = true;
+    const result = await supabase.rpc("withdraw_supervisor_office_item", { p_item: item_id, p_request_key: key, p_reason: reason });
+    if (result.error) return declined(result.error);
+    if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
+    const saved = await supabase.from("supervisor_office_item_withdrawals").select("*").eq("id", result.data).single();
+    if (saved.error || !saved.data || saved.data.item_id !== item_id || saved.data.withdrawn_by !== member.user_id
+      || saved.data.contract_id !== contract_id || saved.data.request_key !== key || saved.data.reason !== reason) throw new Error("Unconfirmed withdrawal");
+    refresh(contract_id);
+    revalidatePath(`/admin/supervisor/sites/${contract_id}/tasks/${item_id}`);
+    return { id: result.data, success: "Withdrawn. The supervisor no longer has it to do and can see why." };
+  } catch (error) { return failure(error, attempted); }
+}
+
+export async function recordOfficeReviewAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase, member } = await requireActor();
+  let attempted = false;
+  try {
+    const { contract_id, data } = reviewInput(form), key = uuid(form, "request_key");
+    attempted = true;
+    const result = await supabase.rpc("record_office_review", { p_request_key: key, p_data: data });
+    if (result.error) return declined(result.error);
+    if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
+    const saved = await supabase.from("office_reviews").select("*").eq("id", result.data).single();
+    const subject = data.subject === "qa_result" ? saved.data?.qa_submission_id : saved.data?.handover_id;
+    if (saved.error || !saved.data || subject !== data.subject_id || saved.data.contract_id !== contract_id || saved.data.reviewed_by !== member.user_id
+      || saved.data.request_key !== key || saved.data.outcome !== data.outcome || saved.data.note !== data.note
+      || (saved.data.follow_up_id ?? null) !== ("follow_up_id" in data ? data.follow_up_id : null)) throw new Error("Unconfirmed review");
+    refresh(contract_id);
+    const item = form.get("item_id");
+    if (typeof item === "string" && isRecordId(item)) revalidatePath(`/admin/supervisor/sites/${contract_id}/tasks/${item}`);
+    return { id: result.data, success: "Review saved. The supervisor can see that the office has dealt with it." };
   } catch (error) { return failure(error, attempted); }
 }
 

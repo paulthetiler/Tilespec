@@ -69,7 +69,7 @@ Priority: 0 safety, 1 quality or compliance gate, 2 required action, 3 housekeep
 | R02 | Earlier work with no finish time | Supervisor | Supervisor | Office | Finish time saved |
 | R03 | A planned gang is not confirmed or absent today | Supervisor | Supervisor | Office | Confirmed or absent saved |
 | R04 | A provisional person exists | Office | Office | Supervisor | Person confirmed |
-| R05 | Instruction needing acknowledgement unread | The recipient | Recipient | Office | Acknowledged |
+| R05 | Instruction needing acknowledgement unread, and not replaced or withdrawn | The recipient | Recipient | Office | Acknowledged. An **urgent** one is titled "Urgent:" and sits above everything except safety stops; a changed one is titled "Changed:" and names the one it replaces (M2) |
 | R06 | Work today and no handover | Supervisor | Supervisor from the configured reminder time | Office from the configured offset | Handover saved |
 | R07 | A fix is past its date | Office | Office | Supervisor, owner after the configured days | Fix submitted or new date saved |
 | R08 | Live job missing locations, supervisor, specification or plan | Office | Office | | One action per missing step, in that order |
@@ -79,7 +79,9 @@ Priority: 0 safety, 1 quality or compliance gate, 2 required action, 3 housekeep
 | R13 | Ordinary snag `open` with no gang | Office | Office | Supervisor (waiting on the office) | Gang, repair instructions and date saved. One owner: the supervisor reports, the office decides who fixes it (confirmed by the owner). A supervisor can still assign it from the snag page |
 | R14 | Budget margin below target | Owner | Owner (information only, no button) | Office with money | Nothing to press. Owner acceptance needs B3 |
 | R15 | Responsibility proposed or disputed | The gang, then office if disputed | Subcontractor, office | Supervisor | Accepted, disputed or decided |
-| R16 | Office QA request not yet answered | The supervisor it was sent to | That supervisor | Office | Result sent back |
+| R16 | Office QA request not yet answered and not withdrawn | The supervisor it was sent to | That supervisor | Office | Result sent back |
+| R18 | Inspection result with problems not yet reviewed (M3) | Office | Office, owner | Supervisor (waiting on the office) | Office review saved |
+| R19 | Handover with problems or notes for the office not yet reviewed (M3) | Office | Office, owner | | Office review saved |
 | S03 | Snag assigned to a gang (critical or not) | The gang | Subcontractor | Supervisor, office | Repair submitted with photo |
 
 Changes from the first draft: G09 became **A01**, G13 became **A02** (both are alerts, not gates). G11 became **R15** and G12 became **R16** (they are reminders: the database does not stop anything while they are open). **R12 (new tender) was removed** because a tender's outcome cannot be recorded today (B5), so it could never be completed. Tenders stay a read-only list.
@@ -173,7 +175,7 @@ Nothing is a fixed clock time. Reminder times are **derived from the job's worki
 | Planning horizon | 7 days | `NEXT_ACTIONS_PLAN_HORIZON_DAYS` | G07, G08, R09, R10, A02 |
 | Job set-up lead time | 21 days | `NEXT_ACTIONS_JOB_SETUP_LEAD_DAYS` | R08 |
 | Overdue fix escalates to owner after | 3 days | `NEXT_ACTIONS_OVERDUE_ESCALATES_AFTER_DAYS` | R07 |
-| "From site" list keeps results and handovers | 7 days | `NEXT_ACTIONS_SITE_UPDATE_DAYS` | Office Today |
+| How far back results and handovers are offered for review (R18, R19), or listed under "From site" before office reviews are installed | 7 days | `NEXT_ACTIONS_SITE_UPDATE_DAYS` | Office Today |
 
 For a "07:30 to 16:30" job the offsets give 10:00, 15:00 and 17:30, but those numbers are an output, not an input. A job on "06:00 to 14:00" gets 08:30, 12:30 and 15:00. Invalid environment values are ignored (the default stays). Changing any value changes **reminders and who sees them only, never a gate**. A test asserts that no `HH:MM` literal appears in `rules.ts` or `engine.ts`.
 

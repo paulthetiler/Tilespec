@@ -16,6 +16,7 @@ export function actionHref(a: Pick<NextAction, "route">, siteBase: string): stri
     }
     case "messages": return `${siteBase}/messages`;
     case "handover": return `${siteBase}/finish`;
+    case "handover-review": return `${siteBase}/messages?handover=${r.id}#handover-${r.id}`;
     case "job": return `/admin/contracts/${r.id}`;
     case "labour": return "/admin/workforce";
     case "money": return "/admin/money";

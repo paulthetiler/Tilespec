@@ -21,7 +21,10 @@ export type ActivitySources = {
   holdEvents: { id: string | number; hold_id: string; action: string; note: string; actor_id: string; actor_name: string | null; created_at: string }[];
   holds: { id: string; hold_type: string; location: string }[];
   messages: { id: string; kind: string; title: string; body: string; created_by: string; created_by_name: string; recipient_name: string | null;
-    location_path: string[]; due_on: string | null; created_at: string }[];
+    location_path: string[]; due_on: string | null; created_at: string; replaces_id?: string | null; urgent?: boolean }[];
+  /** Empty until office reviews and instruction changes are installed. */
+  withdrawals?: { id: string; item_id: string; reason: string; withdrawn_by: string; withdrawn_by_name: string; withdrawn_at: string }[];
+  reviews?: { id: string; qa_submission_id: string | null; handover_id: string | null; outcome: string; note: string; reviewed_by: string; reviewed_by_name: string; reviewed_at: string }[];
   acknowledgements: { id: string; item_id: string; actor_id: string; acknowledged_at: string }[];
   results: { id: string; item_id: string; submitted_by: string; submitted_at: string; has_issues: boolean }[];
   handovers: { id: string; actor_id: string; actor_name: string; created_at: string; outstanding_problems: string; areas_awaiting_attention: string; office_notes: string; work_completed: string }[];
@@ -55,6 +58,7 @@ const HOLD_VERBS: Record<string, string> = {
   submit_correction: "sent the fix for a stop", request_release: "asked the office to check a stop", release: "restarted work after a stop",
   reject_release: "sent a stop's fix back", supersede: "replaced a stop", entered_in_error: "marked a stop as entered in error",
 };
+const OUTCOMES: Record<string, string> = { noted: "noted", snag_raised: "snag raised", stop_raised: "stop raised", instruction_sent: "instruction sent" };
 const brief = (text: string, length = 200) => { const t = text.trim(); return t.length > length ? `${t.slice(0, length - 1).trimEnd()}…` : t; };
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const at = (where: string) => (where ? ` at ${where}` : "");
@@ -81,11 +85,21 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
     entries.push({ id: `hold-event:${e.id}`, at: e.created_at, who: person(e.actor_id, e.actor_name), what, detail: brief(e.note), href: `/admin/holds/${e.hold_id}`,
       tone: e.action === "raise" ? "stop" : e.action === "release" ? "done" : undefined });
   }
+  const messageHref = (m: { id: string; kind: string }) => (m.kind === "qa_request" ? `${siteBase}/tasks/${m.id}` : `${siteBase}/messages#message-${m.id}`);
   for (const m of src.messages) {
     const to = m.recipient_name ?? "the site";
-    const what = m.kind === "qa_request" ? `asked ${to} to inspect${at(m.location_path.join(" › "))}: “${m.title}”` : `sent an instruction to ${to}: “${m.title}”`;
+    const replaced = m.replaces_id ? message.get(m.replaces_id) : undefined;
+    const what = m.kind === "qa_request" ? `asked ${to} to inspect${at(m.location_path.join(" › "))}: “${m.title}”`
+      : m.replaces_id ? `changed ${replaced ? `“${replaced.title}”` : "an instruction"} to ${to}: “${m.title}”${m.urgent ? " (urgent)" : ""}`
+      : `sent ${m.urgent ? "an urgent" : "an"} instruction to ${to}: “${m.title}”`;
     entries.push({ id: `message:${m.id}`, at: m.created_at, who: person(m.created_by, m.created_by_name, "Office"), what,
-      detail: `${brief(m.body)}${m.due_on ? ` · Needed by ${m.due_on}` : ""}`, href: m.kind === "qa_request" ? `${siteBase}/tasks/${m.id}` : `${siteBase}/messages#message-${m.id}` });
+      detail: `${brief(m.body)}${m.due_on ? ` · Needed by ${m.due_on}` : ""}`, href: messageHref(m), tone: m.urgent ? "problem" : undefined });
+  }
+  for (const w of src.withdrawals ?? []) {
+    const m = message.get(w.item_id);
+    entries.push({ id: `withdrawal:${w.id}`, at: w.withdrawn_at, who: person(w.withdrawn_by, w.withdrawn_by_name, "Office"),
+      what: `withdrew ${m?.kind === "qa_request" ? "the inspection request" : "the instruction"} “${m?.title ?? "an office message"}”`, detail: brief(w.reason),
+      href: m ? messageHref(m) : `${siteBase}/messages` });
   }
   for (const a of src.acknowledgements) {
     const m = message.get(a.item_id);
@@ -97,6 +111,17 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
     entries.push({ id: `result:${r.id}`, at: r.submitted_at, who: person(r.submitted_by, null, "A supervisor"),
       what: `sent the inspection result for “${m?.title ?? "an inspection request"}”: ${r.has_issues ? "problems found" : "no problems found"}`,
       href: `${siteBase}/tasks/${r.item_id}`, tone: r.has_issues ? "problem" : "done" });
+  }
+  const result = new Map(src.results.map(row => [row.id, row]));
+  const handover = new Map(src.handovers.map(row => [row.id, row]));
+  for (const v of src.reviews ?? []) {
+    const r = v.qa_submission_id ? result.get(v.qa_submission_id) : undefined;
+    const h = v.handover_id ? handover.get(v.handover_id) : undefined;
+    const subject = v.qa_submission_id ? `the inspection result for “${(r && message.get(r.item_id)?.title) ?? "an inspection request"}”`
+      : `${!h ? "a" : h.actor_id === viewerId ? "your" : `${person(h.actor_id, h.actor_name)}’s`} handover`;
+    entries.push({ id: `review:${v.id}`, at: v.reviewed_at, who: person(v.reviewed_by, v.reviewed_by_name, "Office"),
+      what: `reviewed ${subject}: ${OUTCOMES[v.outcome] ?? "reviewed"}`, detail: v.note ? brief(v.note) : undefined, tone: "done",
+      href: r ? `${siteBase}/tasks/${r.item_id}` : v.handover_id ? (office ? `${siteBase}/messages?handover=${v.handover_id}#handover-${v.handover_id}` : `${siteBase}/finish`) : undefined });
   }
   for (const h of src.handovers) {
     const note = [["For the office", h.office_notes], ["Problems", h.outstanding_problems], ["Needs attention", h.areas_awaiting_attention], ["Done", h.work_completed]]
