@@ -76,7 +76,7 @@ Priority: 0 safety, 1 quality or compliance gate, 2 required action, 3 housekeep
 | R09 | Plan has no checklist for that activity | Office | Office | Supervisor | Checklist published |
 | R10 | Plan names a gang whose login has no package access | Office | Office | | Access saved. **Entered twice today (D-1)** |
 | R11 | Cover expires within the warning period | Office | Office | | New certificate saved |
-| R13 | Ordinary snag `open` with no gang | Office | Office | Supervisor (waiting on the office) | Gang, repair instructions and date saved. One owner: the supervisor reports, the office decides who fixes it. A supervisor can still assign it from the snag page |
+| R13 | Ordinary snag `open` with no gang | Office | Office | Supervisor (waiting on the office) | Gang, repair instructions and date saved. One owner: the supervisor reports, the office decides who fixes it (confirmed by the owner). A supervisor can still assign it from the snag page |
 | R14 | Budget margin below target | Owner | Owner (information only, no button) | Office with money | Nothing to press. Owner acceptance needs B3 |
 | R15 | Responsibility proposed or disputed | The gang, then office if disputed | Subcontractor, office | Supervisor | Accepted, disputed or decided |
 | R16 | Office QA request not yet answered | The supervisor it was sent to | That supervisor | Office | Result sent back |
