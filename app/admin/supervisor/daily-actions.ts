@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/auth";
-import { handoverInput, isRecordId, officeItemInput, reviewInput, withdrawalInput } from "@/lib/operations/daily-input";
+import { handoverInput, isRecordId, messageInput, officeItemInput, reviewInput, withdrawalInput } from "@/lib/operations/daily-input";
 import { rpcErrorMessage } from "@/lib/operations/errors";
 import { uuid, ValidationError } from "@/lib/operations/validation";
 import type { DailyActionState } from "@/components/site/daily-form";
@@ -91,6 +91,41 @@ export async function recordOfficeReviewAction(_: DailyActionState, form: FormDa
     const item = form.get("item_id");
     if (typeof item === "string" && isRecordId(item)) revalidatePath(`/admin/supervisor/sites/${contract_id}/tasks/${item}`);
     return { id: result.data, success: "Review saved. The supervisor can see that the office has dealt with it." };
+  } catch (error) { return failure(error, attempted); }
+}
+
+export async function postJobMessageAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase, member } = await requireActor();
+  let attempted = false;
+  try {
+    const data = messageInput(form), key = uuid(form, "request_key");
+    attempted = true;
+    const result = await supabase.rpc("post_job_message", { p_request_key: key, p_data: data });
+    if (result.error) return declined(result.error);
+    if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
+    const saved = await supabase.from("job_messages").select("*").eq("id", result.data).single();
+    if (saved.error || !saved.data || saved.data.author_id !== member.user_id || saved.data.request_key !== key || saved.data.contract_id !== data.contract_id
+      || saved.data.body !== data.body || saved.data.needs_answer !== data.needs_answer
+      || saved.data.thread_id !== ("thread_id" in data ? data.thread_id : result.data)) throw new Error("Unconfirmed message");
+    refresh(data.contract_id);
+    return { id: result.data, success: "thread_id" in data ? "Reply sent." : "Message sent to the office. Their reply will show here and on your Today." };
+  } catch (error) { return failure(error, attempted); }
+}
+
+export async function markJobMessageReadAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase, member } = await requireActor();
+  let attempted = false;
+  try {
+    const message = uuid(form, "message_id"), contract = uuid(form, "contract_id"), key = uuid(form, "request_key");
+    attempted = true;
+    const result = await supabase.rpc("mark_job_message_read", { p_message: message, p_request_key: key });
+    if (result.error) return declined(result.error);
+    if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
+    const saved = await supabase.from("job_message_reads").select("*").eq("id", result.data).single();
+    if (saved.error || !saved.data || saved.data.message_id !== message || saved.data.reader_id !== member.user_id
+      || saved.data.contract_id !== contract || saved.data.request_key !== key) throw new Error("Unconfirmed read receipt");
+    refresh(contract);
+    return { id: result.data, success: "Marked as read. The sender can see you have seen it." };
   } catch (error) { return failure(error, attempted); }
 }
 

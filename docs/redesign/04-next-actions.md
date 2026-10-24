@@ -82,6 +82,8 @@ Priority: 0 safety, 1 quality or compliance gate, 2 required action, 3 housekeep
 | R16 | Office QA request not yet answered and not withdrawn | The supervisor it was sent to | That supervisor | Office | Result sent back |
 | R18 | Inspection result with problems not yet reviewed (M3) | Office | Office, owner | Supervisor (waiting on the office) | Office review saved |
 | R19 | Handover with problems or notes for the office not yet reviewed (M3) | Office | Office, owner | | Office review saved |
+| R20 | A message from site marked "I need an answer" not yet replied to (M1) | Office | Office, owner | | A reply saved on the same conversation |
+| R21 | A reply from the office the supervisor has not read, or an office question not yet answered (M1) | The supervisor in the conversation | That supervisor | | "Got it" saved, or a reply. An office question needs a reply |
 | S03 | Snag assigned to a gang (critical or not) | The gang | Subcontractor | Supervisor, office | Repair submitted with photo |
 
 Changes from the first draft: G09 became **A01**, G13 became **A02** (both are alerts, not gates). G11 became **R15** and G12 became **R16** (they are reminders: the database does not stop anything while they are open). **R12 (new tender) was removed** because a tender's outcome cannot be recorded today (B5), so it could never be completed. Tenders stay a read-only list.

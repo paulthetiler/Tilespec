@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { requireActor } from "@/lib/auth";
 import { checkRpc } from "@/lib/operations/data";
 import { snagContextFor } from "@/lib/operations/snags-data";
+import { conversationsAvailable } from "@/lib/operations/daily-data";
 import { statusLabels, responsibilityLabels, photoIdsFor, isSnagOverdue, type Snag, type SnagPhoto } from "@/lib/operations/snags";
 import type { WorkHistoryEntry } from "@/lib/operations/types";
 import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
@@ -43,6 +44,8 @@ export default async function SnagDetail({params}:{params:Promise<{id:string}>})
   permissions.supervise&&snag.work_area_id?supabase.rpc("location_work_history",{p_area:snag.work_area_id}):Promise.resolve({data:[],error:null}),
  ]);checkRpc(teams.error);checkRpc(operatives.error);checkRpc(historyResult.error);
  const history=((historyResult.data||[]) as WorkHistoryEntry[]).filter(period=>period.stage===snag.stage);
+ // A supervisor can ask the office about this snag once conversations are installed.
+ const ask=simple&&!draft&&!!snag.snag_status&&await conversationsAvailable(supabase);
  const panel=(action:string,label:string,children?:React.ReactNode,purpose?:NonNullable<SnagPhoto["purpose"]>,defaultNote="")=><ActionPanel key={action} snag={snag} action={action} label={label} photos={photos} purpose={purpose} userId={member.user_id} defaultNote={defaultNote}>{children}</ActionPanel>;
  return <><ConnectionStatus/><p><Link href={simple?`/admin/supervisor/sites/${snag.contract_id}`:`/admin/snags?contract_id=${snag.contract_id}`}>{simple?"← Today":"← Snag register"}</Link></p>
   <h1 className={styles.title}>{snag.check_label}</h1><p>{snag.contract_reference} · {snag.contract_name} · {snag.location_path?.join(" › ")||"Legacy morning-check finding"}</p>
@@ -53,6 +56,7 @@ export default async function SnagDetail({params}:{params:Promise<{id:string}>})
   <section className={styles.panel}><h2>Original finding</h2><p>{snag.description}</p>{!simple&&snag.required_rectification&&<p><strong>Required rectification:</strong> {snag.required_rectification}</p>}
    <p>{!simple&&snag.stage&&`${snag.stage} · `}Recorded {new Date(snag.created_at).toLocaleString("en-GB",{timeZone:"Europe/London"})}{snag.inspector_name&&` by ${snag.inspector_name}`}</p>
    {snag.location_inspection_id&&<p>Linked to a failed inspection. <Link href={`/admin/supervisor/sites/${snag.contract_id}/inspections?location=${snag.work_area_id}`}>Review original inspection</Link></p>}
+   {ask&&<Link className={styles.secondaryButton} href={`/admin/supervisor/sites/${snag.contract_id}/messages?about=snag:${snag.id}#ask`}>Ask the office about this</Link>}
   </section>
   {simple&&!draft&&snag.snag_status&&<p><Link className={styles.bigButton} href={`/admin/supervisor/sites/${snag.contract_id}`}>Back to today</Link></p>}
   <DetailedWorkflow simple={simple&&!draft&&!!snag.snag_status}>

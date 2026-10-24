@@ -1,7 +1,7 @@
 # 11. Two-way communication and commercial records
 
-**Status: M3 and M2 are approved and built (section 8). M1, M4 and M5 are still
-proposals.** Every item labelled New backend needs the owner's approval before any
+**Status: M3 and M2 are approved and built (section 8). M1 is approved and built
+(section 9). M4 and M5 are still proposals.** Every item labelled New backend needs the owner's approval before any
 migration is written, and applying a migration to a hosted project is a separate
 approval. The Query-only stage (section 2) is in the pull request before the M3/M2 one.
 
@@ -174,7 +174,7 @@ All forms follow the existing pattern: a failed save keeps everything typed, and
 | Step | Contents | Size | Why first |
 | --- | --- | --- | --- |
 | 1 | M3 office reviews and M2 instruction changes (**approved and built**) | Small | Closes the loops found in the audit, using records that already exist |
-| 2 | M1 messages and replies | Medium | Lets the supervisor talk to the office about any record |
+| 2 | M1 messages and replies (**approved and built**) | Medium | Lets the supervisor talk to the office about any record |
 | 3 | M4 dayworks | Large | Direct commercial value; reuses M1 for questions |
 | 4 | M5 variations | Large | Builds on the daywork pattern |
 
@@ -184,7 +184,7 @@ and screens behind the existing flags, then a hosted rehearsal before production
 ## 7. Decisions needed from the owner
 
 1. Approve M1 to M5 individually, and the order above. M3 and M2 were approved on
-   23 October 2026; M1, M4 and M5 are awaiting a decision.
+   23 October 2026 and M1 on 24 October 2026; M4 (dayworks) comes next, then M5.
 2. Dayworks: who may authorise (any office user, a named manager, or the owner)? Is
    the client's signature required on every daywork, or only above a value or for
    some clients?
@@ -193,7 +193,8 @@ and screens behind the existing flags, then a hosted rehearsal before production
    the office to raise? Should work be blocked in the database until approved, or
    is a clear warning enough?
 5. Messages: should a supervisor be able to message the office about the job in
-   general, or only about a specific record?
+   general, or only about a specific record? Built as both (section 9); this can be
+   narrowed later.
 6. Notifications: is an email or phone notification needed for urgent instructions
    and safety stops? This is separate from the records above and needs its own
    approval.
@@ -227,3 +228,46 @@ Differences from the proposal above, kept small on purpose:
 - An inspection request can be withdrawn but not changed; send a new request instead.
 - Until the migration is applied, every screen works exactly as before: the "From
   site" list stays, and no Change, Withdraw, Urgent or Review control is shown.
+
+## 9. As built: M1 messages and replies
+
+Migration `20261024090000_job_messages.sql`, with the read-only report
+`supabase/inspection/job-messages-preflight.sql`. Additive and transactional; it
+refuses to run twice or before the daily workflow and stops. Not applied to any
+hosted project.
+
+| What | Who | Where | Notes |
+| --- | --- | --- | --- |
+| Ask the office about the job | The supervisor | Today → More → "Message the office", or the top of Office messages | One text box and "I need an answer" (ticked by default) |
+| Ask the office about a record | The supervisor | "Ask the office about this" on a snag, a stop, an instruction, an inspection request or result, and a handover | The conversation names the record and links back to it |
+| Reply | Office or owner, and the supervisor in the conversation | The conversation on the job's Messages page, from Office Today "Reply to Dave: …" or Supervisor Today "Reply from Sam: …" | The office can tick "I need an answer from Dave" on a reply |
+| Got it | The other side | Under the latest message | A saved read receipt. The sender sees "Seen by Dave at 10:42" |
+| Read the story | Office and that supervisor | Job activity | "Dave asked the office: …" and "Sam replied: …", each opening the conversation |
+
+Who sees what: the office for the job and the one supervisor in the conversation.
+Other supervisors on the same job, installers and other organisations see nothing;
+this is enforced by row-level security, not by the screens. Messages and receipts
+cannot be edited or deleted, and every one is audited.
+
+Next Actions (rules R20 and R21 in doc 04):
+
+- R20, Office Today: a message from site marked "I need an answer" that has no reply
+  yet. Any office user for the job, or the owner, can reply.
+- R21, Supervisor Today: a reply from the office that the supervisor has not read
+  ("Reply from Sam: …"), or an office question waiting for their answer ("Answer
+  Sam: …"). Only the supervisor in the conversation is asked.
+- A message that needs no answer creates no office action; it simply appears in the
+  conversation and Job activity.
+
+Differences from the proposal above, kept small on purpose:
+
+- Text only. A photo needs the verified private-file route, which needs
+  `SUPABASE_SERVICE_ROLE_KEY` in Production (item A1 in doc 10). Photos can be added
+  as a later, separate change.
+- The office does not start conversations; it sends an instruction, which already
+  asks for an acknowledgement. The office replies to conversations site starts.
+- Supervisor Today shows the "Message the office" item only when the new Today is
+  switched on. On the current dashboard, the Office messages tile says "1 reply from
+  the office" and the page opens with the message box.
+- Until the migration is applied, every screen works exactly as before: no message
+  box, no "Ask the office about this" link and no R20 or R21 actions.

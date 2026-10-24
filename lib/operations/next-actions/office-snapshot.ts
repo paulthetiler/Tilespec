@@ -2,6 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Member } from "../../auth";
 import { checkDatabase } from "../data";
+import { emptyLookups, jobThreadRows } from "../conversations";
+import { threadsFrom, type JobMessage, type JobMessageRead } from "../daily";
 import { applicableChecks, type InspectionTemplate, type LocationInspection } from "../inspections";
 import { canReadFinancial } from "../permissions";
 import { londonClock, londonDate, londonTimeToIso, membershipOnDay } from "../planning";
@@ -110,7 +112,7 @@ export async function loadOfficeSnapshot(
   const updatesSince = addDays(today, -(config.siteUpdateDays - 1));
   const [areas, packages, packageAssignments, companies, insurance, teams, operatives, memberships,
     plans, actualToday, actualEarlier, absences, checks, templates, requirements, inspections, snags, readinessIssues, holds,
-    items, acknowledgements, submissions, handovers, documents, handoverNotes, reviews, withdrawals] = await Promise.all([
+    items, acknowledgements, submissions, handovers, documents, handoverNotes, reviews, withdrawals, messages, messageReads] = await Promise.all([
     rows("work_areas", "id,contract_id,name,parent_id,path_ids", scope),
     rows("work_packages", "id,contract_id,name", scope),
     rows("package_assignments", "contract_id,work_package_id,user_id", { ...scope, order: ["work_package_id", "user_id"] }),
@@ -131,7 +133,7 @@ export async function loadOfficeSnapshot(
     rows("location_inspections", "id,contract_id,work_area_id,work_package_id,template_id,issues_count,answers,created_at", scope),
     rows("supervisor_issues", "id,contract_id,work_area_id,check_label,description,severity,snag_status,assigned_team_id,target_date,inspector_id,rectified_by,escalated,responsibility_state,responsibility_team_id,assigned_action", { ...scope, oneOf: { snag_status: ["open", "assigned", "rectification_submitted", "reinspection"] } }),
     rows("supervisor_issues", "id,contract_id,inspection_id,check_label,description,state,created_at", { ...scope, isNull: ["snag_status"], neq: { state: "closed" } }),
-    rows("work_holds", "id,contract_id,work_area_id,work_package_id,stage,activity,location_path,hold_type,status,reason,required_action,raised_by,corrected_by,assigned_team_id,assigned_operative_id,target_date", { ...scope, oneOf: { status: ["active", "correction_submitted", "awaiting_release"] } }),
+    rows("work_holds", "id,contract_id,work_area_id,work_package_id,stage,activity,location_path,hold_type,category,status,reason,required_action,raised_by,corrected_by,assigned_team_id,assigned_operative_id,target_date", { ...scope, oneOf: { status: ["active", "correction_submitted", "awaiting_release"] } }),
     // Every column, so instruction changes (replaces_id, urgent) appear once their migration is applied.
     rows("supervisor_office_items", "*", scope),
     rows("supervisor_office_acknowledgements", "id,item_id,actor_id", scope),
@@ -142,6 +144,9 @@ export async function loadOfficeSnapshot(
     rows("site_handovers", "id,contract_id,actor_name,work_date,created_at,outstanding_problems,areas_awaiting_attention,office_notes", { ...scope, gte: { work_date: updatesSince } }),
     optionalRows("office_reviews", "id,contract_id,qa_submission_id,handover_id", scope),
     optionalRows("supervisor_office_item_withdrawals", "id,contract_id,item_id", scope),
+    // Questions and replies arrive with their own migration; until then there are none.
+    optionalRows("job_messages", "id,contract_id,thread_id,site_user_id,author_id,author_name,author_side,body,needs_answer,about_type,about_id,created_at,request_key", { ...scope, order: ["created_at", "id"] }),
+    optionalRows("job_message_reads", "id,message_id,reader_id,read_at", scope),
   ]);
   // Both arrive with one migration. Until it is applied, results and handovers stay in "From site".
   const followUp = reviews !== null && withdrawals !== null;
@@ -153,6 +158,15 @@ export async function loadOfficeSnapshot(
   ]) : [[], []];
   const followedUp = new Set([...linkedSnags.map(row => String(row.location_inspection_id)), ...linkedHolds.map(row => String(row.source_inspection_id))]);
   const memberNames = new Map(memberRows.map(row => [String(row.user_id), String(row.display_name)]));
+  const conversations = messages !== null && messageReads !== null;
+  const threads = conversations ? threadsFrom(messages as unknown as JobMessage[], messageReads as unknown as JobMessageRead[]) : [];
+  // Titles for what each conversation is about, from records this snapshot already read. Closed records fall back to a plain description.
+  const lookups = emptyLookups();
+  for (const item of items) lookups.items.set(String(item.id), { title: String(item.title), kind: String(item.kind) });
+  for (const row of submissions) lookups.results.set(String(row.id), { item_id: String(row.item_id) });
+  for (const row of handoverNotes) lookups.handovers.set(String(row.id), { work_date: String(row.work_date), actor_name: String(row.actor_name) });
+  for (const row of snags) lookups.snags.set(String(row.id), String(row.check_label));
+  for (const row of holds) lookups.holds.set(String(row.id), `${row.hold_type === "safety" ? "Safety stop" : "Quality hold"}, ${row.category}`);
   const currentTemplates = currentRows(templates as unknown as (InspectionTemplate & { contract_id: string; stage: InstallationStageKey })[]);
   const currentTemplateIds = new Set(currentTemplates.map(template => template.id));
   const stageByTemplate = new Map(templates.map(template => [String(template.id), template.stage as InstallationStageKey] as const));
@@ -207,6 +221,7 @@ export async function loadOfficeSnapshot(
       office_reviews: reviews!.map(row => ({ qa_submission_id: (row.qa_submission_id as string | null) ?? null, handover_id: (row.handover_id as string | null) ?? null })),
       office_item_withdrawals: withdrawals!.map(row => ({ item_id: String(row.item_id) })),
     } : {}),
+    ...(conversations ? { job_threads: jobThreadRows(threads, lookups) } : {}),
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: financial } };
 }
