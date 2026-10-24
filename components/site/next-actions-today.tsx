@@ -7,11 +7,16 @@ import { qualityOverviewFor } from "@/lib/operations/quality-data";
 import { holdScope, holdTypes } from "@/lib/operations/holds";
 import { dayLabel, londonDate } from "@/lib/operations/planning";
 import { checkDatabase } from "@/lib/operations/data";
+import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import type { Member } from "@/lib/auth";
 import adminStyles from "@/app/admin/admin.module.css";
 import styles from "./next-actions.module.css";
 
-type Props = { supabase: SupabaseClient; member: Member; contract: { id: string; reference: string; name: string; address: string } };
+type Props = {
+  supabase: SupabaseClient; member: Member; contract: { id: string; reference: string; name: string; address: string };
+  /** The supervisor has more than one site, so "Change site" leads somewhere. */
+  changeSite?: boolean;
+};
 
 const dueText = (a: ViewerAction, today: string) => (!a.due ? "" : a.due < today ? `Overdue since ${a.due}` : a.due === today ? "Due today" : `Due ${a.due}`);
 
@@ -25,10 +30,12 @@ function Chips({ a, today }: { a: ViewerAction; today: string }) {
 
 // The supervisor's Today. Every task, in every list, comes from the one shared rules engine.
 // Nothing on this page decides what is next on its own.
-export async function NextActionsToday({ supabase, member, contract }: Props) {
+export async function NextActionsToday({ supabase, member, contract, changeSite = false }: Props) {
   const base = `/admin/supervisor/sites/${contract.id}`;
   const config = configFromEnv(process.env);
-  const { snapshot, viewer } = await loadSiteSnapshot(supabase, member, contract.id, config.planHorizonDays);
+  // With the role shell on, People, Inspect and Issues are already in the tab bar.
+  const tabs = flagEnabled("roleShell", member.role);
+  const { snapshot, viewer } = await loadSiteSnapshot(supabase, member, contract.id, config.planHorizonDays, { attended: true });
   const actions = compute(snapshot, viewer, config);
   const queue = buildQueue(actions);
   const hero = queue.next;
@@ -55,6 +62,7 @@ export async function NextActionsToday({ supabase, member, contract }: Props) {
     const inner = <>
       <strong>{a.title}</strong>
       {where && <span>{where}</span>}
+      {a.instruction && <span className={styles.instruction}>Office instructions: {a.instruction}{a.due ? ` · Target ${a.due}` : ""}</span>}
       {a.state === "blocked" && <span>{a.blockedBy}</span>}
       {a.state === "waiting" && <span>Waiting on {a.responsible.who ?? a.responsible.label}</span>}
       <Chips a={a} today={today} />
@@ -68,6 +76,7 @@ export async function NextActionsToday({ supabase, member, contract }: Props) {
         <p className={styles.hello}>{firstName}</p>
         <h1 className={styles.title}>{contract.name}</h1>
         <p className={styles.sub}>{dayLabel(londonDate(), "long")}</p>
+        {changeSite && <Link className={styles.change} href="/admin/supervisor">Change site</Link>}
       </div>
       <Link className={styles.report} href={`${base}/report`}>Report an issue</Link>
     </header>
@@ -98,6 +107,7 @@ export async function NextActionsToday({ supabase, member, contract }: Props) {
           <h2 id="next-title" className={styles.heroTitle}>{hero.title}</h2>
           {hero.location && <p className={styles.where}>{hero.location}</p>}
           <p className={styles.why}>{hero.why}</p>
+          {hero.instruction && <p className={styles.instruction}>Office instructions: {hero.instruction}{hero.due ? ` · Target ${hero.due}` : ""}</p>}
           <Link className={styles.cta} href={actionHref(hero, base)}>{ctaLabel(hero)}</Link>
           {hero.requires.length > 0 && <p className={styles.fine}>You will need: {hero.requires.join(", ")}.</p>}
           {hero.kind !== "reminder" && <p className={styles.fine}>{classNote(hero)}</p>}
@@ -119,25 +129,41 @@ export async function NextActionsToday({ supabase, member, contract }: Props) {
         <section className={styles.section} aria-label="More">
           <h2>More</h2>
           <div className={styles.list}>
-            <Link className={styles.row} href={`${base}/workforce`}><strong>Who is on site</strong><span>Arrivals, moves and leaving times</span></Link>
-            <Link className={styles.row} href={`${base}/inspections`}><strong>Check workmanship</strong><span>Choose an area and check work</span></Link>
-            <Link className={styles.row} href={`${base}/snags`}><strong>Outstanding snags</strong><span>Everything open on this site</span></Link>
+            {!tabs && <>
+              <Link className={styles.row} href={`${base}/workforce`}><strong>Who is on site</strong><span>Arrivals, moves and leaving times</span></Link>
+              <Link className={styles.row} href={`${base}/inspections`}><strong>Check workmanship</strong><span>Choose an area and check work</span></Link>
+              <Link className={styles.row} href={`${base}/snags`}><strong>Outstanding snags</strong><span>Everything open on this site</span></Link>
+            </>}
             <Link className={styles.row} href={`${base}/messages`}><strong>Office messages</strong><span>Instructions and requests</span></Link>
             <Link className={styles.row} href={`${base}/finish`}><strong>Finish today</strong><span>Send the handover</span></Link>
+            <Link className={styles.row} href={`${base}/activity`}><strong>Job activity</strong><span>Everything you and the office have recorded, newest first</span></Link>
+            {/* Essential commercial records with no backend yet: reachable, never presented as working. */}
+            <Link className={styles.row} href={`${base}/commercial?kind=variations`}><strong>Variations</strong><span>Changes to the agreed work</span><span className={styles.chips}><span className={styles.chip}>Not built yet</span></span></Link>
+            <Link className={styles.row} href={`${base}/commercial?kind=dayworks`}><strong>Dayworks</strong><span>Extra work on day rates</span><span className={styles.chips}><span className={styles.chip}>Not built yet</span></span></Link>
           </div>
+        </section>
+        <section className={styles.section} aria-label="Drawings and documents">
+          <h2>Drawings and documents ({(documents.data ?? []).length})</h2>
+          {(documents.data ?? []).length ? <div className={styles.list}>
+            {(documents.data ?? []).map(d => <a key={d.id} className={styles.row} href={`/admin/documents/${d.id}`} target="_blank" rel="noopener noreferrer">
+              <strong>{d.title}</strong><span>{d.document_reference} · Rev {d.revision} · Opens the file</span>
+            </a>)}
+          </div> : <p className={styles.sub}>No drawings have been uploaded for this site yet. Ask the office for the current drawings and safety instructions.</p>}
         </section>
       </div>
     </div>
 
     <details className={adminStyles.panel}>
-      <summary><strong>Site details and work restrictions</strong></summary>
+      <summary><strong>Site details and earlier records</strong></summary>
+      <div className={styles.list}>
+        <Link className={styles.row} href={`/admin/holds?contract_id=${contract.id}`}><strong>Work restrictions and releases</strong><span>Every stop on this site, including released ones</span></Link>
+        <Link className={styles.row} href={`${base}/checks`}><strong>Earlier morning checks</strong><span>Saved answers by day</span></Link>
+        <Link className={styles.row} href={`${base}/history`}><strong>Workforce history</strong><span>Who worked where, and when</span></Link>
+      </div>
       {quality ? <><h2>Location and activity restrictions</h2><WorkReleaseList rows={quality.work_statuses} truncated={quality.work_statuses_truncated} /></>
         : <p className={adminStyles.warning}>Work restrictions could not be checked. This page cannot confirm that affected work may go ahead. Contact the office.</p>}
       <h2>Site information</h2>
       <dl className={adminStyles.detailGrid}>{information.map(([label, value]) => <div key={label} className={adminStyles.detailItem}><dt>{label}</dt><dd>{value || "Not provided"}</dd></div>)}</dl>
-      <h2>Drawings and site documents</h2>
-      {(documents.data ?? []).length ? <ul>{(documents.data ?? []).map(d => <li key={d.id}>{d.title} · {d.document_reference} · Rev {d.revision}</li>)}</ul>
-        : <p>No approved site documents have been uploaded. Ask the office for the current drawings and safety instructions.</p>}
       <p>{contract.reference}{contract.address ? ` · ${contract.address}` : ""}</p>
     </details>
   </div>;

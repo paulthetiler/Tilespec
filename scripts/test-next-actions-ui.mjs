@@ -45,7 +45,7 @@ const measure = async page => page.evaluate(() => {
 try {
   for (const directory of ['components', 'lib/operations']) await cp(join(repository, directory), join(temporary, directory), { recursive: true });
   await cp(join(repository, 'tests/next-actions-ui'), join(temporary, 'tests/next-actions-ui'), { recursive: true });
-  for (const file of ['app/globals.css', 'app/admin/admin.module.css', 'app/admin/layout.tsx', `app/admin/supervisor/sites/[id]/report/page.tsx`, 'docs/redesign/prototype/data.js', 'public/tilespec-logo-animated.svg']) {
+  for (const file of ['app/globals.css', 'app/admin/admin.module.css', 'app/admin/layout.tsx', `app/admin/supervisor/sites/[id]/layout.tsx`, `app/admin/supervisor/sites/[id]/report/page.tsx`, 'docs/redesign/prototype/data.js', 'public/tilespec-logo-animated.svg']) {
     await mkdir(join(temporary, file, '..'), { recursive: true });
     await copyFile(join(repository, file), join(temporary, file));
   }
@@ -65,7 +65,7 @@ try {
   await write('lib/operations/next-actions/snapshot-data.ts', 'import {snapshotFor,member} from "@/tests/next-actions-ui/fixtures";export async function loadSiteSnapshot(client:{fixtureHeld?:boolean}){return {snapshot:snapshotFor(client.fixtureHeld),viewer:member}}');
   await write('lib/operations/quality-data.ts', 'export async function qualityOverviewFor(){return {work_statuses:[],work_statuses_truncated:false}}');
   await write('lib/operations/data.ts', 'export function checkDatabase(error:unknown){if(error)throw error}');
-  await write('app/admin/supervisor/sites/[id]/page.tsx', `import {NextActionsToday} from "@/components/site/next-actions-today";import {fixtureClient,member,contract} from "@/tests/next-actions-ui/fixtures";export default async function Page({searchParams}:{searchParams:Promise<{held?:string}>}){return <NextActionsToday supabase={fixtureClient((await searchParams).held==="1")} member={member} contract={contract}/>} `);
+  await write('app/admin/supervisor/sites/[id]/page.tsx', `import {NextActionsToday} from "@/components/site/next-actions-today";import {fixtureClient,member,contract} from "@/tests/next-actions-ui/fixtures";export default async function Page({searchParams}:{searchParams:Promise<{held?:string}>}){return <NextActionsToday supabase={fixtureClient((await searchParams).held==="1")} member={member} contract={contract} changeSite/>} `);
   await write('app/admin/fixture-navigation/page.tsx', 'export default function Page(){return <h1>Read-only role navigation fixture</h1>}');
   if (screenshots) await mkdir(screenshots, { recursive: true });
 
@@ -102,8 +102,20 @@ try {
     assert.equal(await href(page, 'Report an issue'), `${base}/report`);
     assert.deepEqual(await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link').allTextContents(), ['Today', 'People', 'Inspect', 'Issues']);
     assert.equal(await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link', { name: 'Today', exact: true }).getAttribute('aria-current'), 'page');
-    await page.getByText('Everything else', { exact: true }).click();
+    assert.equal(await page.getByText('Everything else', { exact: true }).count(), 0, 'a supervisor has no second menu');
     assert.equal(await page.getByRole('link', { name: /Money|Estimator/ }).count(), 0);
+    assert.equal(await href(page, 'Change site'), '/admin/supervisor');
+    const more = page.getByRole('region', { name: 'More', exact: true });
+    assert.deepEqual(await more.locator('strong').allTextContents(), ['Office messages', 'Finish today', 'Job activity', 'Variations', 'Dayworks'], 'More does not repeat the tab bar');
+    assert.equal(await more.getByRole('link', { name: /^Job activity/ }).getAttribute('href'), `${base}/activity`);
+    for (const kind of ['Variations', 'Dayworks']) {
+      const link = more.getByRole('link', { name: new RegExp(`^${kind}`) });
+      assert.equal(await link.getAttribute('href'), `${base}/commercial?kind=${kind.toLowerCase()}`);
+      assert.match(await link.textContent(), /Not built yet/, `${kind} is clearly marked as not built`);
+    }
+    const drawing = page.getByRole('region', { name: 'Drawings and documents', exact: true }).getByRole('link', { name: /Bathroom tile layout/ });
+    assert.equal(await drawing.getAttribute('href'), '/admin/documents/a0000000-0000-4000-8000-000000000003', 'each drawing opens through the authorised download route');
+    assert.equal(await drawing.getAttribute('target'), '_blank');
     assert.deepEqual(await measure(page), [], `Today at ${viewport.width}px`);
     if (screenshots) await page.screenshot({ path: join(screenshots, `next-actions-today-${viewport.width}.png`), fullPage: true });
     pass(`real Supervisor Today and role shell fit ${viewport.width}px, with real CTA targets and controls at least 44px high`);
@@ -128,6 +140,9 @@ try {
     await page.getByText('Existing work restrictions still apply.', { exact: false }).waitFor();
     await page.getByText("Make the area safe first", { exact: false }).waitFor();
     assert.equal(await href(page, 'Back to today'), base);
+    const siteBar = page.getByRole('navigation', { name: 'Site', exact: true });
+    assert.deepEqual(await siteBar.getByRole('link').allTextContents(), ['← Today', 'Report an issue'], 'the site bar is a way back and the one everyday action');
+    assert.equal(await siteBar.locator('details').count(), 0, 'no More menu on site screens');
     assert.deepEqual(await measure(page), [], `Report Issue at ${viewport.width}px`);
     if (screenshots) await page.screenshot({ path: join(screenshots, `report-issue-${viewport.width}.png`), fullPage: true });
     pass(`Report Issue retains all three existing form destinations and safety wording at ${viewport.width}px`);

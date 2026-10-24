@@ -24,7 +24,7 @@ Changed after review: the owner has **no Risks destination** (risks and exceptio
 | Destination 4 | (three is enough) | **Labour** | **Issues** snags and stopped work | (three is enough) |
 | Always visible | | | Report an issue | |
 
-The owner and subcontractor have three destinations because nothing else is theirs. Fewer is better. "Everything else" in the real app's menu keeps the whole original menu reachable, so nothing is lost while the new shell is behind a flag.
+The owner and subcontractor have three destinations because nothing else is theirs. Fewer is better. "Everything else" in the real app's menu keeps the whole original menu reachable, so nothing is lost while the new shell is behind a flag. A supervisor has no "Everything else": every site record is reached from Today, and other site screens show only "← Today" and "Report an issue".
 
 ## 2.3 What each destination holds
 
@@ -67,14 +67,14 @@ No existing page is deleted in the first phases. They remain reachable by their 
 | `/admin/holds/new` | Report an issue, "Does work need to stop here?" (the existing hold form, opened with the type chosen) |
 | `.../messages` | Today, "More", "Messages from the office" |
 | `.../finish` | Today, "More", "End of day handover" |
-| `.../commercial` (variations, dayworks) | Not linked from the new Today. Returns only when B4 exists |
+| `.../commercial` (variations, dayworks) | Secondary job navigation: Today → More, the original dashboard's site details, and the office job page. Each link and the page say "Not built yet": the page explains what to do now and what the record will hold (B4), with no form |
 | `.../history`, `.../tasks/[taskId]` | Kept as detail pages |
 
 ## 2.5 Screens that are unnecessary today
 
 | Screen | Why it is unnecessary | Disposition |
 | --- | --- | --- |
-| Variations and Dayworks tiles | Lead to a page saying the feature is not built | Not shown on the new Today until B4 exists |
+| Variations and Dayworks tiles | Essential commercial functions, but not built yet, so they should not sit among the everyday tiles | Moved to secondary job navigation, clearly marked "Not built yet", until B4 exists |
 | Office mobile menu (`<details>`) | Four destinations fit the bottom bar | Replace |
 | Contract overview warnings list | Static, no owner, no date | Replaced by set-up actions in Today and in the job |
 | Separate "Site alerts" | A morning check problem is an action for someone | Becomes actions in Today |

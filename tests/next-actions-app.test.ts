@@ -45,7 +45,7 @@ const siteAccessModule = serverModule("app/admin/supervisor/site-access.ts");
 const reportModule = serverModule("app/admin/supervisor/sites/[id]/report/page.tsx");
 const load = async (client: SupabaseClient, member = actor) => {
   const { loadSiteSnapshot } = await loaderModule;
-  return (loadSiteSnapshot as (client: SupabaseClient, member: Member, id: string, horizon: number) => Promise<{ snapshot: NextActionSnapshot; viewer: Viewer }>)(client, member, contractId, 7);
+  return (loadSiteSnapshot as (client: SupabaseClient, member: Member, id: string, horizon: number, options: { attended: boolean }) => Promise<{ snapshot: NextActionSnapshot; viewer: Viewer }>)(client, member, contractId, 7, { attended: true });
 };
 
 // A read-only, role-aware PostgREST boundary fixture: the office recipient RPC

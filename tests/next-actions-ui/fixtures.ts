@@ -11,6 +11,8 @@ export const member: Member = {
   user_id: "u-dave", display_name: "Dave Collins", role: "supervisor", financial_access: false, active: true,
 };
 export const contract = { id: siteId, reference: "FIXTURE-2041", name: "Riverside Quay", address: "Fictional test site" };
+/** One uploaded operational drawing, so Today's "opens the file" link is exercised. */
+export const drawing = { id: "a0000000-0000-4000-8000-000000000003", title: "Bathroom tile layout", document_reference: "DWG-101", revision: 2 };
 
 export function snapshotFor(held = false): NextActionSnapshot {
   const snapshot = JSON.parse(JSON.stringify(Data.make("start")).replaceAll('"c1"', JSON.stringify(siteId))) as NextActionSnapshot;
@@ -32,7 +34,7 @@ export function fixtureClient(held = false): SupabaseClient {
     fixtureHeld: held,
     from(table: string) {
       if (!["contracts", "document_revisions"].includes(table)) throw new Error(`Unexpected UI fixture table: ${table}`);
-      const data = table === "contracts" ? { client: "Fictional client", scope: "Test bathrooms", working_hours: "07:30 to 16:30" } : [];
+      const data = table === "contracts" ? { client: "Fictional client", scope: "Test bathrooms", working_hours: "07:30 to 16:30" } : [drawing];
       const result = { data, error: null };
       const query = {
         select() { return query; }, eq() { return query; }, not() { return query; }, maybeSingle() { return Promise.resolve(result); },

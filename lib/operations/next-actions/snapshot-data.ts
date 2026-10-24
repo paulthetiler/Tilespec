@@ -20,6 +20,9 @@ export async function loadSiteSnapshot(
   member: { user_id: string; display_name: string; role: MemberRole; financial_access: boolean },
   contractId: string,
   horizonDays: number,
+  // True when the supervisor has opened this site's Today: their daily routine applies.
+  // False for a summary (the site picker), so no site is treated as attended.
+  options: { attended: boolean },
 ): Promise<{ snapshot: NextActionSnapshot; viewer: Viewer }> {
   const today = londonDate();
   const now = londonClock(new Date().toISOString());
@@ -105,11 +108,23 @@ export async function loadSiteSnapshot(
     supervisor_issues: ((snagRows.data ?? []) as Record<string, unknown>[]).map(toSnag).filter((s): s is SnagRow => !!s),
     work_holds: ((holdRows.data ?? []) as Record<string, unknown>[]).map(toHold),
     supervisor_office_items: items.map(i => ({ id: i.id, contract_id: i.contract_id, kind: i.kind, title: i.title, body: i.body, recipient_id: i.recipient_id,
-      acknowledgement_required: i.acknowledgement_required, work_area_id: i.work_area_id, stage: i.stage, created_by: i.created_by, created_at: i.created_at, due_on: i.due_on })),
+      acknowledgement_required: i.acknowledgement_required, work_area_id: i.work_area_id, stage: i.stage, created_by: i.created_by, created_at: i.created_at, due_on: i.due_on,
+      replaces_id: i.replaces_id ?? null, urgent: i.urgent === true })),
     supervisor_office_acknowledgements: (daily?.acknowledgements ?? []).map(a => ({ item_id: a.item_id, user_id: a.actor_id })),
     supervisor_qa_submissions: (daily?.submissions ?? []).map(q => ({ item_id: q.item_id })),
     site_handovers: (daily?.handovers ?? []).map(h => ({ id: h.id, contract_id: h.contract_id, actor_id: h.actor_id, work_date: h.work_date, created_at: h.created_at })),
     document_revisions: (documents.data ?? []) as { id: string; contract_id: string }[],
+    attended_sites: options.attended && member.role === "supervisor" ? [contractId] : [],
+    // Once office reviews exist, the supervisor sees which of their results are still waiting for the office.
+    ...(daily?.followUp ? {
+      qa_results: daily.submissions.flatMap(q => {
+        const item = items.find(row => row.id === q.item_id);
+        return item ? [{ item_id: q.item_id, submission_id: q.id, contract_id: item.contract_id, title: item.title, location_path: item.location_path, inspection_id: q.inspection_id,
+          has_issues: q.has_issues, submitted_at: q.submitted_at, submitted_by_name: people.get(q.submitted_by) ?? null, followed_up: false }] : [];
+      }),
+      office_reviews: daily.reviews.map(r => ({ qa_submission_id: r.qa_submission_id, handover_id: r.handover_id })),
+      office_item_withdrawals: daily.withdrawals.map(w => ({ item_id: w.item_id })),
+    } : {}),
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: member.financial_access } };
 }

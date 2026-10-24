@@ -181,6 +181,11 @@ try {
       }
       for (const financialText of ['Budget margin is', 'Budgeted profit after reserve']) assert.ok(!html.includes(financialText), `${key} Today must not render financial action text`);
       assert.equal(await page.locator('[data-action-id^="margin:"]').count(), 0);
+      const fromSite = page.getByRole('region', { name: 'From site', exact: true });
+      assert.deepEqual(await fromSite.locator('[data-site-update]').evaluateAll(rows => rows.map(row => row.getAttribute('data-site-update'))),
+        [`handover:${'a0000000-0000-4000-8000-000000000023'}`, `qa-result:${'a0000000-0000-4000-8000-000000000021'}`], `${key} sees what came back from site, newest first`);
+      await fromSite.getByText('Inspection found problems: Check the kitchen splashback before grout', { exact: true }).waitFor();
+      await fromSite.getByText('Handover from Dave Collins: notes for the office, problems', { exact: true }).waitFor();
       assert.deepEqual(await measure(page), [], `${key} at ${viewport.width}px: no horizontal overflow, clipped content or sub-44px controls`);
       for (const target of await page.locator('a[href]').evaluateAll(elements => elements.map(element => element.getAttribute('href')))) {
         if (target.startsWith('#')) {

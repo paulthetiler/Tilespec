@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import { notFound } from "next/navigation";
 import { randomUUID } from "node:crypto";
 import { requireActor } from "@/lib/auth";
@@ -33,6 +34,8 @@ export default async function SnagDetail({params}:{params:Promise<{id:string}>})
  const {snag,permissions,events,photos}=context;
  const open=!["closed","cancelled"].includes(snag.snag_status||snag.state),draft=snag.snag_status==="draft";
  const simple=member.role==="supervisor";
+ // In the Report an issue flow the supervisor already chose whether work stops; escalating stays available, not prominent.
+ const reportFlow=simple&&flagEnabled("nextActions",member.role);
  const original=photos.filter(photo=>photo.purpose==="original"&&photo.uploaded_at&&photo.event_id!==null);
  const [teams,operatives,historyResult]=await Promise.all([
   permissions.supervise?supabase.from("teams").select("id,name").eq("active",true).order("name"):Promise.resolve({data:[],error:null}),
@@ -46,7 +49,7 @@ export default async function SnagDetail({params}:{params:Promise<{id:string}>})
   {simple&&!draft&&snag.snag_status&&<p role="status" className={styles.success}>Snag saved. The office can review this report.</p>}
   <div className={css.badges}><span>{statusLabels[snag.snag_status||snag.state]}</span>{snag.severity&&<span>{snag.severity}</span>}{isSnagOverdue(snag)&&<span>Overdue</span>}</div>
   {(snag.severity==="critical"||snag.escalated)&&open&&!draft&&<div className={css.critical} role="status"><strong>{snag.severity==="critical"?"Critical defect — immediate office review":"Escalated to office"}</strong><p>{snag.escalation_reason}</p><p>This is an escalation, not a formal stop-work hold.</p></div>}
-  {permissions.supervise&&open&&!draft&&<div className={styles.rowActions}><Link className={styles.bigButton} href={`/admin/holds/new?contract=${snag.contract_id}&snag=${snag.id}`}>{simple?"STOP WORK":"STOP AFFECTED WORK — linked hold"}</Link><Link className={styles.secondaryButton} href={`/admin/holds?contract_id=${snag.contract_id}${snag.work_area_id?`&location_id=${snag.work_area_id}`:""}`}>Review location holds</Link></div>}
+  {permissions.supervise&&open&&!draft&&<div className={styles.rowActions}><Link className={reportFlow?styles.secondaryButton:styles.bigButton} href={`/admin/holds/new?contract=${snag.contract_id}&snag=${snag.id}`}>{reportFlow?"Stop work for this snag":simple?"STOP WORK":"STOP AFFECTED WORK — linked hold"}</Link><Link className={styles.secondaryButton} href={`/admin/holds?contract_id=${snag.contract_id}${snag.work_area_id?`&location_id=${snag.work_area_id}`:""}`}>Review location holds</Link></div>}
   <section className={styles.panel}><h2>Original finding</h2><p>{snag.description}</p>{!simple&&snag.required_rectification&&<p><strong>Required rectification:</strong> {snag.required_rectification}</p>}
    <p>{!simple&&snag.stage&&`${snag.stage} · `}Recorded {new Date(snag.created_at).toLocaleString("en-GB",{timeZone:"Europe/London"})}{snag.inspector_name&&` by ${snag.inspector_name}`}</p>
    {snag.location_inspection_id&&<p>Linked to a failed inspection. <Link href={`/admin/supervisor/sites/${snag.contract_id}/inspections?location=${snag.work_area_id}`}>Review original inspection</Link></p>}

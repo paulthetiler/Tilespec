@@ -66,7 +66,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
               if (!budget) return <p className={styles.small}>Commercial budget not recorded.</p>;
               const summary = budgetSummary(budget);
               return summary.margin !== null && summary.margin < Number(budget.target_margin)
-                ? <p className={styles.warning}><strong>Below target margin:</strong> {summary.margin.toFixed(1)}% against {Number(budget.target_margin).toFixed(1)}%. Owner acceptance with a recorded reason is required before mobilisation.</p>
+                ? <p className={styles.warning}><strong>Below target margin:</strong> {summary.margin.toFixed(1)}% against {Number(budget.target_margin).toFixed(1)}%. There is nowhere to record an owner decision on this yet, so it is shown here for your information.</p>
                 : null;
             })()}
           </article>;

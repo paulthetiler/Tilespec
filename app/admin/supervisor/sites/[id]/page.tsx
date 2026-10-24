@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { emptySnagCounts, type SnagRegister } from "@/lib/operations/snags";
 import { holdScope, holdTypes } from "@/lib/operations/holds";
-import { checkDatabase, companyRecordsFor, siteDayFor, siteStatusFor } from "@/lib/operations/data";
+import { checkDatabase, companyRecordsFor, contractsFor, siteDayFor, siteStatusFor } from "@/lib/operations/data";
 import { insuranceSummary } from "@/lib/operations/companies";
 import { insuranceTypeLabels } from "@/lib/operations/types";
 import { outstandingQa, unacknowledgedInstructions } from "@/lib/operations/daily";
@@ -23,8 +23,11 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   const { supabase, contract, member } = await requireSite(id);
   if (!contract) return null;
   // Behind FEATURE_NEXT_ACTIONS: the shared Next Action engine decides what comes next. The
-  // original page below is unchanged and remains the default until the flag is switched on.
-  if (member.role === "supervisor" && flagEnabled("nextActions", member.role)) return <NextActionsToday supabase={supabase} member={member} contract={contract} />;
+  // original page below remains the default until the flag is switched on.
+  if (member.role === "supervisor" && flagEnabled("nextActions", member.role)) {
+    const sites = await contractsFor(supabase);
+    return <NextActionsToday supabase={supabase} member={member} contract={contract} changeSite={sites.length > 1} />;
+  }
   const day = londonDate();
   const base = `/admin/supervisor/sites/${id}`;
   const issuesHref = `${base}/snags`;
@@ -59,8 +62,8 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     const kind = insuranceTypeLabels[summary.attention.entry.insurance_type];
     return [`${company.name} is on site and its ${kind.toLowerCase()} insurance ${summary.status === "expired" ? "has expired" : "expires soon"}. Tell the office.`];
   });
-  const qaRequests = daily ? outstandingQa(daily.items, daily.submissions) : [];
-  const unread = daily ? unacknowledgedInstructions(daily.items, daily.acknowledgements, member.user_id).length : 0;
+  const qaRequests = daily ? outstandingQa(daily.items, daily.submissions, daily.withdrawals) : [];
+  const unread = daily ? unacknowledgedInstructions(daily.items, daily.acknowledgements, member.user_id, daily.withdrawals).length : 0;
   const handover = daily?.handovers.find(row => row.work_date === day && row.actor_id === member.user_id);
   const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "numeric", hourCycle: "h23" }).format(new Date()));
   const greeting = hour < 12 ? "Morning" : hour < 18 ? "Afternoon" : "Evening";
@@ -82,8 +85,6 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     { label: "Check workmanship", href: `${base}/inspections`, detail: "Choose an area and check work" },
     { label: "Raise a snag", href: `/admin/snags/new?contract=${id}`, detail: "Photo, location and a short note" },
     { label: "Office messages", href: `${base}/messages`, detail: unread ? `${unread} to acknowledge` : "Instructions for this site" },
-    { label: "Variations", href: `${base}/commercial?kind=variations`, detail: "Changes to the agreed work" },
-    { label: "Dayworks", href: `${base}/commercial?kind=dayworks`, detail: "Work instructed on day rates" },
   ];
 
   return <div className={dailyStyles.day}>
@@ -166,6 +167,8 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
         <Link href={fullRegisterHref}>Detailed snag register</Link>
         <Link href={`${base}/history`}>Workforce history</Link>
         <Link href={`${base}/checks`}>Earlier morning checks</Link>
+        <Link href={`${base}/commercial?kind=variations`}>Variations (not built yet)</Link>
+        <Link href={`${base}/commercial?kind=dayworks`}>Dayworks (not built yet)</Link>
         <Link href="/admin/supervisor">Choose another site</Link>
       </div>
       {coverWarnings.length > 0 && <><h2>Insurance to check with the office</h2><ul>{coverWarnings.map(text => <li key={text}>{text}</li>)}</ul></>}
@@ -175,7 +178,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
       <h2>Site information</h2>
       <dl className={styles.detailGrid}>{information.map(([label, value]) => <div key={label} className={styles.detailItem}><dt>{label}</dt><dd>{value || "Not provided"}</dd></div>)}</dl>
       <h2>Drawings and site documents</h2>
-      {(documents.data ?? []).length ? <ul>{(documents.data ?? []).map(document => <li key={document.id}>{document.title} · {document.document_reference} · Rev {document.revision}</li>)}</ul>
+      {(documents.data ?? []).length ? <ul>{(documents.data ?? []).map(document => <li key={document.id}><a href={`/admin/documents/${document.id}`} target="_blank" rel="noopener noreferrer">{document.title} · {document.document_reference} · Rev {document.revision}</a></li>)}</ul>
         : <p>No approved site documents have been uploaded. Ask the office for the current drawings and safety instructions.</p>}
       <p>{contract.reference}{contract.address ? ` · ${contract.address}` : ""}</p>
     </details>

@@ -8,7 +8,7 @@ export function budgetSummary(commercial: Commercial) {
   return { value, originalCost: cost, reserve, riskAdjustedProfit, margin: value > 0 ? riskAdjustedProfit / value * 100 : null };
 }
 export function contractWarnings(c: Contract, areaCount: number, completedDocumentCount: number) {
-  const warnings: string[] = ["Installation not released — acceptance gates are not yet available."];
+  const warnings: string[] = ["Installation not released for the whole job. Each location and activity is checked separately."];
   if (!c.start_date || !c.end_date) warnings.push("Programme dates incomplete.");
   if (!c.tile_specification || !c.installation_system || !c.movement_joints) warnings.push("Technical specification incomplete.");
   if (areaCount === 0) warnings.push("No work areas recorded.");

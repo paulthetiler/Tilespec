@@ -6,6 +6,7 @@ import { checkRpc, contractsFor, locationsFor } from "@/lib/operations/data";
 import { indexLocations, locationPath } from "@/lib/operations/locations";
 import { ConnectionStatus } from "@/components/site/connection-status";
 import { CreateSnag } from "@/components/snags/create-snag";
+import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import styles from "../../admin.module.css";
 export const dynamic="force-dynamic";
 export default async function NewSnag({searchParams}:{searchParams:Promise<{contract?:string;location?:string;inspection?:string}>}) {
@@ -29,6 +30,6 @@ export default async function NewSnag({searchParams}:{searchParams:Promise<{cont
  return <><ConnectionStatus/><p><Link href={simple?`/admin/supervisor/sites/${contract.id}`:`/admin/snags?contract_id=${contract.id}`}>{simple?"← Today":"← Snag register"}</Link></p><h1 className={styles.title}>Raise a snag</h1>
   <p><strong>{contract.name}</strong></p>{simple?<p>Show the office where the problem is and what needs attention.</p>:<p>Urgent snag reporting is always available, before or after morning checks. Critical findings require immediate office review; this does not grant a stop-work hold.</p>}
   <CreateSnag contractId={contract.id} locations={locations} packages={(packages.data||[]).map(p=>({id:p.id,label:`${p.name} · ${locationPath(index,p.work_area_id)}`}))}
-   requestKey={randomUUID()} submitKey={randomUUID()} proposalKey={randomUUID()} inspection={linked} initialLocation={locations.find(l=>l.id===q.location&&!l.archived_at)?.id} simple={simple}/>
+   requestKey={randomUUID()} submitKey={randomUUID()} proposalKey={randomUUID()} inspection={linked} initialLocation={locations.find(l=>l.id===q.location&&!l.archived_at)?.id} simple={simple} offerStop={!(simple&&flagEnabled("nextActions",member.role))}/>
  </>;
 }

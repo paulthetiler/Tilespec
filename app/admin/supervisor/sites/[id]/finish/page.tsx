@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { siteDayFor } from "@/lib/operations/data";
 import { supervisorDailyFor } from "@/lib/operations/daily-data";
+import { reviewLine } from "@/lib/operations/daily";
 import { buildSiteDay } from "@/lib/operations/site-day";
 import { indexLocations, locationPath } from "@/lib/operations/locations";
 import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
@@ -30,7 +31,11 @@ export default async function FinishToday({ params }: { params: Promise<{ id: st
       {stale.length > 0 && <p className={styles.warning}>Earlier days still have unfinished work. <Link href={`${base}/workforce#earlier-work`}>Review those times separately</Link>.</p>}
     </section>
     {!daily ? <p className={styles.warning}>Handovers are not available yet. Contact the office and <Link href={`${base}/workforce#finish-heading`}>finish your workforce records</Link>.</p> : <>
-      {!!saved.length && <section className={styles.success} aria-label="Saved handovers"><h3>Today’s handover is saved</h3>{saved.map(row => <p key={row.id}>{londonClock(row.created_at)} · {row.work_completed || row.office_notes || "Office handover recorded"}</p>)}<p>Use another handover only to add new information. Earlier handovers stay in the history.</p></section>}
+      {!!saved.length && <section className={styles.success} aria-label="Saved handovers"><h3>Today’s handover is saved</h3>{saved.map(row => {
+        const review = daily.reviews.find(entry => entry.handover_id === row.id);
+        return <div key={row.id}><p>{londonClock(row.created_at)} · {row.work_completed || row.office_notes || "Office handover recorded"}</p>
+          {daily.followUp && <p className={styles.small} data-handover-reviewed={String(!!review)}>{review ? `${reviewLine(review, londonClock)}${review.note ? ` ${review.note}` : ""}` : "Not reviewed by the office yet."}</p>}</div>;
+      })}<p>Use another handover only to add new information. Earlier handovers stay in the history.</p></section>}
       <section className={styles.panel}><h3>{saved.length ? "Add a handover update" : "How did today go?"}</h3>
         <DailyForm action={recordHandoverAction} label="FINISH TODAY" nextHref={base}>
           <input type="hidden" name="contract_id" value={id} /><input type="hidden" name="day" value={day} /><input type="hidden" name="request_key" value={randomUUID()} />

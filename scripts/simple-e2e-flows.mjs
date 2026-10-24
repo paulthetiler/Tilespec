@@ -74,7 +74,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await page.getByRole('heading', { name: 'Riverside practical supervisor acceptance', exact: true }).waitFor();
     await page.getByText(/^(Morning|Afternoon|Evening), Dave$/).waitFor();
     await page.getByRole('link', { name: 'START MORNING CHECKS', exact: true }).waitFor();
-    for (const name of ["Who's on site?", 'Check workmanship', 'Raise a snag', 'Office messages', 'Variations', 'Dayworks']) await page.getByRole('link', { name, exact: true }).waitFor();
+    for (const name of ["Who's on site?", 'Check workmanship', 'Raise a snag', 'Office messages']) await page.getByRole('link', { name, exact: true }).waitFor();
+    for (const name of ['Variations', 'Dayworks']) assert.equal(await page.getByRole('link', { name, exact: true }).count(), 0, `${name} is not an everyday tile`);
     assert.equal(await page.getByRole('link', { name: 'INSPECT WORK', exact: true }).count(), 0, 'no office inspection task is invented');
     pass('Simple A: Dave signs in through the real password form, reaches his assigned site, and sees a personal daily dashboard with one clear next task');
 
@@ -180,6 +181,29 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     assert.equal(sql(`select count(*) from public.supervisor_office_acknowledgements where item_id='${instructionId}' and actor_id='${ids.supervisor}'`), '1');
     pass('Simple H/M: Dave reads a real recipient-scoped office instruction; HTTP 200 without a saved acknowledgement stays unconfirmed, and retry creates one acknowledgement');
 
+    // M2: the office changes the instruction and marks it urgent. The original stays as sent, marked replaced.
+    await manager.goto(`${site}/messages`);
+    const original = manager.locator(`article#message-${instructionId}`);
+    await original.getByText('Change it', { exact: true }).click();
+    const change = original.locator('form').filter({ has: manager.getByRole('button', { name: 'Send the changed instruction', exact: true }) });
+    await change.locator('input[name=title]').fill('Materials now arriving at 2 pm');
+    await change.locator('textarea[name=body]').fill('Delivery moved to 2 pm. Start the bathroom first.');
+    await change.locator('input[name=urgent]').check();
+    await change.getByRole('button', { name: 'Send the changed instruction', exact: true }).click();
+    await manager.locator(`article#message-${instructionId}[data-message-state="replaced"]`).waitFor();
+    const changed = JSON.parse(sql(`select to_jsonb(i) from public.supervisor_office_items i where contract_id='${contractId}' and title='Materials now arriving at 2 pm'`));
+    assert.equal(changed.replaces_id, instructionId); assert.equal(changed.urgent, true); assert.equal(changed.recipient_id, ids.supervisor);
+    assert.equal(sql(`select title from public.supervisor_office_items where id='${instructionId}'`), 'Materials arriving at 10 am', 'the original is kept exactly as sent');
+    await page.goto(`${site}/messages`);
+    await page.locator(`article#message-${instructionId}[data-message-state="replaced"]`).getByText('The office changed this instruction.', { exact: false }).waitFor();
+    const latest = page.locator(`article#message-${changed.id}`);
+    await latest.getByText('From the office · Urgent · Changed', { exact: true }).waitFor();
+    await latest.getByText('Materials arriving at 10 am', { exact: false }).first().waitFor();
+    await latest.getByRole('button', { name: 'Acknowledge message', exact: true }).click();
+    await latest.getByText(/acknowledged/i).first().waitFor();
+    assert.equal(sql(`select count(*) from public.supervisor_office_acknowledgements where item_id='${changed.id}' and actor_id='${ids.supervisor}'`), '1');
+    pass('Simple M2: the office changes a sent instruction and marks it urgent; the original is kept and marked replaced, and Dave acknowledges the latest version');
+
     const taskId = await sendOffice('qa_request', 'Flat 52 commercial floor', 'Check the finished floor against the approved system and report any hollow-sounding tiles for investigation.');
     await page.goto(site);
     const task = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Flat 52 commercial floor — Inspection requested', exact: true }) });
@@ -234,6 +258,26 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     assert.equal(await manager.getByText(adhesiveNote, { exact: false }).count(), 0, 'location-filtered snags include descendants without inventing a location for the legacy morning blocker');
     pass('Simple F: location, defect, photo and short description create the existing permanent snag/evidence lifecycle, visible in office quality control');
 
+    // M3: the office reviews the inspection result and links the snag it raised. Dave sees the review.
+    await page.goto(`${site}/tasks/${taskId}`);
+    await page.getByRole('region', { name: 'Office review', exact: true }).getByText('Not reviewed by the office yet.', { exact: true }).waitFor();
+    await manager.goto(`${site}/tasks/${taskId}`);
+    const review = manager.getByRole('region', { name: 'Office review', exact: true });
+    await review.locator('select[name=outcome]').selectOption('snag_raised');
+    await review.locator('select[name=follow_up]').selectOption(`snag_raised:${snagId}`);
+    await review.locator('textarea[name=note]').fill('Threshold snag raised. The floor tile is to be investigated by the gang.');
+    await review.getByRole('button', { name: 'Mark as reviewed', exact: true }).click();
+    await review.getByText(/Review saved|Reviewed by/).first().waitFor();
+    const saved = JSON.parse(sql(`select to_jsonb(r) from public.office_reviews r where qa_submission_id=(select id from public.supervisor_qa_submissions where item_id='${taskId}')`));
+    assert.equal(saved.outcome, 'snag_raised'); assert.equal(saved.follow_up_id, snagId);
+    assert.equal(saved.note, 'Threshold snag raised. The floor tile is to be investigated by the gang.');
+    await page.goto(`${site}/tasks/${taskId}`);
+    const seen = page.getByRole('region', { name: 'Office review', exact: true });
+    await seen.getByText(/^Reviewed by .+: Snag raised\.$/).waitFor();
+    await seen.getByText('Threshold snag raised. The floor tile is to be investigated by the gang.', { exact: true }).waitFor();
+    assert.equal(await seen.locator('form').count(), 0, 'the supervisor cannot review their own result');
+    pass('Simple M3: the office marks Dave\'s inspection result as reviewed with the snag it raised, and Dave sees who reviewed it, when and why');
+
     await page.goto(site);
     await page.getByRole('link', { name: 'STOP WORK', exact: true }).click();
     await page.waitForURL(url => url.pathname === '/admin/holds/new' && url.searchParams.get('contract') === contractId);
@@ -280,11 +324,19 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await officeHandover.getByText(notes.work_completed, { exact: true }).waitFor();
     pass('Simple J/M: five short handover notes persist for the office and finish existing workforce periods; null HTTP 200 and lost replies cannot show false success or duplicate the handover');
 
-    // Explicitly honest deferred destinations, not fake commercial entry forms.
+    // Variations and dayworks stay reachable from the job's secondary links, clearly marked as not
+    // built, with no form or button that could look like a saved record.
+    await page.goto(site);
+    await page.getByText('Site details and earlier records', { exact: true }).click();
+    for (const [label, kind] of [['Variations (not built yet)', 'variations'], ['Dayworks (not built yet)', 'dayworks']]) {
+      assert.equal(await page.getByRole('link', { name: label, exact: true }).getAttribute('href'), `/admin/supervisor/sites/${contractId}/commercial?kind=${kind}`);
+    }
     for (const kind of ['variations', 'dayworks']) {
       await page.goto(`${site}/commercial?kind=${kind}`);
-      assert.equal(await page.locator('main form').count(), 0, `${kind} does not present a fake recording form`);
-      assert.match(await page.locator('main').innerText(), /next|future|separate|planned/i);
+      await page.getByText('Not built yet. Nothing on this page is saved.', { exact: true }).waitFor();
+      await page.getByText('New backend, awaiting approval.', { exact: false }).waitFor();
+      assert.equal(await page.locator('main form').count(), 0, `${kind} has no recording form`);
+      assert.equal(await page.locator('main button').count(), 0, `${kind} has no submit button`);
     }
     const other = await account(emails.other);
     for (const path of ['/messages', `/tasks/${taskId}`, '/finish']) assert.equal((await other.goto(`${site}${path}`)).status(), 404);

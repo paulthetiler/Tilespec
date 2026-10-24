@@ -56,6 +56,8 @@ export interface SnagRow {
   severity: "minor" | "major" | "critical" | null; snag_status: SnagStatus; assigned_team_id: string | null; target_date: string | null;
   raised_by: string | null; rectified_by: string | null; escalated: boolean;
   responsibility_state: string | null; responsibility_team_id: string | null;
+  /** The repair instructions saved when the gang was assigned. */
+  assigned_action?: string | null;
 }
 export type HoldStatus = "active" | "correction_submitted" | "awaiting_release" | "released" | "superseded" | "entered_in_error";
 export interface HoldRow {
@@ -67,6 +69,22 @@ export interface HoldRow {
 export interface OfficeItemRow {
   id: string; contract_id: string; kind: "instruction" | "qa_request"; title: string; body: string; recipient_id: string | null;
   acknowledgement_required: boolean; work_area_id: string | null; stage: string | null; created_by: string; created_at: string; due_on: string | null;
+  /** Once instruction changes are installed: the instruction this one replaces, and whether it is urgent. */
+  replaces_id?: string | null; urgent?: boolean;
+}
+/** A saved inspection result sent back for an office request (office views only). */
+export interface QaResultRow {
+  item_id: string; contract_id: string; title: string; location_path: string[]; inspection_id: string;
+  /** The saved result itself, which an office review names. */
+  submission_id?: string;
+  has_issues: boolean; submitted_at: string; submitted_by_name: string | null;
+  /** A snag or stop has already been raised from this inspection, so the problem is being tracked. */
+  followed_up: boolean;
+}
+/** The parts of a saved handover the office may need to act on (office views only). */
+export interface HandoverNoteRow {
+  id: string; contract_id: string; actor_name: string; work_date: string; created_at: string;
+  outstanding_problems: string; areas_awaiting_attention: string; office_notes: string;
 }
 export interface AcknowledgementRow { item_id: string; user_id: string }
 export interface QaSubmissionRow { item_id: string }
@@ -106,7 +124,23 @@ export interface NextActionSnapshot {
   supervisor_qa_submissions: QaSubmissionRow[];
   site_handovers: HandoverRow[];
   document_revisions: { id: string; contract_id: string }[];
+  /**
+   * Sites the signed-in supervisor has opened today. Their daily routine (morning
+   * checks, handover) applies there even when the office has planned no gang.
+   * Only the supervisor's own site loader sets this; office views never do.
+   */
+  attended_sites?: string[];
+  /** Recent inspection results (office, and the supervisor's own) and handovers sent from site (office views only). */
+  qa_results?: QaResultRow[];
+  handover_notes?: HandoverNoteRow[];
+  /**
+   * Present only once office reviews and instruction changes are installed in the database.
+   * Absent means the feature is not available, so nothing can be marked reviewed or withdrawn.
+   */
+  office_reviews?: OfficeReviewRow[];
+  office_item_withdrawals?: { item_id: string }[];
 }
+export interface OfficeReviewRow { qa_submission_id: string | null; handover_id: string | null }
 
 export interface Viewer { user_id: string; role: MemberRole; financial_access: boolean }
 
@@ -159,6 +193,8 @@ export interface NextAction {
   informationOnly?: boolean;
   overdue?: boolean;
   contact?: string;
+  /** The office's saved instruction for this work (repair action, required correction), shown wherever the action appears. */
+  instruction?: string | null;
 }
 
 export interface ViewerAction extends NextAction {

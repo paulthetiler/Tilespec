@@ -60,6 +60,32 @@ test("saving the morning checks changes the next action with no manual tick-box"
   assert.equal(nextAction(compute(s, dave))?.rule, "R05");
 });
 
+test("a supervisor who opens a site with no gang planned still has the daily routine", () => {
+  const s = make("start");
+  const dave = who(s, "Dave");
+  s.planned_allocations = [];
+  s.actual_allocations = [];
+  assert.ok(!ids(compute(s, dave)).includes("R01"), "nothing is invented for a site nobody is working on");
+  s.attended_sites = ["c1"];
+  assert.equal(nextAction(compute(s, dave))?.rule, "R01");
+  s.supervisor_inspections.push({ id: "mc", contract_id: "c1", created_at: "2026-10-15T07:50:00Z" });
+  assert.ok(!ids(compute(s, dave)).includes("R01"), "a saved morning check still completes it");
+  s.now = "15:30";
+  assert.ok(compute(s, dave).some(a => a.rule === "R06" && a.state === "ready"), "handover reminder from the job's working hours");
+  // Only the supervisor's own site loader marks a site as attended. Office views are unchanged.
+  assert.match(source("lib/operations/next-actions/snapshot-data.ts"), /attended_sites: options\.attended && member\.role === "supervisor"/);
+  assert.ok(!source("lib/operations/next-actions/office-snapshot.ts").includes("attended_sites"));
+  assert.match(source("components/site/next-actions-today.tsx"), /\{ attended: true \}/);
+  assert.match(source("app/admin/supervisor/page.tsx"), /\{ attended: false \}/);
+});
+
+test("the site picker says what is next and never hides stopped work", () => {
+  assert.deepEqual(engine.siteSummaryCopy({ next: null, todo: 0, stopped: 0 }), { line: "No tasks waiting for you here", stopped: null });
+  assert.deepEqual(engine.siteSummaryCopy({ next: null, todo: 0, stopped: 2 }), { line: "No tasks waiting for you here", stopped: "Work stopped here: 2" });
+  assert.deepEqual(engine.siteSummaryCopy({ next: "Check the repair", todo: 1, stopped: 0 }), { line: "Next: Check the repair", stopped: null });
+  assert.deepEqual(engine.siteSummaryCopy({ next: "Check the repair", todo: 3, stopped: 1 }), { line: "Next: Check the repair (+2 more)", stopped: "Work stopped here: 1" });
+});
+
 test("a mandatory inspection stays a gate until a passing inspection is SAVED", () => {
   const s = make("start");
   const dave = who(s, "Dave");
@@ -434,13 +460,47 @@ test("nothing is lost: the original office menu stays reachable under Everything
   for (const href of ["/admin/contracts", "/admin/workforce", "/admin/snags", "/admin/holds", "/admin/alerts", "/admin/quality", "/admin/tenders", "/admin/team", "/admin/estimator"]) assert.ok(links.includes(href), href);
 });
 
-test("no dead-end buttons: the supervisor's Today offers no variation, daywork, claim or margin controls", () => {
+test("no dead-end buttons: no claim or margin controls, and no prominent Stop Work on Report an issue", () => {
   const today = source("components/site/next-actions-today.tsx");
-  assert.ok(!/variation|daywork|payment claim|margin/i.test(today));
+  assert.ok(!/payment claim|margin/i.test(today));
   const money = source("app/admin/money/page.tsx");
   assert.ok(!/<button|<Link[^>]*(variation|daywork|claim)/i.test(money.replace(/Estimator/g, "")));
   const report = source("app/admin/supervisor/sites/[id]/report/page.tsx");
   assert.ok(!/STOP WORK/.test(report), "no prominent Stop Work button");
+});
+
+test("variations and dayworks stay reachable from each job, clearly not built, and can never look submitted", () => {
+  const links = /href=\{`\$\{base\}\/commercial\?kind=variations`\}[\s\S]*href=\{`\$\{base\}\/commercial\?kind=dayworks`\}/;
+  // Supervisor: the new Today's secondary More list and the original dashboard's secondary links, never the main tiles.
+  const today = source("components/site/next-actions-today.tsx");
+  assert.match(today, links);
+  assert.match(today.slice(today.indexOf('aria-label="More"')), /Not built yet[\s\S]*Not built yet/, "each says it is not built yet");
+  assert.ok(!/commercial/.test(today.slice(0, today.indexOf('aria-label="More"'))), "not in the main action area");
+  const dashboard = source("app/admin/supervisor/sites/[id]/page.tsx");
+  const tiles = dashboard.match(/const actions = \[([\s\S]*?)\];/)![1];
+  assert.ok(!/commercial|Variation|Daywork/i.test(tiles), "not among the everyday tiles");
+  assert.match(dashboard, links);
+  assert.match(dashboard, /Variations \(not built yet\)[\s\S]*Dayworks \(not built yet\)/);
+  // Office: the job page links to the same page.
+  assert.match(source("app/admin/contracts/[id]/page.tsx"), /commercial\?kind=variations[\s\S]*commercial\?kind=dayworks/);
+  // The page itself saves nothing: no form, button, server action or record write, and says so.
+  const page = source("app/admin/supervisor/sites/[id]/commercial/page.tsx");
+  for (const forbidden of [/<form/i, /<button/i, /OperationsForm|DailyForm/, /action=/, /"use server"/, /\.rpc\(|\.insert\(|\.from\(/]) assert.ok(!forbidden.test(page), `no ${forbidden}`);
+  assert.match(page, /Not built yet\. Nothing on this page is saved\./);
+  assert.match(page, /New backend, awaiting approval/);
+  for (const field of ["labour hours", "Materials used", "Who instructed it", "Authorisation and sign-off", "agreed scope", "Associated costs", "Approval status"]) assert.ok(page.includes(field), field);
+});
+
+test("the supervisor's navigation is Today plus one Report an issue, with drawings that open", () => {
+  assert.deepEqual(everythingElse("supervisor", false), [], "no second menu for a supervisor");
+  const nav = source("components/site/site-nav.tsx");
+  assert.ok(!/<details|More</.test(nav), "site screens have no More menu");
+  assert.match(nav, /← Today/);
+  assert.match(nav, /Report an issue/);
+  for (const file of ["components/site/next-actions-today.tsx", "app/admin/supervisor/sites/[id]/page.tsx"]) {
+    assert.match(source(file), /href=\{`\/admin\/documents\/\$\{\w+\.id\}`\}/, `${file}: each drawing opens through the authorised download route`);
+  }
+  assert.ok(existsSync(path.join(root, "app/admin/documents/[id]/route.ts")));
 });
 
 test("Report an issue replaces Stop Work and still reaches the existing hold and snag forms", () => {

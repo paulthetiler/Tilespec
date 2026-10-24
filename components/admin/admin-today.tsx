@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Member } from "@/lib/auth";
 import { canReadFinancial } from "@/lib/operations/permissions";
 import {
-  adminActionHref, buildQueue, classChip, classNote, compute, ctaLabel, idleCopy, queueCounts, todayCountCopy,
-  type NextActionSnapshot, type Viewer, type ViewerAction,
+  adminActionHref, buildQueue, classChip, classNote, compute, ctaLabel, DEFAULT_CONFIG, flagEnabled, idleCopy, queueCounts, siteUpdates, todayCountCopy,
+  type NextActionSnapshot, type SiteUpdate, type Viewer, type ViewerAction,
 } from "@/lib/operations/next-actions";
 import type { NextActionConfig } from "@/lib/operations/next-actions/config";
 import { holdScope, holdStatusLabels, holdTypes } from "@/lib/operations/holds";
@@ -29,10 +29,26 @@ function ActionRow({ action, today }: { action: ViewerAction; today: string }) {
     <h3>{action.title}</h3>
     <p className={styles.where}>{[action.job.reference, action.job.name, action.location].filter(Boolean).join(" · ")}</p>
     <p>{action.why}</p>
+    {action.instruction && <p className={styles.instruction}><strong>Instructions given:</strong> {action.instruction}{action.due ? ` · Target ${action.due}` : ""}</p>}
     {action.state === "blocked" && <p className={styles.blocked}><strong>You cannot take this decision.</strong> {action.blockedBy}</p>}
     {action.state === "waiting" && <p className={styles.waiting}>Waiting on {action.responsible.who ?? action.responsible.label}.</p>}
     {action.kind !== "reminder" && <p className={styles.note}>{classNote(action)}</p>}
     <Link className={styles.rowLink} href={adminActionHref(action)}>{actionable ? ctaLabel(action) : "View saved details"}<span aria-hidden="true"> →</span></Link>
+  </article>;
+}
+
+const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+function SiteUpdateRow({ update }: { update: SiteUpdate }) {
+  return <article className={`${styles.action} ${styles.alertRow}`} data-site-update={update.id}>
+    <span className={styles.chips}><span className={`${styles.chip} ${styles.alert}`}>{update.kind === "inspection" ? "Inspection result" : "Handover"}</span></span>
+    <h3>{update.title}</h3>
+    <p className={styles.where}>{update.job} · {when(update.at)}</p>
+    <p>{update.detail}</p>
+    <span className={styles.chips}>
+      <Link className={styles.rowLink} href={update.href}>{update.kind === "inspection" ? "Open the result" : "Read the handover"}<span aria-hidden="true"> →</span></Link>
+      <Link className={styles.rowLink} href={`/admin/supervisor/sites/${update.contractId}/activity`}>Job activity<span aria-hidden="true"> →</span></Link>
+    </span>
   </article>;
 }
 
@@ -46,6 +62,10 @@ export function AdminToday({ snapshot, viewer, member, config }: Props) {
   // figures, profit text or financial action payload in this Today render.
   const actions = compute(snapshot, viewer, config).filter(action => !action.financial && action.process !== "money");
   const queue = buildQueue(actions, { groupExceptions: owner });
+  const settings = config ?? DEFAULT_CONFIG;
+  const updates = siteUpdates(snapshot, viewer, settings);
+  // With the role shell on, Jobs, People and Paperwork are already in the tab bar.
+  const tabs = flagEnabled("roleShell", member.role);
   const counts = queueCounts(queue);
   const holds = snapshot.work_holds.filter(hold => ["active", "correction_submitted", "awaiting_release"].includes(hold.status));
   const safetyCount = holds.filter(hold => hold.hold_type === "safety").length;
@@ -80,10 +100,17 @@ export function AdminToday({ snapshot, viewer, member, config }: Props) {
           <p className={styles.where}>{[queue.next.job.reference, queue.next.job.name, queue.next.location].filter(Boolean).join(" · ")}</p>
           <Link className={styles.primaryLink} href={adminActionHref(queue.next)}>{ctaLabel(queue.next)}</Link>
           <p>{queue.next.why}</p>
+          {queue.next.instruction && <p className={styles.instruction}><strong>Instructions given:</strong> {queue.next.instruction}{queue.next.due ? ` · Target ${queue.next.due}` : ""}</p>}
           {queue.next.requires.length > 0 && <p className={styles.note}>You will need: {queue.next.requires.join(", ")}.</p>}
           {queue.next.kind !== "reminder" && <p className={styles.note}>{classNote(queue.next)}</p>}
         </section> : <section className={styles.empty} aria-label="Your next action">
           <h2>{idle.title}</h2><p>{idle.text}</p>
+        </section>}
+
+        {updates.length > 0 && <section className={styles.fromSite} aria-label="From site" id="today-from-site">
+          <h2>From site: needs a look ({updates.length})</h2>
+          <p className={styles.note}>Inspection results with problems and handovers with problems or notes for the office, from the last {settings.siteUpdateDays} days. TileSPEC cannot record that you have reviewed them yet. A result leaves this list once a snag or stop is raised from it.</p>
+          <div className={styles.list}>{updates.map(update => <SiteUpdateRow key={update.id} update={update} />)}</div>
         </section>}
 
         {(urgentWaiting.length > 0 || queue.exceptions.length > 0) && <aside className={styles.attention} aria-label="Items needing attention">
@@ -128,9 +155,11 @@ export function AdminToday({ snapshot, viewer, member, config }: Props) {
         <section className={styles.section} aria-label="Open a record">
           <h2>Open a record</h2>
           <div className={styles.shortcuts}>
-            <Link href="/admin/contracts"><strong>Job setup</strong><span>Locations, supervisors, plans and job details</span></Link>
-            <Link href="/admin/workforce"><strong>People and workforce</strong><span>Gangs, allocations and insurance</span></Link>
-            <Link href="/admin/paperwork"><strong>Paperwork</strong><span>Saved job documents and drawings</span></Link>
+            {!tabs && <>
+              <Link href="/admin/contracts"><strong>Job setup</strong><span>Locations, supervisors, plans and job details</span></Link>
+              <Link href="/admin/workforce"><strong>People and workforce</strong><span>Gangs, allocations and insurance</span></Link>
+              <Link href="/admin/paperwork"><strong>Paperwork</strong><span>Saved job documents and drawings</span></Link>
+            </>}
             <Link href="/admin/quality"><strong>Quality checks and requests</strong><span>Inspection checks, QA requests and restrictions</span></Link>
             <Link href="/admin/messages"><strong>Site messages and handovers</strong><span>Choose a job to read or send an instruction</span></Link>
           </div>

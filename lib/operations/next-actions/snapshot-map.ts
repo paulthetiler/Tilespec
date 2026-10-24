@@ -40,6 +40,7 @@ export function toSnag(row: Record<string, unknown>): SnagRow | null {
     target_date: (row.target_date as string | null) ?? null, raised_by: (row.inspector_id as string | null) ?? null, rectified_by: (row.rectified_by as string | null) ?? null,
     escalated: row.escalated === true, responsibility_state: (row.responsibility_state as string | null) ?? null,
     responsibility_team_id: (row.responsibility_team_id as string | null) ?? null,
+    assigned_action: (row.assigned_action as string | null) ?? null,
   };
 }
 

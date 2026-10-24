@@ -11,6 +11,7 @@ export const CTA: Record<string, string> = {
   S03: "Fix it and send photos", R01: "Start morning checks", R02: "Finish earlier work", R03: "Confirm who is here", R04: "Confirm person",
   R05: "Read it", R06: "Review handover", R07: "Chase now", R08: "Set it up", R09: "Publish checks", R10: "Give access", R11: "Update cover",
   R13: "Choose who fixes it", R14: "See the budget", R15: "Respond", R16: "Start inspection", R17: "Review morning finding",
+  R18: "Review the result", R19: "Read and review",
 };
 export const ctaLabel = (a: Pick<NextAction, "rule">) => CTA[a.rule] ?? "Open";
 
@@ -51,4 +52,14 @@ export function todayCountCopy(actions: number, informational = 0): string {
   if (!informational) return need;
   const info = informational === 1 ? "1 informational alert." : `${informational} informational alerts.`;
   return `${need} ${info}`;
+}
+
+/**
+ * One line per site on the supervisor's site picker. Stopped work is always said
+ * separately, so a site is never presented as clear while a restriction is active.
+ */
+export function siteSummaryCopy(opts: { next: string | null; todo: number; stopped: number }): { line: string; stopped: string | null } {
+  const stopped = opts.stopped ? `Work stopped here: ${opts.stopped}` : null;
+  if (!opts.next) return { line: "No tasks waiting for you here", stopped };
+  return { line: `Next: ${opts.next}${opts.todo > 1 ? ` (+${opts.todo - 1} more)` : ""}`, stopped };
 }
