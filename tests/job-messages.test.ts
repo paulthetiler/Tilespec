@@ -52,6 +52,8 @@ test("'Seen' is the first Got it or reply from the other side", () => {
   const [thread] = threadsFrom([message({}), reply({ created_at: "2026-10-24T09:00:00+00:00" })], [read({ message_id: "t1", reader_id: "u-sam", read_at: "2026-10-24T08:40:00+00:00" })]);
   assert.equal(seenAt(thread.messages[0], thread), "2026-10-24T08:40:00+00:00");
   assert.equal(seenAt(thread.messages[1], thread), null, "Dave has not seen the reply yet");
+  const [read2] = threadsFrom([message({}), reply({})], [read({})]);
+  assert.equal(seenAt(read2.messages[1], read2), "2026-10-24T09:30:00+00:00", "Got it is when the office sees Dave saw the reply");
   const [replied] = threadsFrom([message({}), reply({})], []);
   assert.equal(seenAt(replied.messages[0], replied), "2026-10-24T09:00:00+00:00", "a reply proves the question was seen");
   assert.equal(firstLine(message({}).body), "Which grout for the shower walls?");
