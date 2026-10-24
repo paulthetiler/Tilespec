@@ -318,7 +318,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await daveThread.getByRole('button', { name: 'Got it', exact: true }).click();
     await page.locator(`${thread}[data-thread-waiting="none"]`).waitFor();
     assert.equal(sql(`select count(*) from public.job_message_reads where message_id='${answer.id}' and reader_id='${ids.supervisor}'`), '1');
-    await manager.goto(`${site}/messages?thread=${question.id}#thread-${question.id}`);
+    // The office is still on this conversation; a fresh load shows the saved receipt.
+    await manager.reload();
     await manager.locator(`${thread} [data-seen]`).getByText(/^Seen by .+ at /).waitFor();
     pass('Simple M1: Dave asks the office about his snag from the snag page; a lost reply is retried once; the office replies, Dave taps Got it, and the office sees when he saw it');
 
