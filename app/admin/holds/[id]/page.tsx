@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { randomUUID } from "node:crypto";
 import { requireActor } from "@/lib/auth";
+import { conversationsAvailable } from "@/lib/operations/daily-data";
 import { checkRpc } from "@/lib/operations/data";
 import { holdContextFor, type HoldDocument, type HoldInspection, type HoldRequirementReview } from "@/lib/operations/holds-data";
 import { holdPhotoIdsFor, holdScope, holdTypes, holdStatusLabels, type Hold, type HoldEvent, type HoldPhoto } from "@/lib/operations/holds";
@@ -107,6 +108,8 @@ export default async function HoldDetail({ params }: { params: Promise<{ id: str
   const requirements = context.requirements, currentStatus = context.release_status;
   const hasAssignment = !!(hold.assigned_team_id || hold.assigned_operative_id);
   const releaseEvent = events.findLast(event => event.action === "release");
+  // A supervisor can ask the office about this stop once conversations are installed.
+  const ask = member.role === "supervisor" && permissions.supervise && await conversationsAvailable(supabase);
   return <><ConnectionStatus /><p><Link href={`/admin/holds?contract_id=${hold.contract_id}`}>← Work holds and releases</Link> · <Link href={`/admin/supervisor/sites/${hold.contract_id}`}>Site dashboard</Link></p><h1 className={styles.title}>{holdTypes[hold.hold_type]}</h1>
     {currentStatus && <section className={!currentStatus.authorised && currentStatus.status === "stopped_safety" ? css.critical : styles.panel} aria-label="Current work status"><h2>Current work status across this recorded scope</h2><p><strong>{qualityStatusLabel(currentStatus.status)}</strong></p>{currentStatus.reason && <p>{currentStatus.reason}</p>}{!currentStatus.authorised && <p>This scope has no current permission to proceed.</p>}</section>}
     <section className={hold.hold_type === "safety" && open ? css.critical : styles.panel} aria-label="Hold scope"><h2>{holdStatusLabels[hold.status]}</h2><strong>{holdScope(hold)}</strong><p>{hold.contract_reference} · {hold.contract_name}</p><p>Category: {hold.category} · Severity: {hold.severity}</p><p>{hold.reason}</p><p><strong>Original required action:</strong> {hold.required_action}</p><p>Raised {recordedTime(hold.created_at)} by {hold.raised_name || events.find(event => event.action === "raise")?.actor_name || "Recorded raiser"}</p>
@@ -115,6 +118,7 @@ export default async function HoldDetail({ params }: { params: Promise<{ id: str
       {hold.source_snag_id && <Link className={styles.secondaryButton} href={`/admin/snags/${hold.source_snag_id}`}>Original snag</Link>}
       {hold.source_inspection_id && <Link className={styles.secondaryButton} href={inspectionLink(hold.contract_id, hold.source_inspection_id)}>Original location inspection</Link>}
       {hold.source_morning_inspection_id && <Link className={styles.secondaryButton} href={`/admin/supervisor/sites/${hold.contract_id}/checks?inspection=${hold.source_morning_inspection_id}#morning-${hold.source_morning_inspection_id}`}>Original morning readiness history</Link>}
+      {ask && <Link className={styles.secondaryButton} href={`/admin/supervisor/sites/${hold.contract_id}/messages?about=hold:${hold.id}#ask`}>Ask the office about this</Link>}
     </section>
     {hold.hold_type === "safety" && <p>Follow the principal contractor’s statutory safety procedures and designated site-safety authority. An internal TileSPEC decision does not override their controls. Release requires their acknowledgement or authorisation to be recorded.</p>}
     <section className={styles.panel} aria-label="Corrective assignment"><h2>Corrective action assignment</h2>{hasAssignment ? <><p><strong>{hold.assigned_team_name || hold.assigned_operative_name || "Recorded corrective party"}</strong></p><p>{hold.assignment_action || "Review the recorded assignment event for corrective instructions."}</p>{hold.target_date && <p>Target: {hold.target_date}</p>}{hold.corrected_at && <p>Latest correction completed: {recordedTime(hold.corrected_at)}</p>}</> : <p>No corrective team or operative has been assigned. Assign corrective work before submitting completion evidence.</p>}</section>

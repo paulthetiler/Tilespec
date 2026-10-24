@@ -1,4 +1,4 @@
-import { reviewOutcomes } from "./daily";
+import { aboutTypes, reviewOutcomes } from "./daily";
 import { installationStages } from "./types";
 import { isCalendarDate } from "./planning";
 import { finishDayInput, text, uuid, ValidationError } from "./validation";
@@ -59,4 +59,23 @@ export function handoverInput(form: FormData) {
   };
   if (!Object.values(fields).some(Boolean)) throw new ValidationError("Add a short handover for the office.");
   return { contract_id: finish.contract_id, finished_at: finish.at, finish_workforce: form.get("finish_workforce") === "on", ...fields };
+}
+
+/** A new conversation names what it is about; a reply names its conversation. */
+export function messageInput(form: FormData) {
+  const thread = optionalId(form, "thread_id");
+  const body = text(form, "body", 2000, true);
+  const needs_answer = form.get("needs_answer") === "on";
+  const contract_id = uuid(form, "contract_id");
+  if (thread) return { contract_id, thread_id: thread, body, needs_answer };
+  const about_type = text(form, "about_type", 20) || "job";
+  if (!aboutTypes.some(value => value === about_type)) throw new ValidationError("Choose what the message is about.");
+  return { contract_id, about_type, ...(about_type === "job" ? {} : { about_id: uuid(form, "about_id") }), body, needs_answer };
+}
+
+/** "about=snag:<id>" from an "Ask the office about this" link, or nothing. */
+export function aboutParam(value: unknown): { about_type: string; about_id: string } | null {
+  if (typeof value !== "string") return null;
+  const [about_type, about_id] = value.split(":");
+  return aboutTypes.some(kind => kind === about_type) && about_type !== "job" && isRecordId(about_id) ? { about_type, about_id } : null;
 }

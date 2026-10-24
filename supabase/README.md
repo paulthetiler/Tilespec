@@ -226,3 +226,21 @@ for a withdrawn request. Additive and transactional; it refuses to run before
 
 The application hides every review, change, urgent and withdrawal control until this
 migration is applied, so it can be deployed first.
+
+### Job messages (M1)
+
+`20261024090000_job_messages.sql` adds questions and replies between the office and
+the supervisor about a job or one of its records (`job_messages`), and "Got it" read
+receipts (`job_message_reads`). Only a supervisor on the site starts a conversation;
+the office for the job and that supervisor reply. Row-level security shows each
+conversation only to the office for the job and the supervisor in it. Both tables are
+append-only and audited, and writes go only through `post_job_message` and
+`mark_job_message_read`, with request keys for safe retries. Additive and
+transactional; it refuses to run before `20261015130000` and `20261015091000` or a
+second time.
+
+1. Take a database backup.
+2. Run `inspection/job-messages-preflight.sql` (read-only) as the applying role and
+   keep the output. Every prerequisite must be present and every name collision absent.
+3. Apply the migration unmodified, recorded under its own filename, only after approval.
+4. Re-run the report: the preserved counts must be unchanged.

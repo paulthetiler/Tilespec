@@ -407,6 +407,29 @@ rule("R19_review_handover", ({ s, L, cfg }) => !s.office_reviews ? [] : (s.hando
   } satisfies NextAction;
 }));
 
+// R20/R21: a conversation waiting on one side. Only a message marked "I need an answer" waits on
+// the office; a reply from the office waits until the supervisor has read it or answered. Both go
+// as soon as the saved messages or read receipts change. Only once job messages exist in the database.
+const oneLine = (text: string, length = 80) => briefly(text.trim().split(/\n/)[0], length);
+rule("R20_reply_to_site", ({ s, L }) => (s.job_threads ?? []).filter(t => t.waiting_on === "office").map(t => ({
+  id: `thread-reply:${t.id}`, rule: "R20", process: "daily-site", kind: "reminder", priority: 2, order: 9.6, job: L.job(t.contract_id), location: null,
+  responsible: OFFICE, title: `Reply to ${t.latest.author_name}: ${oneLine(t.latest.body)}`,
+  why: `${t.about}. ${t.latest.author_name} needs an answer.`,
+  due: null, requires: ["Your reply"], doneWhen: "A reply is saved on the conversation", next: `${t.latest.author_name} sees your reply on Today`,
+  audience: { office: "act", owner: "act" }, blocks: null, enforcedByBackend: false,
+  source: { table: "job_messages", id: t.latest.id }, route: { screen: "thread", id: t.id },
+} satisfies NextAction)));
+rule("R21_reply_from_office", ({ s, L }) => (s.job_threads ?? []).filter(t => t.waiting_on === "site").map(t => ({
+  id: `thread-read:${t.id}`, rule: "R21", process: "daily-site", kind: "reminder", priority: 2, order: 9.6, job: L.job(t.contract_id), location: null,
+  responsible: { role: "supervisor", who: L.person(t.site_user_id), label: "Site supervisor" },
+  title: `${t.latest.needs_answer ? "Answer" : "Reply from"} ${t.latest.author_name}: ${oneLine(t.latest.body)}`,
+  why: `${t.about}.${t.latest.needs_answer ? " The office needs your answer." : ""}`,
+  due: null, requires: t.latest.needs_answer ? ["Your reply"] : ["Read it", "Tap Got it, or reply"],
+  doneWhen: t.latest.needs_answer ? "You reply on the conversation" : "You tap Got it or reply", next: "The office sees you have seen it",
+  audience: { supervisor: "act" }, actUsers: [t.site_user_id], blocks: null, enforcedByBackend: false,
+  source: { table: "job_messages", id: t.latest.id }, route: { screen: "thread", id: t.id },
+} satisfies NextAction)));
+
 const handoverAuthors = (s: NextActionSnapshot, contractId: string) => s.site_handovers.filter(h => h.contract_id === contractId && h.work_date === s.today)
   .map(h => h.actor_id).filter((id): id is string => !!id);
 rule("R06_handover", c => c.s.contracts.filter(k => workToday(c.s, k.id) && !everyoneCompleted(c.s, k.id, handoverAuthors(c.s, k.id))).map(k => {

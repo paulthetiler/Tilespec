@@ -2,6 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Member } from "../auth";
 import { buildActivity, type ActivityEntry, type ActivitySources } from "./activity";
+import { aboutLabel, emptyLookups } from "./conversations";
+import type { AboutType } from "./daily";
 import { checkDatabase, locationsFor } from "./data";
 import { indexLocations, locationPath } from "./locations";
 import { canManageContracts } from "./permissions";
@@ -55,7 +57,7 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
   };
   const office = canManageContracts(member);
   const snagQuery = supabase.from("supervisor_issues").select("id,check_label,work_area_id,updated_at").eq("contract_id", contractId).not("snag_status", "is", null);
-  const [locations, snagList, holdEvents, messages, acknowledgements, results, handovers, morningChecks, inspections, plans, documents, members, withdrawals, reviews] = await Promise.all([
+  const [locations, snagList, holdEvents, messages, acknowledgements, results, handovers, morningChecks, inspections, plans, documents, members, withdrawals, reviews, jobMessages] = await Promise.all([
     locationsFor(supabase, contractId),
     // A snag's events are all no later than its last update, so the most recently updated snags hold the newest history.
     (before ? snagQuery.lt("created_at", before) : snagQuery).order("updated_at", { ascending: false }).order("id").limit(SNAG_LIMIT)
@@ -65,7 +67,7 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
     page("supervisor_office_items", "*", "created_at"),
     page("supervisor_office_acknowledgements", "id,item_id,actor_id,acknowledged_at", "acknowledged_at"),
     page("supervisor_qa_submissions", "id,item_id,submitted_by,submitted_at,has_issues", "submitted_at"),
-    page("site_handovers", "id,actor_id,actor_name,created_at,work_completed,outstanding_problems,areas_awaiting_attention,office_notes", "created_at"),
+    page("site_handovers", "id,actor_id,actor_name,work_date,created_at,work_completed,outstanding_problems,areas_awaiting_attention,office_notes", "created_at"),
     page("supervisor_inspections", "id,actor_id,created_at,issues_count", "created_at"),
     page("location_inspections", "id,actor_id,actor_name,created_at,issues_count,location_path", "created_at"),
     page("planned_allocations", "id,team_id,work_area_id,planned_start,planned_end,instructions,created_by,created_at,supersedes_id,cancelled_at,cancelled_by", "created_at"),
@@ -75,6 +77,8 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
       : Promise.resolve([{ user_id: member.user_id, display_name: member.display_name }] as Row[]),
     optionalPage("supervisor_office_item_withdrawals", "id,item_id,reason,withdrawn_by,withdrawn_by_name,withdrawn_at", "withdrawn_at"),
     optionalPage("office_reviews", "id,qa_submission_id,handover_id,outcome,note,reviewed_by,reviewed_by_name,reviewed_at", "reviewed_at"),
+    // Questions and replies: row-level security shows a supervisor only their own conversations.
+    optionalPage("job_messages", "id,thread_id,author_id,author_name,author_side,body,needs_answer,about_type,about_id,created_at", "created_at"),
   ]);
   const snagEvents = (await Promise.all(snagList.map(async snag => {
     const result = await supabase.rpc("snag_events", { p_issue: snag.id });
@@ -93,19 +97,34 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
   const listedResults = new Set(results.rows.map(row => String(row.id)));
   const listedHandovers = new Set(handovers.rows.map(row => String(row.id)));
   const reviewRows = reviews?.rows ?? [];
-  const [holds, teams, olderResults, olderHandovers] = await Promise.all([
+  // A reply's conversation can have started on an earlier page; read its first message only for what it is about.
+  const messageRows = jobMessages?.rows ?? [];
+  const listedJobMessages = new Set(messageRows.map(row => String(row.id)));
+  const earlierRoots = await byIds("job_messages", "id,about_type,about_id", messageRows.map(row => String(row.thread_id)).filter(id => !listedJobMessages.has(id)));
+  const roots = new Map([...messageRows, ...earlierRoots].filter(row => row.about_type)
+    .map(row => [String(row.id), { about_type: row.about_type as AboutType, about_id: (row.about_id as string | null) ?? null }]));
+  const aboutIds = (type: AboutType) => [...roots.values()].filter(root => root.about_type === type && root.about_id).map(root => root.about_id!);
+  const [holds, teams, olderResults, olderHandovers, aboutSnags, aboutHolds] = await Promise.all([
     byIds("work_holds", "id,hold_type,work_area_id,location_path", holdEvents.rows.map(row => String(row.hold_id))),
     byIds("teams", "id,name", plans.rows.map(row => String(row.team_id))),
-    // A review can name a result or handover from an earlier page; read it only for its title.
+    // A review or conversation can name a result or handover from an earlier page; read it only for its title.
     byIds("supervisor_qa_submissions", "id,item_id,submitted_by,submitted_at,has_issues",
-      reviewRows.map(row => row.qa_submission_id).filter((id): id is string => typeof id === "string" && !listedResults.has(id))),
-    byIds("site_handovers", "id,actor_id,actor_name,created_at,work_completed,outstanding_problems,areas_awaiting_attention,office_notes",
-      reviewRows.map(row => row.handover_id).filter((id): id is string => typeof id === "string" && !listedHandovers.has(id))),
+      [...reviewRows.map(row => row.qa_submission_id), ...aboutIds("qa_result")].filter((id): id is string => typeof id === "string" && !listedResults.has(id))),
+    byIds("site_handovers", "id,actor_id,actor_name,work_date,created_at,work_completed,outstanding_problems,areas_awaiting_attention,office_notes",
+      [...reviewRows.map(row => row.handover_id), ...aboutIds("handover")].filter((id): id is string => typeof id === "string" && !listedHandovers.has(id))),
+    byIds("supervisor_issues", "id,check_label", aboutIds("snag")),
+    byIds("work_holds", "id,hold_type,category", aboutIds("hold")),
   ]);
-  // Acknowledgements, results, withdrawals and changes can refer to an earlier message than this page shows.
+  // Acknowledgements, results, withdrawals, changes and conversations can refer to an earlier message than this page shows.
   const olderMessages = await byIds("supervisor_office_items", "*", [...acknowledgements.rows, ...results.rows, ...olderResults, ...(withdrawals?.rows ?? [])]
-    .map(row => String(row.item_id)).concat(messages.rows.map(row => row.replaces_id).filter((id): id is string => typeof id === "string"))
+    .map(row => String(row.item_id)).concat(messages.rows.map(row => row.replaces_id).filter((id): id is string => typeof id === "string"), aboutIds("office_item"))
     .filter(id => !listed.has(id)));
+  const lookups = emptyLookups();
+  for (const row of [...messages.rows, ...olderMessages]) lookups.items.set(String(row.id), { title: String(row.title), kind: String(row.kind) });
+  for (const row of [...results.rows, ...olderResults]) lookups.results.set(String(row.id), { item_id: String(row.item_id) });
+  for (const row of [...handovers.rows, ...olderHandovers]) lookups.handovers.set(String(row.id), { work_date: String(row.work_date), actor_name: String(row.actor_name) });
+  for (const row of [...snagList, ...aboutSnags]) lookups.snags.set(String(row.id), String(row.check_label));
+  for (const row of aboutHolds) lookups.holds.set(String(row.id), `${row.hold_type === "safety" ? "Safety stop" : "Quality hold"}, ${row.category}`);
   const teamName = new Map(teams.map(row => [String(row.id), String(row.name)]));
   const sources: ActivitySources = {
     snagEvents,
@@ -119,6 +138,12 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
     handovers: [...handovers.rows, ...olderHandovers] as unknown as ActivitySources["handovers"],
     withdrawals: (withdrawals?.rows ?? []) as unknown as ActivitySources["withdrawals"],
     reviews: reviewRows as unknown as ActivitySources["reviews"],
+    jobMessages: messageRows.map(row => {
+      const root = roots.get(String(row.thread_id));
+      return { id: String(row.id), thread_id: String(row.thread_id), author_id: String(row.author_id), author_name: String(row.author_name), author_side: String(row.author_side),
+        body: String(row.body), needs_answer: row.needs_answer === true, created_at: String(row.created_at),
+        about: root ? aboutLabel(root.about_type, root.about_id, lookups) : null };
+    }),
     morningChecks: morningChecks.rows as unknown as ActivitySources["morningChecks"],
     inspections: inspections.rows.map(row => ({ id: String(row.id), actor_id: String(row.actor_id), actor_name: (row.actor_name as string | null) ?? null,
       created_at: String(row.created_at), issues_count: Number(row.issues_count), location: (row.location_path as string[] | null)?.join(" › ") ?? "" })),
@@ -129,7 +154,7 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
     documents: documents.rows as unknown as ActivitySources["documents"],
   };
   // The page stops at the oldest record of any source that reached its limit.
-  const cuts = [holdEvents, messages, acknowledgements, results, handovers, morningChecks, inspections, plans, documents, withdrawals, reviews]
+  const cuts = [holdEvents, messages, acknowledgements, results, handovers, morningChecks, inspections, plans, documents, withdrawals, reviews, jobMessages]
     .filter((source): source is Source => !!source?.full).map(source => String(source.rows.at(-1)![source.time]));
   if (snagList.length === SNAG_LIMIT) cuts.push(String(snagList.at(-1)!.updated_at));
   const cut = cuts.sort().at(-1) ?? null;

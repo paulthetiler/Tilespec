@@ -4,7 +4,7 @@ import { holdScope, holdTypes } from "@/lib/operations/holds";
 import { checkDatabase, companyRecordsFor, contractsFor, siteDayFor, siteStatusFor } from "@/lib/operations/data";
 import { insuranceSummary } from "@/lib/operations/companies";
 import { insuranceTypeLabels } from "@/lib/operations/types";
-import { outstandingQa, unacknowledgedInstructions } from "@/lib/operations/daily";
+import { outstandingQa, threadState, threadsFrom, unacknowledgedInstructions } from "@/lib/operations/daily";
 import { supervisorDailyFor } from "@/lib/operations/daily-data";
 import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
 import { buildSiteDay } from "@/lib/operations/site-day";
@@ -64,6 +64,9 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   });
   const qaRequests = daily ? outstandingQa(daily.items, daily.submissions, daily.withdrawals) : [];
   const unread = daily ? unacknowledgedInstructions(daily.items, daily.acknowledgements, member.user_id, daily.withdrawals).length : 0;
+  // Replies from the office that this supervisor has not read or answered yet (once job messages are installed).
+  const replies = daily?.conversations ? threadsFrom(daily.messages, daily.messageReads)
+    .filter(thread => thread.site_user_id === member.user_id && threadState(thread).waitingOn === "site").length : 0;
   const handover = daily?.handovers.find(row => row.work_date === day && row.actor_id === member.user_id);
   const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "numeric", hourCycle: "h23" }).format(new Date()));
   const greeting = hour < 12 ? "Morning" : hour < 18 ? "Afternoon" : "Evening";
@@ -84,7 +87,8 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     { label: "Who's on site?", href: `${base}/workforce`, detail: `${site.summary.presentNow} ${site.summary.presentNow === 1 ? "person" : "people"} recorded here` },
     { label: "Check workmanship", href: `${base}/inspections`, detail: "Choose an area and check work" },
     { label: "Raise a snag", href: `/admin/snags/new?contract=${id}`, detail: "Photo, location and a short note" },
-    { label: "Office messages", href: `${base}/messages`, detail: unread ? `${unread} to acknowledge` : "Instructions for this site" },
+    { label: "Office messages", href: `${base}/messages`, detail: [unread ? `${unread} to acknowledge` : "", replies ? `${replies} ${replies === 1 ? "reply" : "replies"} from the office` : ""]
+      .filter(Boolean).join(" · ") || (daily?.conversations ? "Instructions, questions and replies" : "Instructions for this site") },
   ];
 
   return <div className={dailyStyles.day}>

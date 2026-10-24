@@ -66,6 +66,7 @@ export default async function InspectionRequest({ params }: { params: Promise<{ 
           <p>The office receives your saved findings. This does not approve payment or remove work restrictions.</p>
         </DailyForm> : <p>Tap INSPECT WORK to record your findings, then return here to send the result to the office.</p>}
       </section> : <><p>Only the assigned supervisor can submit this result.</p>{office && daily!.followUp && <WithdrawForm item={item} contractId={id} />}</>}
+    {mine && daily!.conversations && <Link className={styles.secondaryButton} href={`${base}/messages?about=${submission ? `qa_result:${submission.id}` : `office_item:${item.id}`}#ask`}>Ask the office about this</Link>}
     <Link className={styles.secondaryButton} href={base}>Back to today</Link>
   </>;
 }
