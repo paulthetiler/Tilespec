@@ -1,12 +1,16 @@
 import Link from "next/link";
+import { canReadFinancial } from "@/lib/auth";
+import { dayworksFor } from "@/lib/operations/daywork-data";
+import { currentLines, dayworkReference, dayworkStatuses, dayworkWarning } from "@/lib/operations/dayworks";
+import { dayLabel } from "@/lib/operations/planning";
 import { requireSite } from "../../../site-access";
 import styles from "../../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Variations and dayworks are essential commercial records, so each job keeps a way in. Nothing
-// records them yet (New backend, awaiting approval). This page therefore has no form and no
-// submit button: it says what to do today and what the record will hold once it is built.
+// Variations and dayworks are essential commercial records, so each job keeps a way in. Once the
+// dayworks migration (M4) is applied, this page lists the job's dayworks. Until then, and for
+// variations until M5, it has no form and no submit button: it says what to do today.
 const pages = {
   variations: {
     label: "Variations",
@@ -43,11 +47,32 @@ const pages = {
 
 export default async function AdditionalWork({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ kind?: string }> }) {
   const { id } = await params;
-  const { contract } = await requireSite(id);
+  const { supabase, member, contract } = await requireSite(id);
   if (!contract) return null;
   const { kind } = await searchParams;
   const page = pages[kind === "dayworks" ? "dayworks" : "variations"];
   const base = `/admin/supervisor/sites/${id}`;
+  const records = kind === "dayworks" ? await dayworksFor(supabase, id) : null;
+  if (records) return <>
+    <div className={styles.pageHeader}><div><h1 className={styles.title}>Dayworks</h1>
+      <p className={styles.description}>Extra work paid by the hour on this job. Recording one is not permission to proceed or an agreement to pay.</p></div>
+      <Link className={styles.button} href={`${base}/dayworks/new`}>Record a daywork</Link></div>
+    {canReadFinancial(member) && <p className={styles.small}><Link href={`/admin/contracts/${id}#daywork-rates`}>Daywork rates for this job</Link></p>}
+    <section className={styles.cardList} aria-label="Dayworks on this job">
+      {[...records.dayworks].reverse().map(daywork => {
+        const statuses = dayworkStatuses(daywork), lines = currentLines(daywork, records.lines), warning = dayworkWarning(daywork);
+        return <article key={daywork.id} className={styles.card} data-daywork-id={daywork.id}>
+          <p className={styles.eyebrow}>{dayworkReference(daywork)} · {dayLabel(daywork.instructed_on)}</p>
+          <h2><Link href={`${base}/dayworks/${daywork.id}`}>{daywork.description}</Link></h2>
+          <p className={styles.small}>{statuses.office} · {statuses.signature} · {statuses.charge} · {statuses.client}</p>
+          <p className={styles.small}>{lines.length} {lines.length === 1 ? "line" : "lines"} · asked for by {daywork.instructed_by_name}</p>
+          {warning && <p className={styles.small}>{warning}</p>}
+        </article>;
+      })}
+      {!records.dayworks.length && <p>No dayworks on this job yet.</p>}
+    </section>
+    <Link className={styles.secondaryButton} href={base}>Back to today</Link>
+  </>;
   return <>
     <h1 className={styles.title}>{page.label}</h1>
     <p className={styles.warningBadge} role="status">Not built yet. Nothing on this page is saved.</p>

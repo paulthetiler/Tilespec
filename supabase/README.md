@@ -244,3 +244,31 @@ second time.
    keep the output. Every prerequisite must be present and every name collision absent.
 3. Apply the migration unmodified, recorded under its own filename, only after approval.
 4. Re-run the report: the preserved counts must be unchanged.
+
+### Dayworks and day rates (M4)
+
+`20261028090000_dayworks.sql` adds dayworks recorded on site (`dayworks`,
+`daywork_lines`, `daywork_events`, `daywork_signoffs`, `daywork_photos`), the client's
+separate authorisation (`daywork_client_authorisations`), and, readable only with money
+access, the job's versioned day rates (`contract_daywork_rates`), prices with an exact
+copy of each rate used (`daywork_pricings`, `daywork_pricing_lines`) and TileSPEC's
+internal charge approvals (`daywork_commercial_approvals`). Nobody approves a daywork or
+its charge that they submitted; the owner may override with a logged reason. Every table
+is read-only to signed-in users and changes only through checked functions with request
+keys; histories are append-only and audited, and money changes are audited as
+commercial. It adds storage policies for daywork photographs in the private
+`supervisor-evidence` bucket, and, when job messages (M1) are installed, lets a
+conversation be about a daywork. Additive and transactional; it refuses to run before the
+daily workflow or a second time.
+
+If job messages (M1, `20261024090000_job_messages.sql`) are wanted, apply them first. Applied
+after this migration, M1 installs without the daywork subject, so "Ask the office about this"
+on a daywork is refused until a follow-up migration adds it. It creates storage policies on
+`storage.objects`, as the work-holds migration does, so the applying role needs the same
+privilege there; rehearse on a staging copy first.
+
+1. Take a database backup.
+2. Run `inspection/dayworks-preflight.sql` (read-only) as the applying role and keep the
+   output. Every prerequisite must be present and every name collision absent.
+3. Apply the migration unmodified, recorded under its own filename, only after approval.
+4. Re-run the report: the preserved counts must be unchanged.

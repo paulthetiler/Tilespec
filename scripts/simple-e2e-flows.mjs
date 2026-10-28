@@ -44,7 +44,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     'location_inspection_allocations', 'location_inspection_requirements', 'supervisor_issues', 'supervisor_issue_events', 'supervisor_issue_photos',
     'work_holds', 'work_hold_events', 'hold_photos', 'planned_allocations', 'actual_allocations', 'actual_allocation_operatives',
     'allocation_absences', 'team_memberships', 'document_revisions', 'supervisor_office_items', 'supervisor_office_acknowledgements', 'supervisor_qa_submissions', 'site_handovers',
-    'job_messages', 'job_message_reads'];
+    'job_messages', 'job_message_reads', 'dayworks', 'daywork_lines', 'daywork_events', 'daywork_signoffs', 'daywork_client_authorisations',
+    'daywork_photos', 'contract_daywork_rates', 'daywork_pricings', 'daywork_pricing_lines', 'daywork_commercial_approvals'];
   const history = new Map(tables.map(table => [table, JSON.parse(sql(`select coalesce(jsonb_agg(to_jsonb(r) order by id),'[]') from public.${table} r`))]));
 
   const contractId = await rpc(emails.manager, 'create_contract', { p_organisation: ids.organisation, p_request_key: randomUUID(), p_data: {
@@ -323,6 +324,118 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await manager.locator(`${thread} [data-seen]`).getByText(/^Seen by .+ at /).waitFor();
     pass('Simple M1: Dave asks the office about his snag from the snag page; a lost reply is retried once; the office replies, Dave taps Got it, and the office sees when he saw it');
 
+    // M4 (approved by the owner): Dave records a daywork from his dashboard and gets it signed; the
+    // office approves it and records the client's authorisation; only money access prices it and
+    // approves the charge; Dave sees every status but never a rate, price or total.
+    await page.goto(site);
+    await page.getByText('Site details and earlier records', { exact: true }).click();
+    await page.getByRole('link', { name: 'Dayworks: record extra work', exact: true }).click();
+    await page.waitForURL(url => url.pathname.endsWith('/commercial') && url.searchParams.get('kind') === 'dayworks');
+    await page.getByRole('link', { name: 'Record a daywork', exact: true }).click();
+    await page.waitForURL('**/dayworks/new');
+    const dayworkForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Save daywork', exact: true }) });
+    await dayworkForm.locator('textarea[name=description]').fill('Tile the bin store wall for the main contractor');
+    await dayworkForm.locator('input[name=instructed_by_name]').fill('Sam Site');
+    await dayworkForm.locator('input[name=instructed_by_company]').fill('Fictional Principal Contractor');
+    await dayworkForm.getByLabel('People and hours 1: name', { exact: true }).fill('Dave Acceptance Tiler');
+    await dayworkForm.getByLabel('People and hours 1: hours', { exact: true }).fill('7.5');
+    await dayworkForm.getByRole('button', { name: 'Add plant', exact: true }).click();
+    await dayworkForm.getByLabel('Plant 1: item', { exact: true }).fill('Wet saw');
+    await dayworkForm.getByLabel('Plant 1: quantity', { exact: true }).fill('1');
+    await dayworkForm.getByRole('button', { name: 'Add materials', exact: true }).click();
+    await dayworkForm.getByLabel('Materials 1: item', { exact: true }).fill('Adhesive');
+    await dayworkForm.getByLabel('Materials 1: quantity', { exact: true }).fill('3');
+    assert.equal(await dayworkForm.locator('input[name=send_now]').isChecked(), true, 'a new daywork goes to the office by default');
+    await dayworkForm.getByRole('button', { name: 'Save daywork', exact: true }).click();
+    await page.waitForURL(url => /\/dayworks\/[0-9a-f-]{36}$/.test(url.pathname));
+    const dayworkId = page.url().split('/').at(-1);
+    const recorded = JSON.parse(sql(`select to_jsonb(d) from public.dayworks d where id='${dayworkId}'`));
+    assert.equal(recorded.site_status, 'sent'); assert.equal(recorded.office_status, 'awaiting_review'); assert.equal(recorded.number, 1);
+    assert.equal(sql(`select count(*) from public.daywork_lines where daywork_id='${dayworkId}' and lines_version=1`), '3');
+    await page.getByText('Not approved by the office yet. Recording this work is not permission to proceed or an agreement to pay.', { exact: true }).waitFor();
+    const signature = page.getByRole('region', { name: 'Client signature', exact: true });
+    await signature.locator('input[name=signer_name]').fill('Sam Site');
+    await signature.locator('input[name=signer_position]').fill('Site manager');
+    await signature.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.locator('[data-status="signature"]').getByText('Signed by the client\'s representative', { exact: true }).waitFor();
+    const evidence = page.getByRole('region', { name: 'Photographs', exact: true });
+    const photoRows = state => sql(`select count(*) from public.daywork_photos where daywork_id='${dayworkId}'${state === 'verified' ? ' and uploaded_at is not null' : ''}`);
+    await evidence.getByLabel('Choose photographs', { exact: true }).setInputFiles(image);
+    // A failed upload is reported and saves nothing; the daywork itself is unaffected.
+    expectedNetwork = true; storage.faults.failUploads = 1;
+    await evidence.getByRole('button', { name: 'Upload photographs', exact: true }).click();
+    await evidence.getByRole('alert').filter({ hasText: 'The photograph was not uploaded' }).first().waitFor();
+    assert.equal(photoRows('verified'), '0', 'a failed upload is never counted as a saved photograph');
+    assert.equal(sql(`select site_status from public.dayworks where id='${dayworkId}'`), 'sent', 'the daywork stays saved and sent without its photograph');
+    // The retry uploads the bytes, but the verifier reads different bytes back: still not saved.
+    storage.faults.corruptDownloads = 1;
+    await evidence.getByRole('button', { name: 'Upload photographs', exact: true }).click();
+    await evidence.getByRole('alert').filter({ hasText: 'does not match the one you chose' }).first().waitFor();
+    assert.equal(photoRows('verified'), '0', 'a photograph whose stored bytes do not match is never completed');
+    // Retrying after the failed verification finds the object already stored, checks its exact bytes and completes it once.
+    await evidence.getByRole('button', { name: 'Upload photographs', exact: true }).click();
+    await evidence.getByRole('img', { name: 'Daywork photograph' }).waitFor();
+    expectedNetwork = false;
+    assert.equal(photoRows('verified'), '1');
+    assert.equal(photoRows('all'), '1', 'every retry reused the one reservation');
+    pass('Simple M4a: Dave records a daywork from his dashboard with people, plant and materials, sends it, and records the client representative\'s signature; a failed photo upload and a failed verification save nothing and leave the daywork sent, and a retry stores one verified photograph');
+
+    const record = `${site}/dayworks/${dayworkId}`;
+    await manager.goto(record);
+    const decision = manager.getByRole('region', { name: 'Office decision', exact: true });
+    await decision.getByRole('button', { name: 'Save decision', exact: true }).click();
+    await manager.locator('[data-status="office"]').getByText('Approved by the office', { exact: true }).waitFor();
+    assert.equal(await manager.getByRole('region', { name: 'Charge', exact: true }).count(), 0, 'an office user without money access sees no charge');
+    assert.doesNotMatch(await manager.locator('main').innerText(), /£/);
+    const client = manager.getByRole('region', { name: 'Client authorisation', exact: true });
+    await client.getByText('Record the client\'s decision', { exact: true }).click();
+    await client.locator('input[name=client_name]').fill('Pat Client');
+    await client.locator('input[name=reference]').fill('CVI-7');
+    await client.getByRole('button', { name: 'Save the client\'s decision', exact: true }).click();
+    await manager.locator('[data-status="client"]').getByText('Client authorised the cost', { exact: true }).waitFor();
+    assert.equal(sql(`select reference from public.daywork_client_authorisations where daywork_id='${dayworkId}'`), 'CVI-7');
+
+    const owner = await account(emails.owner, { width: 1180, height: 820 });
+    for (const [category, item, unit, rateValue, shown] of [['operative', 'Tiler', 'hour', '30', 'Operative: Tiler'], ['plant', 'Wet saw', 'day', '85', 'Plant: Wet saw'],
+      ['material', 'Adhesive', 'bag', '12.50', 'Material: Adhesive']]) {
+      // A distinct address each time: the same address with the same #fragment would only scroll.
+      await owner.goto(`${origin}/admin/contracts/${contractId}?rate=${encodeURIComponent(item)}#daywork-rates`);
+      const rates = owner.getByRole('region', { name: 'Daywork rates', exact: true });
+      if (!await rates.locator('details[open] select[name=category]').count()) await rates.getByText('Add a rate', { exact: true }).click();
+      await rates.locator('select[name=category]').selectOption(category);
+      await rates.locator('input[name=item]').fill(item);
+      await rates.locator('select[name=unit]').selectOption(unit);
+      await rates.locator('input[name=rate]').last().fill(rateValue);
+      await rates.getByRole('button', { name: 'Add rate', exact: true }).click();
+      // The saved rate is listed; the add form folds away once the job has rates.
+      await rates.locator('li').filter({ hasText: shown }).waitFor();
+    }
+    assert.equal(sql(`select count(*) from public.contract_daywork_rates where contract_id='${contractId}'`), '3');
+    await owner.goto(record);
+    const charge = owner.getByRole('region', { name: 'Charge', exact: true });
+    await charge.getByRole('button', { name: 'Price it', exact: true }).click();
+    await owner.locator('[data-daywork-total]').getByText('Total £347.50', { exact: false }).waitFor();
+    await owner.getByRole('region', { name: 'Charge', exact: true }).getByRole('button', { name: 'Approve the charge internally', exact: true }).click();
+    await owner.locator('[data-charge-approved]').waitFor();
+    assert.equal(sql(`select total from public.daywork_pricings where daywork_id='${dayworkId}'`), '347.50');
+    assert.equal(sql(`select commercial_status||':'||client_status||':'||signoff_status from public.dayworks where id='${dayworkId}'`), 'commercially_approved:authorised:signed');
+    await owner.goto(`${origin}/admin/contracts/${contractId}#daywork-rates`);
+    const tiler = owner.getByRole('region', { name: 'Daywork rates', exact: true }).locator('li').filter({ hasText: 'Operative: Tiler' });
+    await tiler.getByText('Change or retire', { exact: true }).click();
+    await tiler.locator('input[name=rate]').fill('35');
+    await tiler.getByRole('button', { name: 'Save rate', exact: true }).click();
+    await owner.getByRole('region', { name: 'Daywork rates', exact: true }).locator('li').filter({ hasText: 'Operative: Tiler · £35.00 per hour' }).waitFor();
+    assert.equal(sql(`select string_agg(rate::text,',' order by rate) from public.daywork_pricing_lines l join public.daywork_pricings p on p.id=l.pricing_id where p.daywork_id='${dayworkId}'`), '12.50,30.00,85.00',
+      'a later rate change leaves the approved price exactly as it was');
+    pass('Simple M4b: the office approves the daywork and records the client\'s authorisation; only the owner (money access) sets rates, prices it and approves the charge, which keeps its rates after a change');
+
+    await page.goto(record);
+    await page.locator('[data-status="charge"]').getByText('Charge approved internally by TileSPEC', { exact: true }).waitFor();
+    await page.locator('[data-status="client"]').getByText('Client authorised the cost', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('region', { name: 'Charge', exact: true }).count(), 0);
+    assert.doesNotMatch(await page.locator('main').innerText(), /£|347|12\.50|85\.00/, 'the supervisor never sees a rate, price or total');
+    pass('Simple M4c: Dave sees the office, signature, charge and client statuses separately, with no rate, price or total');
+
     await page.goto(site);
     await page.getByRole('link', { name: 'STOP WORK', exact: true }).click();
     await page.waitForURL(url => url.pathname === '/admin/holds/new' && url.searchParams.get('contract') === contractId);
@@ -369,20 +482,22 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await officeHandover.getByText(notes.work_completed, { exact: true }).waitFor();
     pass('Simple J/M: five short handover notes persist for the office and finish existing workforce periods; null HTTP 200 and lost replies cannot show false success or duplicate the handover');
 
-    // Variations and dayworks stay reachable from the job's secondary links, clearly marked as not
-    // built, with no form or button that could look like a saved record.
+    // Variations stay reachable from the job's secondary links, clearly marked as not built, with no
+    // form or button that could look like a saved record. Dayworks, now installed here, lead to the
+    // job's real list (before their migration they show the same "Not built yet" page).
     await page.goto(site);
     await page.getByText('Site details and earlier records', { exact: true }).click();
-    for (const [label, kind] of [['Variations (not built yet)', 'variations'], ['Dayworks (not built yet)', 'dayworks']]) {
+    for (const [label, kind] of [['Variations (not built yet)', 'variations'], ['Dayworks: record extra work', 'dayworks']]) {
       assert.equal(await page.getByRole('link', { name: label, exact: true }).getAttribute('href'), `/admin/supervisor/sites/${contractId}/commercial?kind=${kind}`);
     }
-    for (const kind of ['variations', 'dayworks']) {
-      await page.goto(`${site}/commercial?kind=${kind}`);
-      await page.getByText('Not built yet. Nothing on this page is saved.', { exact: true }).waitFor();
-      await page.getByText('New backend, awaiting approval.', { exact: false }).waitFor();
-      assert.equal(await page.locator('main form').count(), 0, `${kind} has no recording form`);
-      assert.equal(await page.locator('main button').count(), 0, `${kind} has no submit button`);
-    }
+    await page.goto(`${site}/commercial?kind=variations`);
+    await page.getByText('Not built yet. Nothing on this page is saved.', { exact: true }).waitFor();
+    await page.getByText('New backend, awaiting approval.', { exact: false }).waitFor();
+    assert.equal(await page.locator('main form').count(), 0, 'variations has no recording form');
+    assert.equal(await page.locator('main button').count(), 0, 'variations has no submit button');
+    await page.goto(`${site}/commercial?kind=dayworks`);
+    await page.getByRole('region', { name: 'Dayworks on this job', exact: true }).getByText('Tile the bin store wall for the main contractor', { exact: true }).waitFor();
+    assert.equal(await page.getByText('Not built yet', { exact: false }).count(), 0, 'installed dayworks are not presented as unbuilt');
     const other = await account(emails.other);
     for (const path of ['/messages', `/tasks/${taskId}`, '/finish']) assert.equal((await other.goto(`${site}${path}`)).status(), 404);
     const hidden = await rest(emails.other, `supervisor_office_items?id=eq.${taskId}`);

@@ -18,6 +18,7 @@ export function actionHref(a: Pick<NextAction, "route">, siteBase: string): stri
     case "handover": return `${siteBase}/finish`;
     case "handover-review": return `${siteBase}/messages?handover=${r.id}#handover-${r.id}`;
     case "thread": return `${siteBase}/messages?thread=${r.id}#thread-${r.id}`;
+    case "daywork": return `${siteBase}/dayworks/${r.id}`;
     case "job": return `/admin/contracts/${r.id}`;
     case "labour": return "/admin/workforce";
     case "money": return "/admin/money";
@@ -69,5 +70,6 @@ export function hrefIsExistingForm(href: string, siteBase: string): boolean {
     /^\/admin\/money$/,
     new RegExp(`^${esc}/(checks|workforce|inspections|messages|finish)$`),
     new RegExp(`^${esc}/tasks/[^/]+$`),
+    new RegExp(`^${esc}/dayworks/[^/]+$`),
   ].some(re => re.test(path));
 }

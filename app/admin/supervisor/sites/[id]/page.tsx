@@ -6,6 +6,7 @@ import { insuranceSummary } from "@/lib/operations/companies";
 import { insuranceTypeLabels } from "@/lib/operations/types";
 import { outstandingQa, threadState, threadsFrom, unacknowledgedInstructions } from "@/lib/operations/daily";
 import { supervisorDailyFor } from "@/lib/operations/daily-data";
+import { dayworksAvailable } from "@/lib/operations/daywork-data";
 import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
 import { buildSiteDay } from "@/lib/operations/site-day";
 import { WorkReleaseList } from "@/components/site/work-release-list";
@@ -33,12 +34,12 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   const issuesHref = `${base}/snags`;
   const fullRegisterHref = `/admin/snags?contract_id=${id}`;
   const holdsHref = `/admin/holds?contract_id=${id}`;
-  const [{ records, stale }, status, cover, details, documents, snagResult, quality, daily] = await Promise.all([
+  const [{ records, stale }, status, cover, details, documents, snagResult, quality, daily, dayworks] = await Promise.all([
     siteDayFor(supabase, id, day), siteStatusFor(supabase, id, day), companyRecordsFor(supabase),
     supabase.from("contracts").select("client,site_contact,scope,exclusions,tile_specification,installation_system,access_restrictions,working_hours").eq("id", id).maybeSingle(),
     supabase.from("document_revisions").select("id,title,document_reference,revision").eq("contract_id", id).eq("classification", "operational").not("uploaded_at", "is", null),
     supabase.rpc("snag_register", { p_filters: { contract_id: id }, p_page: 0 }),
-    qualityOverviewFor(supabase, { contract_id: id }), supervisorDailyFor(supabase, id),
+    qualityOverviewFor(supabase, { contract_id: id }), supervisorDailyFor(supabase, id), dayworksAvailable(supabase),
   ]);
   checkDatabase(details.error);
   checkDatabase(documents.error);
@@ -172,7 +173,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
         <Link href={`${base}/history`}>Workforce history</Link>
         <Link href={`${base}/checks`}>Earlier morning checks</Link>
         <Link href={`${base}/commercial?kind=variations`}>Variations (not built yet)</Link>
-        <Link href={`${base}/commercial?kind=dayworks`}>Dayworks (not built yet)</Link>
+        <Link href={`${base}/commercial?kind=dayworks`}>{dayworks ? "Dayworks: record extra work" : "Dayworks (not built yet)"}</Link>
         <Link href="/admin/supervisor">Choose another site</Link>
       </div>
       {coverWarnings.length > 0 && <><h2>Insurance to check with the office</h2><ul>{coverWarnings.map(text => <li key={text}>{text}</li>)}</ul></>}

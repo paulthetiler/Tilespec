@@ -6,7 +6,7 @@ import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import type { Member } from "../lib/auth";
-import { buildQueue, compute, queueCounts, type NextActionSnapshot, type Viewer } from "../lib/operations/next-actions";
+import { buildQueue, compute, queueCounts, withoutFigures, type NextActionSnapshot, type Viewer } from "../lib/operations/next-actions";
 
 const root = path.resolve(__dirname, "..");
 const today = "2026-10-16";
@@ -62,7 +62,7 @@ test("Office Today renders every non-financial engine task exactly once, includi
   // top-twenty queue limit. These fixtures stay entirely inside the test.
   s.contracts.push(...Array.from({ length: 24 }, (_, index) => ({ ...s.contracts[0], id: `job-${index}`, reference: `JOB-${index}`, name: `Saved job ${index}` })));
   s.contract_assignments.push(...s.contracts.slice(1).map(contract => ({ contract_id: contract.id, user_id: office.user_id })));
-  const expected = compute(s, viewerFor(office)).filter(action => !action.financial && action.process !== "money");
+  const expected = withoutFigures(compute(s, viewerFor(office)));
   const q = buildQueue(expected);
   assert.ok(q.then.length > 20);
   const html = await render(s, office);
@@ -82,7 +82,7 @@ test("Office Today renders every non-financial engine task exactly once, includi
 test("owner Today separates an independent decision from blocked problems and never offers the blocked decision", async () => {
   const s = snapshot();
   const html = await render(s, owner);
-  const expected = compute(s, viewerFor(owner)).filter(action => !action.financial && action.process !== "money");
+  const expected = withoutFigures(compute(s, viewerFor(owner)));
   assert.deepEqual(actionIds(html).sort(), expected.map(action => action.id).sort());
   assert.match(html, /Your attention today/);
   assert.match(html, /Do this next/);
@@ -122,6 +122,17 @@ test("Today never renders financial figures and Money links follow the authentic
     assert.ok(!/987.?654.?321|Budget margin|budgeted profit|margin:job|£/.test(html));
     assert.equal(html.includes('href="/admin/money"'), member.role === "owner" || member.financial_access);
   }
+});
+
+test("daywork money actions reach Office Today only with money access, and never with a figure", async () => {
+  const s = snapshot();
+  s.dayworks = [{ id: "dw", contract_id: "job", number: 4, description: "Tile the bin store wall", created_by: "supervisor", site_status: "sent", office_status: "approved",
+    signoff_status: "signed", commercial_status: "awaiting_pricing", client_status: "not_authorised", submitted_by: ["supervisor"] }];
+  const money = await render(s, { ...office, financial_access: true }), noMoney = await render(s, office);
+  assert.ok(actionIds(money).includes("daywork-price:dw"), "the office user with money access is asked to price it");
+  assert.ok(!actionIds(noMoney).includes("daywork-price:dw"), "the office user without money access is not");
+  assert.ok(actionIds(noMoney).includes("daywork-client:dw"), "both record the client's decision");
+  for (const html of [money, noMoney]) assert.ok(!/£|987.?654.?321|Budget margin/.test(html));
 });
 
 test("a remaining restriction is never described as cleared when there are no owner actions", async () => {

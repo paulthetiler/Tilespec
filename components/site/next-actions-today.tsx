@@ -139,9 +139,10 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
             <Link className={styles.row} href={`${base}/messages`}><strong>Office messages</strong><span>Instructions and requests</span></Link>
             <Link className={styles.row} href={`${base}/finish`}><strong>Finish today</strong><span>Send the handover</span></Link>
             <Link className={styles.row} href={`${base}/activity`}><strong>Job activity</strong><span>Everything you and the office have recorded, newest first</span></Link>
-            {/* Essential commercial records with no backend yet: reachable, never presented as working. */}
+            {/* Essential commercial records: reachable, and never presented as working before their migration is applied. */}
             <Link className={styles.row} href={`${base}/commercial?kind=variations`}><strong>Variations</strong><span>Changes to the agreed work</span><span className={styles.chips}><span className={styles.chip}>Not built yet</span></span></Link>
-            <Link className={styles.row} href={`${base}/commercial?kind=dayworks`}><strong>Dayworks</strong><span>Extra work on day rates</span><span className={styles.chips}><span className={styles.chip}>Not built yet</span></span></Link>
+            {snapshot.dayworks ? <Link className={styles.row} href={`${base}/commercial?kind=dayworks`}><strong>Dayworks</strong><span>Record extra work paid by the hour, and follow it</span></Link>
+              : <Link className={styles.row} href={`${base}/commercial?kind=dayworks`}><strong>Dayworks</strong><span>Extra work on day rates</span><span className={styles.chips}><span className={styles.chip}>Not built yet</span></span></Link>}
           </div>
         </section>
         <section className={styles.section} aria-label="Drawings and documents">

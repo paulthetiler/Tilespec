@@ -498,6 +498,42 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
     for (const line of [/Sid Supervisor asked the office: “Can the skip be moved to the rear gate on Friday\?”/, /You replied: “Yes\. I have told the main contractor\.”/]) assert.match(conversationStory, line);
     assert.deepEqual(errors, [], 'no unhandled authenticated browser errors');
     pass('Phase 4 M1: a question from site is an Office Today action that opens the conversation; the office reply is saved once, completes the action and is shown in Job activity');
+
+    // M4 (approved by the owner): a daywork sent from site is reviewed from Office Today; pricing and the
+    // internal charge approval are offered only to money access; the client's decision is the office's.
+    const workDay = sql('select private.site_today()');
+    const daywork = await rpc(email.supervisor, 'create_daywork', { p_request_key: randomUUID(), p_data: { contract_id: contract,
+      description: 'Phase 4 bin store wall', instructed_by_name: 'Sam Site', lines: [{ kind: 'labour', label: 'Sid Supervisor', role: 'supervisor', work_date: workDay, quantity: 2 }] } });
+    await rpc(email.supervisor, 'send_daywork', { p_daywork: daywork, p_request_key: randomUUID(), p_version: 1 });
+    await office.goto(`${origin}/admin`);
+    const reviewDaywork = office.locator(`[data-action-id="daywork-review:${daywork}"]`);
+    await reviewDaywork.getByText('Review daywork DW-1: Phase 4 bin store wall', { exact: true }).waitFor();
+    assert.equal(await office.locator(`[data-action-id="daywork-price:${daywork}"]`).count(), 0, 'an office user without money access is not asked to price');
+    await reviewDaywork.getByRole('link').last().click();
+    await office.waitForURL(url => url.pathname === `${site}/dayworks/${daywork}`);
+    await office.getByRole('region', { name: 'Office decision', exact: true }).getByRole('button', { name: 'Save decision', exact: true }).click();
+    await office.locator('[data-status="office"]').getByText('Approved by the office', { exact: true }).waitFor();
+    await finance.goto(`${origin}/admin`);
+    const priceDaywork = finance.locator(`[data-action-id="daywork-price:${daywork}"]`);
+    await priceDaywork.getByText('Price daywork DW-1', { exact: true }).waitFor();
+    await rpc(email.finance, 'save_daywork_rate', { p_request_key: randomUUID(), p_data: { contract_id: contract, category: 'supervisor', item: 'Supervisor', rate: 40 } });
+    await priceDaywork.getByRole('link').last().click();
+    await finance.waitForURL(url => url.pathname === `${site}/dayworks/${daywork}`);
+    await finance.getByRole('region', { name: 'Charge', exact: true }).getByRole('button', { name: 'Price it', exact: true }).click();
+    await finance.locator('[data-daywork-total]').getByText('Total £80.00', { exact: false }).waitFor();
+    await finance.goto(`${origin}/admin`);
+    await finance.locator(`[data-action-id="daywork-charge:${daywork}"]`).getByText('Approve the charge for daywork DW-1', { exact: true }).waitFor();
+    await office.goto(`${origin}/admin`);
+    await office.getByRole('heading', { name: 'Today', exact: true }).waitFor();
+    assert.equal(await office.locator(`[data-action-id="daywork-charge:${daywork}"]`).count(), 0, 'the internal charge approval is a money action');
+    await office.locator(`[data-action-id="daywork-client:${daywork}"]`).getByText('Record the client\'s decision on daywork DW-1', { exact: true }).waitFor();
+    await office.goto(`${origin}${site}/activity`);
+    await office.getByRole('heading', { name: 'Job activity', exact: true }).waitFor();
+    const dayworkStory = (await office.locator('main ol').allInnerTexts()).join('\n');
+    for (const line of [/Sid Supervisor recorded daywork DW-1/, /Sid Supervisor sent DW-1 to the office/, /You approved DW-1/, /Faye Finance priced DW-1/]) assert.match(dayworkStory, line);
+    assert.doesNotMatch(dayworkStory, /£/, 'Job activity never shows money');
+    assert.deepEqual(errors, [], 'no unhandled authenticated browser errors');
+    pass('Phase 4 M4: a daywork from site is an Office Today review; only money access is asked to price it and approve the charge; the client decision stays with the office; Job activity tells each step without money');
   } catch (error) {
     for (const context of contexts) for (const page of context.pages()) {
       console.error(`Phase 3 page: ${page.url()}\n${(await page.locator('body').innerText({ timeout: 5000 }).catch(() => '(unreadable)')).slice(0, 7000)}`);

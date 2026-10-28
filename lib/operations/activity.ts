@@ -1,9 +1,11 @@
 /*
  * Job Activity: one chronological story of a job, built only from records that are already
  * saved (snag and stop events, office messages, acknowledgements, inspection results,
- * handovers, questions and replies, morning checks, inspections, plans and documents). Pure: no I/O, no writes.
+ * handovers, questions and replies, dayworks, morning checks, inspections, plans and documents). Pure: no I/O, no writes.
  * Each line says who did what, in plain English, and links to the saved record.
  */
+import { eventLine } from "./dayworks";
+
 export type ActivityEntry = {
   id: string;
   at: string;
@@ -28,6 +30,9 @@ export type ActivitySources = {
   /** Empty until job messages are installed. `about` says, in words, what the conversation is about. */
   jobMessages?: { id: string; thread_id: string; author_id: string; author_name: string; author_side: string; body: string; needs_answer: boolean; created_at: string;
     about: string | null }[];
+  /** Empty until dayworks are installed. Each step of a daywork; never any money. */
+  dayworkEvents?: { id: string | number; daywork_id: string; actor_id: string; actor_name: string; action: string; note: string | null; owner_override: boolean;
+    created_at: string; number: number | null; description: string | null }[];
   acknowledgements: { id: string; item_id: string; actor_id: string; acknowledged_at: string }[];
   results: { id: string; item_id: string; submitted_by: string; submitted_at: string; has_issues: boolean }[];
   handovers: { id: string; actor_id: string; actor_name: string; created_at: string; outstanding_problems: string; areas_awaiting_attention: string; office_notes: string; work_completed: string }[];
@@ -110,6 +115,12 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
       what: j.thread_id !== j.id ? `replied: ${line}` : `${j.needs_answer ? "asked" : "messaged"} the office: ${line}`,
       detail: [j.about, j.needs_answer ? "Needs an answer" : null].filter(Boolean).join(" · ") || undefined,
       href: `${siteBase}/messages?thread=${j.thread_id}#thread-${j.thread_id}` });
+  }
+  for (const d of src.dayworkEvents ?? []) {
+    const reference = d.number ? `DW-${d.number}` : "a daywork";
+    entries.push({ id: `daywork-event:${d.id}`, at: d.created_at, who: person(d.actor_id, d.actor_name), what: eventLine(d, reference),
+      detail: (d.action === "request_detail" || d.action === "reject" || d.owner_override) && d.note ? brief(d.note) : d.action === "record" && d.description ? brief(d.description) : undefined,
+      href: `${siteBase}/dayworks/${d.daywork_id}`, tone: d.action === "reject" ? "problem" : d.action === "approve" ? "done" : undefined });
   }
   for (const a of src.acknowledgements) {
     const m = message.get(a.item_id);

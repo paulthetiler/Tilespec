@@ -12,6 +12,7 @@ export const CTA: Record<string, string> = {
   R05: "Read it", R06: "Review handover", R07: "Chase now", R08: "Set it up", R09: "Publish checks", R10: "Give access", R11: "Update cover",
   R13: "Choose who fixes it", R14: "See the budget", R15: "Respond", R16: "Start inspection", R17: "Review morning finding",
   R18: "Review the result", R19: "Read and review", R20: "Reply", R21: "Open",
+  R22: "Review", R23: "Send", R24: "Add detail", R25: "Record signature", R26: "Price it", R27: "Approve charge", R28: "Record decision",
 };
 export const ctaLabel = (a: Pick<NextAction, "rule">) => CTA[a.rule] ?? "Open";
 

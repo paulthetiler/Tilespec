@@ -112,7 +112,7 @@ export async function loadOfficeSnapshot(
   const updatesSince = addDays(today, -(config.siteUpdateDays - 1));
   const [areas, packages, packageAssignments, companies, insurance, teams, operatives, memberships,
     plans, actualToday, actualEarlier, absences, checks, templates, requirements, inspections, snags, readinessIssues, holds,
-    items, acknowledgements, submissions, handovers, documents, handoverNotes, reviews, withdrawals, messages, messageReads] = await Promise.all([
+    items, acknowledgements, submissions, handovers, documents, handoverNotes, reviews, withdrawals, messages, messageReads, dayworks, dayworkSubmissions] = await Promise.all([
     rows("work_areas", "id,contract_id,name,parent_id,path_ids", scope),
     rows("work_packages", "id,contract_id,name", scope),
     rows("package_assignments", "contract_id,work_package_id,user_id", { ...scope, order: ["work_package_id", "user_id"] }),
@@ -147,6 +147,9 @@ export async function loadOfficeSnapshot(
     // Questions and replies arrive with their own migration; until then there are none.
     optionalRows("job_messages", "id,contract_id,thread_id,site_user_id,author_id,author_name,author_side,body,needs_answer,about_type,about_id,created_at,request_key", { ...scope, order: ["created_at", "id"] }),
     optionalRows("job_message_reads", "id,message_id,reader_id,read_at", scope),
+    // Dayworks arrive with their own migration. Statuses only: rates and prices are never read here.
+    optionalRows("dayworks", "id,contract_id,number,description,created_by,site_status,office_status,signoff_status,commercial_status,client_status", scope),
+    optionalRows("daywork_events", "id,daywork_id,actor_id,action", { ...scope, oneOf: { action: ["record", "update_lines", "send"] } }),
   ]);
   // Both arrive with one migration. Until it is applied, results and handovers stay in "From site".
   const followUp = reviews !== null && withdrawals !== null;
@@ -167,6 +170,7 @@ export async function loadOfficeSnapshot(
   for (const row of handoverNotes) lookups.handovers.set(String(row.id), { work_date: String(row.work_date), actor_name: String(row.actor_name) });
   for (const row of snags) lookups.snags.set(String(row.id), String(row.check_label));
   for (const row of holds) lookups.holds.set(String(row.id), `${row.hold_type === "safety" ? "Safety stop" : "Quality hold"}, ${row.category}`);
+  for (const row of dayworks ?? []) lookups.dayworks.set(String(row.id), { number: Number(row.number), description: String(row.description) });
   const currentTemplates = currentRows(templates as unknown as (InspectionTemplate & { contract_id: string; stage: InstallationStageKey })[]);
   const currentTemplateIds = new Set(currentTemplates.map(template => template.id));
   const stageByTemplate = new Map(templates.map(template => [String(template.id), template.stage as InstallationStageKey] as const));
@@ -222,6 +226,9 @@ export async function loadOfficeSnapshot(
       office_item_withdrawals: withdrawals!.map(row => ({ item_id: String(row.item_id) })),
     } : {}),
     ...(conversations ? { job_threads: jobThreadRows(threads, lookups) } : {}),
+    ...(dayworks && dayworkSubmissions ? { dayworks: dayworks.map(row => ({ ...(row as unknown as Omit<NonNullable<NextActionSnapshot["dayworks"]>[number], "submitted_by">),
+      number: Number(row.number),
+      submitted_by: [...new Set(dayworkSubmissions.filter(event => event.daywork_id === row.id).map(event => String(event.actor_id)))] })) } : {}),
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: financial } };
 }

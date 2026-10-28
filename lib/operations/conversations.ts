@@ -9,8 +9,9 @@ export type AboutLookups = {
   handovers: Map<string, { work_date: string; actor_name: string }>;
   snags: Map<string, string>;
   holds: Map<string, string>;
+  dayworks: Map<string, { number: number; description: string }>;
 };
-export const emptyLookups = (): AboutLookups => ({ items: new Map(), results: new Map(), handovers: new Map(), snags: new Map(), holds: new Map() });
+export const emptyLookups = (): AboutLookups => ({ items: new Map(), results: new Map(), handovers: new Map(), snags: new Map(), holds: new Map(), dayworks: new Map() });
 
 export function aboutLabel(type: AboutType, id: string | null, lookups: AboutLookups): string {
   switch (type) {
@@ -28,6 +29,10 @@ export function aboutLabel(type: AboutType, id: string | null, lookups: AboutLoo
       const handover = id ? lookups.handovers.get(id) : undefined;
       return handover ? `About ${handover.actor_name}’s handover of ${dayLabel(handover.work_date)}` : "About a handover";
     }
+    case "daywork": {
+      const daywork = id ? lookups.dayworks.get(id) : undefined;
+      return daywork ? `About daywork DW-${daywork.number}: ${daywork.description.length > 60 ? `${daywork.description.slice(0, 59).trimEnd()}…` : daywork.description}` : "About a daywork";
+    }
     default: return "About the job";
   }
 }
@@ -41,6 +46,7 @@ export function aboutHref(type: AboutType, id: string | null, lookups: AboutLook
     case "office_item": return lookups.items.get(id)?.kind === "qa_request" ? `${siteBase}/tasks/${id}` : `${siteBase}/messages#message-${id}`;
     case "qa_result": { const item = lookups.results.get(id)?.item_id; return item ? `${siteBase}/tasks/${item}` : null; }
     case "handover": return office ? `${siteBase}/messages?handover=${id}#handover-${id}` : `${siteBase}/finish`;
+    case "daywork": return `${siteBase}/dayworks/${id}`;
     default: return null;
   }
 }
