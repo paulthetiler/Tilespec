@@ -64,6 +64,8 @@ try {
   await write('app/admin/supervisor/site-access.ts', `import {requireActor} from "@/lib/auth";import {contract} from "@/tests/next-actions-ui/fixtures";export async function requireSite(id:string){return {...await requireActor(),contract:id===contract.id?contract:null}}`);
   await write('lib/operations/next-actions/snapshot-data.ts', 'import {snapshotFor,member} from "@/tests/next-actions-ui/fixtures";export async function loadSiteSnapshot(client:{fixtureHeld?:boolean}){return {snapshot:snapshotFor(client.fixtureHeld),viewer:member}}');
   await write('lib/operations/quality-data.ts', 'export async function qualityOverviewFor(){return {work_statuses:[],work_statuses_truncated:false}}');
+  // The synthetic job has no dayworks migration applied, so every daywork read reports "not installed".
+  await write('lib/operations/daywork-data.ts', 'export async function dayworksAvailable(){return false}export async function dayworksFor(){return null}export async function dayworkMoneyFor(){return null}export async function rateItemsFor(){return []}');
   await write('lib/operations/data.ts', 'export function checkDatabase(error:unknown){if(error)throw error}');
   await write('app/admin/supervisor/sites/[id]/page.tsx', `import {NextActionsToday} from "@/components/site/next-actions-today";import {fixtureClient,member,contract} from "@/tests/next-actions-ui/fixtures";export default async function Page({searchParams}:{searchParams:Promise<{held?:string}>}){return <NextActionsToday supabase={fixtureClient((await searchParams).held==="1")} member={member} contract={contract} changeSite/>} `);
   await write('app/admin/fixture-navigation/page.tsx', 'export default function Page(){return <h1>Read-only role navigation fixture</h1>}');
