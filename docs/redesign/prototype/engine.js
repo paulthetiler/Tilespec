@@ -893,6 +893,58 @@ var TSEngine = (() => {
       };
     });
   });
+  var oneLine = (text, length = 80) => briefly(text.trim().split(/\n/)[0], length);
+  rule("R20_reply_to_site", ({ s, L }) => {
+    var _a;
+    return ((_a = s.job_threads) != null ? _a : []).filter((t) => t.waiting_on === "office").map((t) => ({
+      id: `thread-reply:${t.id}`,
+      rule: "R20",
+      process: "daily-site",
+      kind: "reminder",
+      priority: 2,
+      order: 9.6,
+      job: L.job(t.contract_id),
+      location: null,
+      responsible: OFFICE,
+      title: `Reply to ${t.latest.author_name}: ${oneLine(t.latest.body)}`,
+      why: `${t.about}. ${t.latest.author_name} needs an answer.`,
+      due: null,
+      requires: ["Your reply"],
+      doneWhen: "A reply is saved on the conversation",
+      next: `${t.latest.author_name} sees your reply on Today`,
+      audience: { office: "act", owner: "act" },
+      blocks: null,
+      enforcedByBackend: false,
+      source: { table: "job_messages", id: t.latest.id },
+      route: { screen: "thread", id: t.id }
+    }));
+  });
+  rule("R21_reply_from_office", ({ s, L }) => {
+    var _a;
+    return ((_a = s.job_threads) != null ? _a : []).filter((t) => t.waiting_on === "site").map((t) => ({
+      id: `thread-read:${t.id}`,
+      rule: "R21",
+      process: "daily-site",
+      kind: "reminder",
+      priority: 2,
+      order: 9.6,
+      job: L.job(t.contract_id),
+      location: null,
+      responsible: { role: "supervisor", who: L.person(t.site_user_id), label: "Site supervisor" },
+      title: `${t.latest.needs_answer ? "Answer" : "Reply from"} ${t.latest.author_name}: ${oneLine(t.latest.body)}`,
+      why: `${t.about}.${t.latest.needs_answer ? " The office needs your answer." : ""}`,
+      due: null,
+      requires: t.latest.needs_answer ? ["Your reply"] : ["Read it", "Tap Got it, or reply"],
+      doneWhen: t.latest.needs_answer ? "You reply on the conversation" : "You tap Got it or reply",
+      next: "The office sees you have seen it",
+      audience: { supervisor: "act" },
+      actUsers: [t.site_user_id],
+      blocks: null,
+      enforcedByBackend: false,
+      source: { table: "job_messages", id: t.latest.id },
+      route: { screen: "thread", id: t.id }
+    }));
+  });
   var handoverAuthors = (s, contractId) => s.site_handovers.filter((h) => h.contract_id === contractId && h.work_date === s.today).map((h) => h.actor_id).filter((id) => !!id);
   rule("R06_handover", (c) => c.s.contracts.filter((k) => workToday(c.s, k.id) && !everyoneCompleted(c.s, k.id, handoverAuthors(c.s, k.id))).map((k) => {
     const t = c.timingsFor(k.id);
@@ -1222,7 +1274,9 @@ var TSEngine = (() => {
     R16: "Start inspection",
     R17: "Review morning finding",
     R18: "Review the result",
-    R19: "Read and review"
+    R19: "Read and review",
+    R20: "Reply",
+    R21: "Open"
   };
   var ctaLabel = (a) => {
     var _a;
@@ -1331,6 +1385,8 @@ var TSEngine = (() => {
         return `${siteBase}/finish`;
       case "handover-review":
         return `${siteBase}/messages?handover=${r.id}#handover-${r.id}`;
+      case "thread":
+        return `${siteBase}/messages?thread=${r.id}#thread-${r.id}`;
       case "job":
         return `/admin/contracts/${r.id}`;
       case "labour":

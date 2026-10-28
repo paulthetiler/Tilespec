@@ -139,8 +139,21 @@ export interface NextActionSnapshot {
    */
   office_reviews?: OfficeReviewRow[];
   office_item_withdrawals?: { item_id: string }[];
+  /** Present only once job messages are installed. Absent means questions and replies are not available. */
+  job_threads?: JobThreadRow[];
 }
 export interface OfficeReviewRow { qa_submission_id: string | null; handover_id: string | null }
+/**
+ * A conversation between a supervisor and the office about the job or one record. The loader
+ * works out who it waits on from the saved messages and read receipts.
+ */
+export interface JobThreadRow {
+  id: string; contract_id: string; site_user_id: string;
+  /** What it is about, in words ("About the snag: Lippage"). */
+  about: string;
+  latest: { id: string; author_side: "office" | "site"; author_name: string; body: string; needs_answer: boolean; created_at: string };
+  waiting_on: "office" | "site" | null;
+}
 
 export interface Viewer { user_id: string; role: MemberRole; financial_access: boolean }
 

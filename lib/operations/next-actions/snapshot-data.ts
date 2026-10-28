@@ -2,6 +2,9 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkDatabase, companyRecordsFor, siteDayFor, siteStatusFor } from "../data";
 import { supervisorDailyFor, siteSupervisorsFor } from "../daily-data";
+import { threadsFrom } from "../daily";
+import { aboutLookupsFor } from "../conversation-data";
+import { jobThreadRows } from "../conversations";
 import { londonClock, londonDate } from "../planning";
 import { applicableChecks, type InspectionTemplate, type LocationInspection } from "../inspections";
 import { addDays } from "./lookups";
@@ -78,6 +81,10 @@ export async function loadSiteSnapshot(
     for (const key of ["raised_by", "corrected_by", "rectified_by", "inspector_id"]) if (typeof row[key] === "string" && !people.has(row[key] as string)) people.set(row[key] as string, nameOf(row[key] as string));
   for (const item of items) if (!people.has(item.created_by)) people.set(item.created_by, item.created_by_name);
 
+  // Questions and replies, once job messages are installed. The supervisor only ever reads their own.
+  const threads = daily?.conversations ? threadsFrom(daily.messages, daily.messageReads) : [];
+  const threadRows = daily?.conversations ? jobThreadRows(threads, await aboutLookupsFor(supabase, daily, threads)) : null;
+
   const supervisorIds = new Set(supervisors.map(p => p.user_id));
   if (member.role === "supervisor") supervisorIds.add(member.user_id);
   const snapshot: NextActionSnapshot = {
@@ -125,6 +132,7 @@ export async function loadSiteSnapshot(
       office_reviews: daily.reviews.map(r => ({ qa_submission_id: r.qa_submission_id, handover_id: r.handover_id })),
       office_item_withdrawals: daily.withdrawals.map(w => ({ item_id: w.item_id })),
     } : {}),
+    ...(threadRows ? { job_threads: threadRows } : {}),
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: member.financial_access } };
 }

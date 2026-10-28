@@ -1,7 +1,7 @@
 /*
  * Job Activity: one chronological story of a job, built only from records that are already
  * saved (snag and stop events, office messages, acknowledgements, inspection results,
- * handovers, morning checks, inspections, plans and documents). Pure: no I/O, no writes.
+ * handovers, questions and replies, morning checks, inspections, plans and documents). Pure: no I/O, no writes.
  * Each line says who did what, in plain English, and links to the saved record.
  */
 export type ActivityEntry = {
@@ -25,6 +25,9 @@ export type ActivitySources = {
   /** Empty until office reviews and instruction changes are installed. */
   withdrawals?: { id: string; item_id: string; reason: string; withdrawn_by: string; withdrawn_by_name: string; withdrawn_at: string }[];
   reviews?: { id: string; qa_submission_id: string | null; handover_id: string | null; outcome: string; note: string; reviewed_by: string; reviewed_by_name: string; reviewed_at: string }[];
+  /** Empty until job messages are installed. `about` says, in words, what the conversation is about. */
+  jobMessages?: { id: string; thread_id: string; author_id: string; author_name: string; author_side: string; body: string; needs_answer: boolean; created_at: string;
+    about: string | null }[];
   acknowledgements: { id: string; item_id: string; actor_id: string; acknowledged_at: string }[];
   results: { id: string; item_id: string; submitted_by: string; submitted_at: string; has_issues: boolean }[];
   handovers: { id: string; actor_id: string; actor_name: string; created_at: string; outstanding_problems: string; areas_awaiting_attention: string; office_notes: string; work_completed: string }[];
@@ -100,6 +103,13 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
     entries.push({ id: `withdrawal:${w.id}`, at: w.withdrawn_at, who: person(w.withdrawn_by, w.withdrawn_by_name, "Office"),
       what: `withdrew ${m?.kind === "qa_request" ? "the inspection request" : "the instruction"} “${m?.title ?? "an office message"}”`, detail: brief(w.reason),
       href: m ? messageHref(m) : `${siteBase}/messages` });
+  }
+  for (const j of src.jobMessages ?? []) {
+    const line = `“${brief(j.body.split(/\n/)[0], 120)}”`;
+    entries.push({ id: `job-message:${j.id}`, at: j.created_at, who: person(j.author_id, j.author_name, j.author_side === "office" ? "Office" : "A supervisor"),
+      what: j.thread_id !== j.id ? `replied: ${line}` : `${j.needs_answer ? "asked" : "messaged"} the office: ${line}`,
+      detail: [j.about, j.needs_answer ? "Needs an answer" : null].filter(Boolean).join(" · ") || undefined,
+      href: `${siteBase}/messages?thread=${j.thread_id}#thread-${j.thread_id}` });
   }
   for (const a of src.acknowledgements) {
     const m = message.get(a.item_id);

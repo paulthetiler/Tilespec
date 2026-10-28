@@ -3,7 +3,10 @@ import Link from "next/link";
 import { canManageContracts } from "@/lib/auth";
 import { checkDatabase, locationsFor } from "@/lib/operations/data";
 import { siteSupervisorsFor, supervisorDailyFor } from "@/lib/operations/daily-data";
-import { itemState, reviewLine } from "@/lib/operations/daily";
+import { itemState, reviewLine, threadsFrom, type AboutType } from "@/lib/operations/daily";
+import { aboutParam } from "@/lib/operations/daily-input";
+import { aboutLookupsFor, canAsk } from "@/lib/operations/conversation-data";
+import { JobConversations } from "@/components/site/job-conversations";
 import { followUpCandidates } from "@/lib/operations/review-data";
 import { dayLabel, londonClock, londonDate, londonTimeToIso } from "@/lib/operations/planning";
 import { ChangeInstructionForm, ReviewForm, WithdrawForm, type FollowUpCandidate } from "@/components/site/office-follow-up";
@@ -15,10 +18,10 @@ import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import styles from "../../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
-export default async function OfficeMessages({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ handover?: string }> }) {
+export default async function OfficeMessages({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ handover?: string; thread?: string; about?: string }> }) {
   const { id } = await params;
-  // Office Today links straight to one handover; open it so the review form is in view.
-  const { handover: focus } = await searchParams;
+  // Office Today links straight to one handover or conversation; "Ask the office about this" names its record.
+  const { handover: focus, thread: focusThread, about: aboutValue } = await searchParams;
   const { supabase, member, contract } = await requireSite(id);
   if (!contract) return null;
   const base = `/admin/supervisor/sites/${id}`, office = canManageContracts(member);
@@ -38,6 +41,12 @@ export default async function OfficeMessages({ params, searchParams }: { params:
   const candidates: FollowUpCandidate[] = unreviewed.length
     ? await followUpCandidates(supabase, id, londonTimeToIso(unreviewed.map(record => record.work_date).sort()[0], "00:00"), daily!.items, daily!.withdrawals) : [];
   const time = (iso: string) => `${londonClock(iso)}, ${dayLabel(londonDate(new Date(iso)))}`;
+  // Questions and replies need their own reviewed migration; until then this section is not shown.
+  const threads = daily?.conversations ? threadsFrom(daily.messages, daily.messageReads) : [];
+  const asked = !office ? aboutParam(aboutValue) : null;
+  const lookups = daily?.conversations ? await aboutLookupsFor(supabase, daily, threads, asked) : null;
+  const about = asked && lookups && canAsk(lookups, asked) ? { about_type: asked.about_type as AboutType, about_id: asked.about_id } : null;
+  const ask = !office && daily?.conversations;
   return <>
     <h2 className={styles.title}>Office messages</h2>
     {!daily ? <p className={styles.warning}>Office messages are not available yet. Contact the office directly for today’s instructions.</p> : <>
@@ -45,6 +54,8 @@ export default async function OfficeMessages({ params, searchParams }: { params:
         {!recipients.length && <p>No supervisors are currently assigned to this site. Assign a supervisor before sending an inspection request.</p>}
         <OfficeMessageForm action={sendOfficeItemAction} contractId={id} requestKey={randomUUID()} recipients={recipients} locations={locations} packages={packages.data || []} urgentAvailable={followUp} />
       </details>}
+      {daily.conversations && lookups && <JobConversations threads={threads} viewer={{ user_id: member.user_id, office }} contractId={id} siteBase={base} lookups={lookups}
+        focus={focusThread} about={about} siteName={userId => userId === member.user_id ? member.display_name : nameOf.get(userId) ?? "the supervisor"} />}
       <section className={styles.cardList} aria-label="Saved office messages">
         {daily.items.map(item => {
           const mine = daily.acknowledgements.find(row => row.item_id === item.id && row.actor_id === member.user_id);
@@ -73,6 +84,7 @@ export default async function OfficeMessages({ params, searchParams }: { params:
                 ? <ul>{acknowledgements.map(row => <li key={row.id}>Acknowledged by {nameOf.get(row.actor_id) ?? "a supervisor"} at {londonClock(row.acknowledged_at)}, {dayLabel(londonDate(new Date(row.acknowledged_at)))}</li>)}</ul>
                 : current ? <p>Waiting for {item.recipient_name ?? "a supervisor"} to acknowledge.</p> : <p>No acknowledgement needed any more.</p>)}
               {office && followUp && current && <div className={styles.cardList}><ChangeInstructionForm item={item} contractId={id} /><WithdrawForm item={item} contractId={id} /></div>}
+              {ask && current && <Link className={styles.secondaryButton} href={`${base}/messages?about=office_item:${item.id}#ask`}>Ask the office about this</Link>}
             </>}
           </article>;
         })}

@@ -470,6 +470,34 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
       /withdrew the inspection request “Phase 3 real QA request”/, /reviewed Sid Supervisor’s handover: instruction sent/]) assert.match(reviewed, line);
     assert.deepEqual(errors, [], 'no unhandled authenticated browser errors');
     pass('Phase 4 M2/M3: the office changes an instruction, withdraws a request and reviews a handover from Office Today; each is saved once and shown in Messages and Job activity');
+
+    // M1 (approved by the owner): a question from site marked "I need an answer" is an Office Today
+    // action until the office replies on the same conversation; both lines are in Job activity.
+    const asked = await rpc(email.supervisor, 'post_job_message', { p_request_key: randomUUID(), p_data: {
+      contract_id: contract, about_type: 'job', body: 'Can the skip be moved to the rear gate on Friday?\nThe front is blocked by scaffolding.', needs_answer: true } });
+    await office.goto(`${origin}/admin`);
+    const question = office.locator(`[data-action-id="thread-reply:${asked}"]`);
+    await question.getByText('Reply to Sid Supervisor: Can the skip be moved to the rear gate on Friday?', { exact: true }).waitFor();
+    await question.getByRole('link').last().click();
+    await office.waitForURL(url => url.pathname === `${site}/messages` && url.searchParams.get('thread') === asked);
+    const conversation = office.locator(`article#thread-${asked}`);
+    assert.equal(await conversation.locator('details').getAttribute('open'), '', 'the linked conversation opens with its reply form in view');
+    await conversation.getByText('Sid Supervisor needs an answer', { exact: true }).waitFor();
+    await conversation.locator('textarea[name=body]').fill('Yes. I have told the main contractor.');
+    await conversation.getByRole('button', { name: 'Send reply', exact: true }).click();
+    await office.locator(`article#thread-${asked}[data-thread-waiting="site"]`).waitFor();
+    assert.equal(sql(`select count(*) from public.job_messages where thread_id='${asked}' and author_side='office' and author_id='${id.office}'`), '1');
+    await office.goto(`${origin}/admin`);
+    await office.getByRole('heading', { name: 'Today', exact: true }).waitFor();
+    assert.equal(await office.locator(`[data-action-id="thread-reply:${asked}"]`).count(), 0, 'the reply completes the action');
+    const foreign = await rest(email.supervisor, 'rpc/post_job_message', 'POST', { p_request_key: randomUUID(), p_data: { contract_id: randomUUID(), about_type: 'job', body: 'Not my job', needs_answer: false } });
+    assert.notEqual(foreign.status, 200, 'a supervisor cannot start a conversation on a job they do not supervise');
+    await office.goto(`${origin}${site}/activity`);
+    await office.getByRole('heading', { name: 'Job activity', exact: true }).waitFor();
+    const conversationStory = (await office.locator('main ol').allInnerTexts()).join('\n');
+    for (const line of [/Sid Supervisor asked the office: “Can the skip be moved to the rear gate on Friday\?”/, /You replied: “Yes\. I have told the main contractor\.”/]) assert.match(conversationStory, line);
+    assert.deepEqual(errors, [], 'no unhandled authenticated browser errors');
+    pass('Phase 4 M1: a question from site is an Office Today action that opens the conversation; the office reply is saved once, completes the action and is shown in Job activity');
   } catch (error) {
     for (const context of contexts) for (const page of context.pages()) {
       console.error(`Phase 3 page: ${page.url()}\n${(await page.locator('body').innerText({ timeout: 5000 }).catch(() => '(unreadable)')).slice(0, 7000)}`);

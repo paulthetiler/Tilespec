@@ -43,7 +43,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
   const tables = ['contracts', 'work_areas', 'work_packages', 'operatives', 'teams', 'subcontractor_companies', 'supervisor_inspections', 'location_inspection_templates', 'location_inspections',
     'location_inspection_allocations', 'location_inspection_requirements', 'supervisor_issues', 'supervisor_issue_events', 'supervisor_issue_photos',
     'work_holds', 'work_hold_events', 'hold_photos', 'planned_allocations', 'actual_allocations', 'actual_allocation_operatives',
-    'allocation_absences', 'team_memberships', 'document_revisions', 'supervisor_office_items', 'supervisor_office_acknowledgements', 'supervisor_qa_submissions', 'site_handovers'];
+    'allocation_absences', 'team_memberships', 'document_revisions', 'supervisor_office_items', 'supervisor_office_acknowledgements', 'supervisor_qa_submissions', 'site_handovers',
+    'job_messages', 'job_message_reads'];
   const history = new Map(tables.map(table => [table, JSON.parse(sql(`select coalesce(jsonb_agg(to_jsonb(r) order by id),'[]') from public.${table} r`))]));
 
   const contractId = await rpc(emails.manager, 'create_contract', { p_organisation: ids.organisation, p_request_key: randomUUID(), p_data: {
@@ -277,6 +278,50 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await seen.getByText('Threshold snag raised. The floor tile is to be investigated by the gang.', { exact: true }).waitFor();
     assert.equal(await seen.locator('form').count(), 0, 'the supervisor cannot review their own result');
     pass('Simple M3: the office marks Dave\'s inspection result as reviewed with the snag it raised, and Dave sees who reviewed it, when and why');
+
+    // M1 (approved by the owner): Dave asks the office about the snag from the snag itself; the office
+    // replies on the same conversation; Dave taps Got it and the office sees when he saw it.
+    await page.goto(`${origin}/admin/snags/${snagId}`);
+    await page.getByRole('link', { name: 'Ask the office about this', exact: true }).click();
+    await page.waitForURL(url => url.pathname.endsWith('/messages') && url.searchParams.get('about') === `snag:${snagId}`);
+    const ask = page.locator('#ask');
+    await ask.getByRole('heading', { name: /^About the snag: / }).waitFor();
+    await ask.locator('textarea[name=body]').fill('Is the raised threshold part of our scope or the joiner\'s?\nThe drawing shows a timber threshold.');
+    assert.equal(await ask.locator('input[name=needs_answer]').isChecked(), true, 'a question asks for an answer by default');
+    rpcFaults.dailyResults.set('post_job_message', [null]);
+    await ask.getByRole('button', { name: 'Send to the office', exact: true }).click();
+    await ask.getByRole('alert').waitFor();
+    assert.equal(sql(`select count(*) from public.job_messages where contract_id='${contractId}'`), '0', 'HTTP 200 without a saved message stays unconfirmed');
+    await ask.getByRole('button', { name: 'Retry the same details', exact: true }).click();
+    await page.locator('article[data-thread-waiting="office"]').waitFor();
+    const question = JSON.parse(sql(`select to_jsonb(m) from public.job_messages m where contract_id='${contractId}'`));
+    assert.equal(question.about_type, 'snag'); assert.equal(question.about_id, snagId); assert.equal(question.thread_id, question.id);
+    assert.equal(question.author_side, 'site'); assert.equal(question.site_user_id, ids.supervisor); assert.equal(question.needs_answer, true);
+    const thread = `article#thread-${question.id}`;
+    await page.locator(thread).getByText('Waiting for the office to answer', { exact: true }).waitFor();
+    await manager.goto(`${site}/messages?thread=${question.id}#thread-${question.id}`);
+    const officeThread = manager.locator(thread);
+    await officeThread.getByText(/needs an answer$/).first().waitFor();
+    await officeThread.getByText('Is the raised threshold part of our scope or the joiner\'s?', { exact: false }).waitFor();
+    await officeThread.locator('textarea[name=body]').fill('Joiner\'s scope. Leave a 3 mm gap and photograph it before grouting.');
+    await officeThread.getByRole('button', { name: 'Send reply', exact: true }).click();
+    await manager.locator(`${thread}[data-thread-waiting="site"]`).waitFor();
+    const answer = JSON.parse(sql(`select to_jsonb(m) from public.job_messages m where thread_id='${question.id}' and id<>'${question.id}'`));
+    assert.equal(answer.author_side, 'office'); assert.equal(answer.about_type, null); assert.equal(answer.needs_answer, false);
+    await page.goto(site);
+    await page.getByRole('link', { name: 'Office messages', exact: true }).getByText('1 reply from the office', { exact: false }).waitFor();
+    await page.goto(`${site}/messages`);
+    const daveThread = page.locator(thread);
+    await daveThread.getByText('New reply from the office', { exact: true }).waitFor();
+    await daveThread.getByText('Joiner\'s scope. Leave a 3 mm gap and photograph it before grouting.', { exact: true }).waitFor();
+    await daveThread.locator('[data-seen]').getByText(/^Seen by the office at /).waitFor();
+    await daveThread.getByRole('button', { name: 'Got it', exact: true }).click();
+    await page.locator(`${thread}[data-thread-waiting="none"]`).waitFor();
+    assert.equal(sql(`select count(*) from public.job_message_reads where message_id='${answer.id}' and reader_id='${ids.supervisor}'`), '1');
+    // The office is still on this conversation; a fresh load shows the saved receipt.
+    await manager.reload();
+    await manager.locator(`${thread} [data-seen]`).getByText(/^Seen by .+ at /).waitFor();
+    pass('Simple M1: Dave asks the office about his snag from the snag page; a lost reply is retried once; the office replies, Dave taps Got it, and the office sees when he saw it');
 
     await page.goto(site);
     await page.getByRole('link', { name: 'STOP WORK', exact: true }).click();

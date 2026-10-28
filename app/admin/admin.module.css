@@ -302,6 +302,10 @@ details[open] > summary .treeToggle::before { content: "▾"; }
 .timeField input { max-width: 180px; }
 .comingLater { color: var(--admin-muted); }
 .plainFieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+/* A conversation: one message after another, each with who and when. */
+.plainList { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.plainList > li { border-left: 3px solid var(--line, #dce3e6); padding-left: 10px; }
+.plainList > li p { margin: 2px 0; }
 .plainFieldset > .actions { margin-top: 0; }
 .plainFieldset > .actions .bigButton { width: 100%; }
 

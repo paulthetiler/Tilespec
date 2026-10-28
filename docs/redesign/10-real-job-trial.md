@@ -16,6 +16,7 @@ permanent and audited, so only real information is entered.
 | A5 | Check Supabase Auth: Site URL `https://tilespec.vercel.app`, that URL in the redirect allow list, public sign-up off, invite and recovery templates as in `docs/operations/deployment.md` | The supervisor's invitation link must land on the real site | Supabase → Authentication |
 | A6 | Invite the supervisor in Supabase Auth with their real email | Creates their login. There is no in-app invite yet | Supabase → Authentication → Users |
 | A7 (optional) | After the M3/M2 pull request is merged: back up, run `supabase/inspection/office-reviews-preflight.sql`, then apply `20261023090000_office_reviews_instruction_changes.sql` | Lets the office review results and handovers, and change, mark urgent or withdraw instructions. Without it those controls stay hidden and everything else works | Supabase SQL or migration tool |
+| A8 (optional) | After the M1 pull request is merged: back up, run `supabase/inspection/job-messages-preflight.sql`, then apply `20261024090000_job_messages.sql` | Lets the supervisor ask the office questions about the job or a record, and the office reply, with "Seen" receipts. Without it the message box stays hidden and everything else works | Supabase SQL or migration tool |
 
 A1 and A2 also fix the public enquiry form. Test it once afterwards with a short
 enquiry marked TEST and one small PDF, then check it under Tenders.
