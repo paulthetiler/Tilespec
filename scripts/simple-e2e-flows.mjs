@@ -383,7 +383,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     const owner = await account(emails.owner, { width: 1180, height: 820 });
     for (const [category, item, unit, rateValue, shown] of [['operative', 'Tiler', 'hour', '30', 'Operative: Tiler'], ['plant', 'Wet saw', 'day', '85', 'Plant: Wet saw'],
       ['material', 'Adhesive', 'bag', '12.50', 'Material: Adhesive']]) {
-      await owner.goto(`${origin}/admin/contracts/${contractId}#daywork-rates`);
+      // A distinct address each time: the same address with the same #fragment would only scroll.
+      await owner.goto(`${origin}/admin/contracts/${contractId}?rate=${encodeURIComponent(item)}#daywork-rates`);
       const rates = owner.getByRole('region', { name: 'Daywork rates', exact: true });
       if (!await rates.locator('details[open] select[name=category]').count()) await rates.getByText('Add a rate', { exact: true }).click();
       await rates.locator('select[name=category]').selectOption(category);
