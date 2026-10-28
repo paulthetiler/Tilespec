@@ -278,9 +278,11 @@ test("no clock time is hard-coded in the rules or the engine", () => {
 // ---- review point 6: no dead ends -----------------------------------------------------------------
 
 test("nothing is offered for records the backend does not have", () => {
+  // Dayworks have their own reviewed migration (M4); their rules act only once it is installed.
   const all = engine.rules.map(r => r.id).join(" ");
-  assert.ok(!/variation|daywork|claim|retention|tender/i.test(all), all);
+  assert.ok(!/variation|claim|retention|tender/i.test(all), all);
   const s = make("busy");
+  assert.equal(s.dayworks, undefined, "the prototype job has no dayworks installed");
   for (const m of s.members) for (const a of compute(s, m)) {
     assert.ok(!/variation|daywork|payment claim|retention/i.test(`${a.title} ${a.route.screen} ${a.source.table}`), a.id);
     assert.notEqual(a.source.table, "tender_enquiries");

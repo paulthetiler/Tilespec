@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { flagEnabled } from "@/lib/operations/next-actions/flags";
+import { dayworksAvailable } from "@/lib/operations/daywork-data";
 import { requireSite } from "../../../site-access";
 import styles from "../../../../admin.module.css";
 import dailyStyles from "@/components/site/daily.module.css";
@@ -11,9 +12,10 @@ export const dynamic = "force-dynamic";
 // record type: each choice opens the existing snag or hold form, with its permissions and audit trail.
 export default async function ReportIssue({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { member, contract } = await requireSite(id);
+  const { supabase, member, contract } = await requireSite(id);
   if (!contract) return null;
   if (!flagEnabled("nextActions", member.role)) notFound();
+  const dayworks = await dayworksAvailable(supabase);
   return <div className={dailyStyles.day}>
     <header className={dailyStyles.intro}>
       <h1 className={dailyStyles.title}>Report an issue</h1>
@@ -34,6 +36,15 @@ export default async function ReportIssue({ params }: { params: Promise<{ id: st
       </Link>
     </div>
     <p className={styles.muted}>A critical defect does not stop work by itself. If affected work must stop, choose a hold.</p>
+    {dayworks && <>
+      <h2 className={dailyStyles.title}>Extra work</h2>
+      <div className={dailyStyles.siteList}>
+        <Link className={dailyStyles.siteChoice} href={`/admin/supervisor/sites/${id}/dayworks/new`}>
+          <strong>Daywork (paid by the hour)</strong>
+          <span>What, where, who asked for it, the people and hours, plant and materials. Recording it is not permission to proceed or an agreement to pay.</span>
+        </Link>
+      </div>
+    </>}
     <Link className={styles.secondaryButton} href={`/admin/supervisor/sites/${id}`}>Back to today</Link>
   </div>;
 }

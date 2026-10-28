@@ -141,6 +141,16 @@ export interface NextActionSnapshot {
   office_item_withdrawals?: { item_id: string }[];
   /** Present only once job messages are installed. Absent means questions and replies are not available. */
   job_threads?: JobThreadRow[];
+  /** Present only once dayworks are installed. Statuses only: no rate, price or total ever reaches the engine. */
+  dayworks?: DayworkRow[];
+}
+export interface DayworkRow {
+  id: string; contract_id: string; number: number; description: string; created_by: string;
+  site_status: "recorded" | "sent"; office_status: "awaiting_review" | "more_detail" | "approved" | "rejected" | null;
+  signoff_status: "none" | "signed" | "refused" | "unavailable"; commercial_status: "awaiting_pricing" | "priced" | "commercially_approved";
+  client_status: "not_authorised" | "authorised" | "declined";
+  /** Everyone who recorded, corrected or sent it. None of them may approve it (the owner may override on the record). */
+  submitted_by: string[];
 }
 export interface OfficeReviewRow { qa_submission_id: string | null; handover_id: string | null }
 /**

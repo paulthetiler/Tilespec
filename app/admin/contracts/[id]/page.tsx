@@ -15,6 +15,8 @@ import { ContractFields } from "@/components/operations/contract-fields";
 import { AuditHistory } from "@/components/operations/audit-history";
 import { OperationsForm } from "@/components/operations/operations-form";
 import { calendarDate, eventDate, money } from "@/components/operations/format";
+import { DayworkRates } from "@/components/office/daywork-rates";
+import { dayworkMoneyFor, dayworksAvailable } from "@/lib/operations/daywork-data";
 import styles from "../../admin.module.css";
 
 type ContractAllocation = { user_id: string; valid_from: string; valid_until: string | null };
@@ -42,10 +44,14 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
   const data = await contractDetails(supabase, id, financial);
   if (!data) notFound();
   const { contract, areas, packages, documents, audit, commercial } = data;
-  const [team, contractAssignmentResult, packageAssignmentResult] = await Promise.all([
+  const installerRole = ["lead_installer", "subcontract_installer"].includes(member.role);
+  const [team, contractAssignmentResult, packageAssignmentResult, dayworks, dayworkMoney] = await Promise.all([
     manage ? teamFor(supabase) : Promise.resolve([member]),
     supabase.from("contract_assignments").select("user_id,valid_from,valid_until").eq("contract_id", id),
     supabase.from("package_assignments").select("user_id,work_package_id").eq("contract_id", id),
+    // Dayworks and their rates arrive with their own reviewed migration (M4). Rates are read only with money access.
+    installerRole ? Promise.resolve(false) : dayworksAvailable(supabase),
+    financial ? dayworkMoneyFor(supabase, id) : Promise.resolve(null),
   ]);
   checkDatabase(contractAssignmentResult.error);
   checkDatabase(packageAssignmentResult.error);
@@ -87,7 +93,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       <span className={styles.small}>This job:</span>
       {(flagEnabled("nextActions", member.role) || flagEnabled("roleShell", member.role)) && <Link href={`/admin/supervisor/sites/${id}/activity`}>Job activity</Link>}
       <Link href={`/admin/supervisor/sites/${id}/commercial?kind=variations`}>Variations (not built yet)</Link>
-      <Link href={`/admin/supervisor/sites/${id}/commercial?kind=dayworks`}>Dayworks (not built yet)</Link>
+      <Link href={`/admin/supervisor/sites/${id}/commercial?kind=dayworks`}>{dayworks ? "Dayworks" : "Dayworks (not built yet)"}</Link>
     </nav>}
     <section className={styles.warning} aria-label="Contract release status"><span className={styles.warningBadge}>Draft · unreleased</span><h2>Installation is not authorised</h2><ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><p className={styles.small}>No inspection, approval or signature has been recorded by this setup workflow. Quality gates must be implemented and completed before release.</p></section>
 
@@ -95,6 +101,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       {manage && <details className={styles.details}><summary>Edit operational contract details</summary><OperationsForm key={`contract-${contract.version}`} action={updateContractAction} submitLabel="Save contract details"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="version" value={contract.version} /><input type="hidden" name="request_key" value={randomUUID()} /><ContractFields contract={contract} /></OperationsForm></details>}
     </section>
 
+    {dayworkMoney && <DayworkRates contractId={id} rates={dayworkMoney.rates} />}
     {financial && <section className={styles.panel} id="commercial-budget"><h2>Original commercial budget</h2>
       {summary ? <div className={styles.metrics}>
         <div className={styles.metric}><span className={styles.metricLabel}>Contract value</span><strong className={styles.metricValue}>{money(summary.value)}</strong></div>

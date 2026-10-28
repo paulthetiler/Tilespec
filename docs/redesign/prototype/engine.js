@@ -945,6 +945,152 @@ var TSEngine = (() => {
       route: { screen: "thread", id: t.id }
     }));
   });
+  var dw = (d) => `DW-${d.number}`;
+  var short = (text) => briefly(text, 70);
+  var submittedBarred = (s, d, what) => ({ forbidden: d.submitted_by.filter((id) => {
+    var _a;
+    return ((_a = s.members.find((m) => m.user_id === id)) == null ? void 0 : _a.role) !== "owner";
+  }).map((userId) => ({ userId, reason: `You recorded or sent this daywork, so another office user must ${what}.` })) });
+  var dayworkBase = (d) => ({
+    process: "daily-site",
+    kind: "reminder",
+    location: null,
+    blocks: null,
+    enforcedByBackend: false,
+    due: null,
+    source: { table: "dayworks", id: d.id },
+    route: { screen: "daywork", id: d.id }
+  });
+  rule("R22_review_daywork", ({ s, L }) => {
+    var _a;
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.office_status === "awaiting_review").map((d) => ({
+      ...dayworkBase(d),
+      id: `daywork-review:${d.id}`,
+      rule: "R22",
+      priority: 2,
+      order: 11.2,
+      job: L.job(d.contract_id),
+      responsible: OFFICE,
+      title: `Review daywork ${dw(d)}: ${short(d.description)}`,
+      why: "Site has sent extra work paid by the hour. Approve it, ask for more detail or reject it.",
+      requires: ["Your decision", "A note if you need more detail or reject it"],
+      doneWhen: "The office decision is saved",
+      next: "The supervisor sees the decision",
+      audience: { office: "act", owner: "act", supervisor: "see" },
+      independence: submittedBarred(s, d, "approve it")
+    }));
+  });
+  rule("R23_send_daywork", ({ s, L }) => {
+    var _a;
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.site_status === "recorded" && d.office_status === null).map((d) => ({
+      ...dayworkBase(d),
+      id: `daywork-send:${d.id}`,
+      rule: "R23",
+      priority: 3,
+      order: 14.6,
+      job: L.job(d.contract_id),
+      responsible: supervisorLabel(L, d.contract_id),
+      title: `Send daywork ${dw(d)} to the office`,
+      why: `${short(d.description)}. It is saved but the office has not seen it yet.`,
+      requires: ["The people, plant and materials"],
+      doneWhen: "It is sent to the office",
+      next: "The office reviews it",
+      audience: { supervisor: "act" }
+    }));
+  });
+  rule("R24_daywork_detail", ({ s, L }) => {
+    var _a;
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.office_status === "more_detail").map((d) => ({
+      ...dayworkBase(d),
+      id: `daywork-detail:${d.id}`,
+      rule: "R24",
+      priority: 2,
+      order: 9.7,
+      job: L.job(d.contract_id),
+      responsible: supervisorLabel(L, d.contract_id),
+      title: `Office needs more detail on daywork ${dw(d)}`,
+      why: `${short(d.description)}. Add what the office asked for and send it again.`,
+      requires: ["The detail the office asked for"],
+      doneWhen: "It is sent to the office again",
+      next: "The office reviews it",
+      audience: { supervisor: "act", office: "see" }
+    }));
+  });
+  rule("R25_daywork_signature", ({ s, L }) => {
+    var _a;
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.signoff_status === "none" && d.office_status !== "rejected").map((d) => ({
+      ...dayworkBase(d),
+      id: `daywork-sign:${d.id}`,
+      rule: "R25",
+      priority: 3,
+      order: 14.7,
+      job: L.job(d.contract_id),
+      responsible: supervisorLabel(L, d.contract_id),
+      title: `Get daywork ${dw(d)} signed`,
+      why: "Ask the client's site representative to sign the sheet. It confirms the work, hours and materials only, not payment. If they refuse or are not there, record that.",
+      requires: ["Their name and position, or why it was not signed"],
+      doneWhen: "The signature, a refusal or their absence is recorded",
+      next: null,
+      audience: { supervisor: "act" }
+    }));
+  });
+  rule("R26_price_daywork", ({ s, L }) => {
+    var _a;
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.site_status === "sent" && d.office_status !== "rejected" && d.commercial_status === "awaiting_pricing").map((d) => ({
+      ...dayworkBase(d),
+      id: `daywork-price:${d.id}`,
+      rule: "R26",
+      priority: 3,
+      order: 16.1,
+      job: L.job(d.contract_id),
+      responsible: OFFICE,
+      title: `Price daywork ${dw(d)}`,
+      why: "Price each line from the job's day rates. It stays awaiting pricing until every line has a rate.",
+      requires: ["A day rate for every line"],
+      doneWhen: "Every line is priced",
+      next: "The charge can be approved internally",
+      audience: { office: "act", owner: "act" },
+      financial: true
+    }));
+  });
+  rule("R27_approve_daywork_charge", ({ s, L }) => {
+    var _a;
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.office_status === "approved" && d.commercial_status === "priced").map((d) => ({
+      ...dayworkBase(d),
+      id: `daywork-charge:${d.id}`,
+      rule: "R27",
+      priority: 3,
+      order: 16.2,
+      job: L.job(d.contract_id),
+      responsible: OFFICE,
+      title: `Approve the charge for daywork ${dw(d)}`,
+      why: "TileSPEC's internal approval of the priced charge. It is not the client's acceptance or agreement to pay.",
+      requires: ["Check the priced lines"],
+      doneWhen: "The charge is approved internally",
+      next: null,
+      audience: { office: "act", owner: "act" },
+      financial: true,
+      independence: submittedBarred(s, d, "approve its charge")
+    }));
+  });
+  rule("R28_daywork_client", ({ s, L }) => {
+    var _a;
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.office_status === "approved" && d.client_status === "not_authorised").map((d) => ({
+      ...dayworkBase(d),
+      id: `daywork-client:${d.id}`,
+      rule: "R28",
+      priority: 3,
+      order: 16.3,
+      job: L.job(d.contract_id),
+      responsible: OFFICE,
+      title: `Record the client's decision on daywork ${dw(d)}`,
+      why: "The client has not authorised this cost yet. Record their authorisation with its instruction reference or document, or that they declined.",
+      requires: ["Who decided for the client", "Their instruction reference or document"],
+      doneWhen: "The client's decision is recorded",
+      next: null,
+      audience: { office: "act", owner: "act" }
+    }));
+  });
   var handoverAuthors = (s, contractId) => s.site_handovers.filter((h) => h.contract_id === contractId && h.work_date === s.today).map((h) => h.actor_id).filter((id) => !!id);
   rule("R06_handover", (c) => c.s.contracts.filter((k) => workToday(c.s, k.id) && !everyoneCompleted(c.s, k.id, handoverAuthors(c.s, k.id))).map((k) => {
     const t = c.timingsFor(k.id);
@@ -1276,7 +1422,14 @@ var TSEngine = (() => {
     R18: "Review the result",
     R19: "Read and review",
     R20: "Reply",
-    R21: "Open"
+    R21: "Open",
+    R22: "Review",
+    R23: "Send",
+    R24: "Add detail",
+    R25: "Record signature",
+    R26: "Price it",
+    R27: "Approve charge",
+    R28: "Record decision"
   };
   var ctaLabel = (a) => {
     var _a;
@@ -1387,6 +1540,8 @@ var TSEngine = (() => {
         return `${siteBase}/messages?handover=${r.id}#handover-${r.id}`;
       case "thread":
         return `${siteBase}/messages?thread=${r.id}#thread-${r.id}`;
+      case "daywork":
+        return `${siteBase}/dayworks/${r.id}`;
       case "job":
         return `/admin/contracts/${r.id}`;
       case "labour":
@@ -1441,7 +1596,8 @@ var TSEngine = (() => {
       /^\/admin\/workforce$/,
       /^\/admin\/money$/,
       new RegExp(`^${esc}/(checks|workforce|inspections|messages|finish)$`),
-      new RegExp(`^${esc}/tasks/[^/]+$`)
+      new RegExp(`^${esc}/tasks/[^/]+$`),
+      new RegExp(`^${esc}/dayworks/[^/]+$`)
     ].some((re) => re.test(path));
   }
   return __toCommonJS(index_exports);

@@ -27,7 +27,7 @@ export type OfficeReview = {
   id: string; contract_id: string; qa_submission_id: string | null; handover_id: string | null; outcome: ReviewOutcome; note: string;
   follow_up_id: string | null; reviewed_by: string; reviewed_by_name: string; reviewed_at: string; request_key: string;
 };
-export const aboutTypes = ["job", "snag", "hold", "office_item", "qa_result", "handover"] as const;
+export const aboutTypes = ["job", "snag", "hold", "office_item", "qa_result", "handover", "daywork"] as const;
 export type AboutType = (typeof aboutTypes)[number];
 export type JobMessage = {
   id: string; contract_id: string; thread_id: string; site_user_id: string; author_id: string; author_name: string;

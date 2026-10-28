@@ -5,6 +5,7 @@ import { supervisorDailyFor, siteSupervisorsFor } from "../daily-data";
 import { threadsFrom } from "../daily";
 import { aboutLookupsFor } from "../conversation-data";
 import { jobThreadRows } from "../conversations";
+import { dayworksFor } from "../daywork-data";
 import { londonClock, londonDate } from "../planning";
 import { applicableChecks, type InspectionTemplate, type LocationInspection } from "../inspections";
 import { addDays } from "./lookups";
@@ -47,7 +48,7 @@ export async function loadSiteSnapshot(
       if (page.length < 500) return { data: rows, error: null };
     }
   }
-  const [day, status, cover, contract, daily, supervisors, planRows, snagRows, holdRows, templateRows, requirementRows, inspectionRows, documents] = await Promise.all([
+  const [day, status, cover, contract, daily, supervisors, planRows, snagRows, holdRows, templateRows, requirementRows, inspectionRows, documents, dayworks] = await Promise.all([
     siteDayFor(supabase, contractId, today), siteStatusFor(supabase, contractId, today), companyRecordsFor(supabase),
     supabase.from("contracts").select("id,reference,name,start_date,end_date,working_hours,tile_specification").eq("id", contractId).single(),
     supervisorDailyFor(supabase, contractId),
@@ -61,6 +62,8 @@ export async function loadSiteSnapshot(
     siteRows("location_inspection_requirements", "id,contract_id,work_area_id,work_package_id,stage,applicability,template_id,created_at,supersedes_id"),
     siteRows("location_inspections", "id,contract_id,work_area_id,work_package_id,template_id,issues_count,answers,created_at"),
     siteRows("document_revisions", "id,contract_id"),
+    // Dayworks arrive with their own reviewed migration; until then there are none. Statuses only.
+    dayworksFor(supabase, contractId),
   ]);
   [contract, planRows, snagRows, holdRows, templateRows, requirementRows, inspectionRows, documents].forEach(result => checkDatabase(result.error));
 
@@ -133,6 +136,9 @@ export async function loadSiteSnapshot(
       office_item_withdrawals: daily.withdrawals.map(w => ({ item_id: w.item_id })),
     } : {}),
     ...(threadRows ? { job_threads: threadRows } : {}),
+    ...(dayworks ? { dayworks: dayworks.dayworks.map(d => ({ id: d.id, contract_id: d.contract_id, number: d.number, description: d.description, created_by: d.created_by,
+      site_status: d.site_status, office_status: d.office_status, signoff_status: d.signoff_status, commercial_status: d.commercial_status, client_status: d.client_status,
+      submitted_by: [...new Set(dayworks.events.filter(e => e.daywork_id === d.id && ["record", "update_lines", "send"].includes(e.action)).map(e => e.actor_id))] })) } : {}),
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: member.financial_access } };
 }

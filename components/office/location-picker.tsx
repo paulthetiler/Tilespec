@@ -14,11 +14,13 @@ type Props = {
   exclude?: string[];
   hint?: string;
   onChange?: (id: string | null) => void;
+  /** What "no location" means here, when it is allowed. */
+  emptyLabel?: string;
 };
 
 // Type a few characters ("52 bath") and tap the match. Writes the chosen ID
 // into a hidden field so it submits with the surrounding form.
-export function LocationPicker({ name, label, locations, defaultValue = null, allowTopLevel = false, exclude, hint, onChange }: Props) {
+export function LocationPicker({ name, label, locations, defaultValue = null, allowTopLevel = false, exclude, hint, onChange, emptyLabel = "Top level (not inside another location)" }: Props) {
   const usable = useMemo(() => { const skip = new Set(exclude); return locations.filter(location => !location.archived_at && !skip.has(location.id)); }, [locations, exclude]);
   const index = useMemo(() => indexLocations(locations), [locations]);
   const [selected, setSelected] = useState<string | null>(defaultValue);
@@ -28,7 +30,7 @@ export function LocationPicker({ name, label, locations, defaultValue = null, al
   const matches = query.trim()
     ? searchLocations(indexLocations(usable), query, { limit: 12 })
     : orderLocations(usable).filter(location => !location.parent_id || !index.has(location.parent_id)).slice(0, 12);
-  const selectedLabel = selected ? locationPath(index, selected) : "Top level (not inside another location)";
+  const selectedLabel = selected ? locationPath(index, selected) : emptyLabel;
   const inputId = `${useId()}-search`;
   return (
     <div className={styles.picker}>
@@ -43,7 +45,7 @@ export function LocationPicker({ name, label, locations, defaultValue = null, al
           placeholder={usable.length > 12 ? "Type a name or number, e.g. 52 bath" : "Type to filter"} aria-describedby={hint ? `${inputId}-hint` : undefined} />
         {hint && <small id={`${inputId}-hint`} className={styles.small}>{hint}</small>}
         <ul className={styles.pickerList} aria-label={`${label} choices`}>
-          {allowTopLevel && !query.trim() && <li><button type="button" className={styles.pickerOption} onClick={() => choose(null)}>Top level (not inside another location)</button></li>}
+          {allowTopLevel && !query.trim() && <li><button type="button" className={styles.pickerOption} onClick={() => choose(null)}>{emptyLabel}</button></li>}
           {matches.map(location => <li key={location.id}>
             <button type="button" className={styles.pickerOption} onClick={() => choose(location.id)}>{locationPath(index, location.id)}</button>
           </li>)}

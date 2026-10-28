@@ -1,15 +1,17 @@
 "use client";
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ActionState } from "@/lib/operations/types";
 import styles from "@/app/admin/admin.module.css";
 
-export type DailyActionState = ActionState & { id?: string; uncertain?: boolean };
+/** `href`: where to go once the save is confirmed, for a form that creates a new record. */
+export type DailyActionState = ActionState & { id?: string; uncertain?: boolean; href?: string };
 export function DailyForm({ action, children, label, nextHref, nextLabel }: {
   action: (state: DailyActionState, form: FormData) => Promise<DailyActionState>;
   children: React.ReactNode; label: string; nextHref?: string; nextLabel?: string;
 }) {
-  const frozen = useRef<FormData | null>(null);
+  const frozen = useRef<FormData | null>(null), router = useRouter();
   const [dirty, setDirty] = useState(false);
   const [state, dispatch, pending] = useActionState(async (previous: DailyActionState, input: FormData) => {
     try { return await action(previous, input); }
@@ -18,7 +20,8 @@ export function DailyForm({ action, children, label, nextHref, nextLabel }: {
   useEffect(() => {
     if (!state.uncertain) frozen.current = null;
     if (state.success) setDirty(false);
-  }, [state]);
+    if (state.success && state.href) router.push(state.href);
+  }, [state, router]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
