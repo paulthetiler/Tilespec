@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Member } from "@/lib/auth";
 import { canReadFinancial } from "@/lib/operations/permissions";
 import {
-  adminActionHref, buildQueue, classChip, classNote, compute, ctaLabel, DEFAULT_CONFIG, flagEnabled, idleCopy, queueCounts, siteUpdates, todayCountCopy,
+  adminActionHref, buildQueue, classChip, classNote, compute, ctaLabel, DEFAULT_CONFIG, flagEnabled, idleCopy, queueCounts, siteUpdates, todayCountCopy, withoutFigures,
   type NextActionSnapshot, type SiteUpdate, type Viewer, type ViewerAction,
 } from "@/lib/operations/next-actions";
 import type { NextActionConfig } from "@/lib/operations/next-actions/config";
@@ -58,9 +58,9 @@ export function AdminToday({ snapshot, viewer, member, config }: Props) {
     throw new Error("Office Today requires the authenticated office or owner.");
   }
   const owner = member.role === "owner";
-  // Money has its own authorised destination. Even an owner receives no budget
-  // figures, profit text or financial action payload in this Today render.
-  const actions = compute(snapshot, viewer, config).filter(action => !action.financial && action.process !== "money");
+  // Money has its own authorised destination. Even an owner receives no budget figures or
+  // profit text in this Today render; money-access actions without figures (dayworks) remain.
+  const actions = withoutFigures(compute(snapshot, viewer, config));
   const queue = buildQueue(actions, { groupExceptions: owner });
   const settings = config ?? DEFAULT_CONFIG;
   const updates = siteUpdates(snapshot, viewer, settings);

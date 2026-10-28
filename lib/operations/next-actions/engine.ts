@@ -49,6 +49,14 @@ export function compute(s: NextActionSnapshot, viewer: Viewer, config: NextActio
   return mine.filter(a => (seen.has(a.id) ? false : (seen.add(a.id), true)));
 }
 
+/**
+ * What Office Today shows. It never shows money figures: the budget margin (the only "money"
+ * process) belongs on the Money page. Actions meant only for money access that carry no figures,
+ * such as pricing a daywork or approving its charge, do appear; the engine already gives them
+ * only to people with money access.
+ */
+export const withoutFigures = (actions: ViewerAction[]) => actions.filter(a => a.process !== "money");
+
 /** The one prominent action. Only a "ready" action can be primary. If there is nothing to do, say so rather than invent work. */
 export function nextAction(actions: ViewerAction[]): ViewerAction | null {
   return actions.find(a => a.state === "ready") ?? null;

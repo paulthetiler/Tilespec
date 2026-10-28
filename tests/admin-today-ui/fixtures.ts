@@ -1,7 +1,7 @@
 // Synthetic records for the disposable component harness only. This module is
 // never imported by an application route, database loader or production build.
 import type { Member } from "@/lib/auth";
-import { buildQueue, compute, queueCounts, queueIds } from "@/lib/operations/next-actions/engine";
+import { buildQueue, compute, queueCounts, queueIds, withoutFigures } from "@/lib/operations/next-actions/engine";
 import { DEFAULT_CONFIG } from "@/lib/operations/next-actions/config";
 import type { HoldRow, NextActionSnapshot, Viewer } from "@/lib/operations/next-actions/types";
 
@@ -84,7 +84,7 @@ export function fixtureFor(key: ScenarioKey, ordinary = false) {
 // checks that rendering neither drops, duplicates nor miscounts any engine task.
 export function expectedFor(key: ScenarioKey) {
   const fixture = fixtureFor(key);
-  const queue = buildQueue(compute(fixture.snapshot, fixture.viewer, fixture.config).filter(action => !action.financial && action.process !== "money"), { groupExceptions: key === "owner" });
+  const queue = buildQueue(withoutFigures(compute(fixture.snapshot, fixture.viewer, fixture.config)), { groupExceptions: key === "owner" });
   return {
     heroId: queue.next?.id ?? null, ids: queueIds(queue), counts: queueCounts(queue),
     then: queue.then.map(action => action.id), waiting: queue.waiting.map(action => action.id),
