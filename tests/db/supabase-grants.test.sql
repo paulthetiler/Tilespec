@@ -15,7 +15,9 @@ select test.assert((select count(*) = 0 from information_schema.role_table_grant
       'subcontractor_companies', 'company_insurances', 'company_accreditations', 'location_inspection_requirements',
       'work_holds', 'work_hold_events', 'hold_photos', 'hold_notifications', 'hold_notification_reads',
       'supervisor_office_items', 'supervisor_office_acknowledgements', 'supervisor_qa_submissions', 'site_handovers',
-      'supervisor_office_item_withdrawals', 'office_reviews', 'job_messages', 'job_message_reads')),
+      'supervisor_office_item_withdrawals', 'office_reviews', 'job_messages', 'job_message_reads',
+      'dayworks', 'daywork_lines', 'daywork_events', 'daywork_signoffs', 'daywork_client_authorisations', 'daywork_photos',
+      'contract_daywork_rates', 'daywork_pricings', 'daywork_pricing_lines', 'daywork_commercial_approvals')),
   'Supervisor V2, company and issue-register tables are read-only to signed-in users; every write goes through a checked function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')),
@@ -26,7 +28,8 @@ select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.
       'can_allocate_contract_user', 'can_view_financials', 'can_access_package', 'can_access_area', 'can_upload_document',
       'can_read_document', 'can_upload_path', 'can_read_path', 'can_view_location_hierarchy', 'site_today', 'is_office',
       'is_site_staff', 'my_team_ids', 'is_current_teammate', 'can_supervise_contract', 'installation_stages', 'is_snag_party', 'can_read_snag', 'can_upload_snag_photo', 'can_insert_issue_object', 'can_read_issue_object',
-      'can_read_work_hold', 'is_hold_corrector', 'can_upload_hold_photo', 'can_insert_hold_object', 'can_read_hold_object')),
+      'can_read_work_hold', 'is_hold_corrector', 'can_upload_hold_photo', 'can_insert_hold_object', 'can_read_hold_object',
+      'can_read_daywork', 'can_upload_daywork_photo', 'can_insert_daywork_object', 'can_read_daywork_object')),
   'signed-in users can execute only the read-only permission helpers that row-level security policies call');
 select test.assert((select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity),
