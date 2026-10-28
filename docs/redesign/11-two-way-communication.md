@@ -245,8 +245,8 @@ Differences from the proposal above, kept small on purpose:
 
 Migration `20261024090000_job_messages.sql`, with the read-only report
 `supabase/inspection/job-messages-preflight.sql`. Additive and transactional; it
-refuses to run twice or before the daily workflow and stops. Not applied to any
-hosted project.
+refuses to run twice or before the daily workflow and stops. Applied to production on
+28 October 2026 (owner approval A8).
 
 | What | Who | Where | Notes |
 | --- | --- | --- | --- |
@@ -289,8 +289,8 @@ Differences from the proposal above, kept small on purpose:
 Migration `20261028090000_dayworks.sql`, with the read-only report
 `supabase/inspection/dayworks-preflight.sql`. Additive and transactional; it refuses to
 run twice or before the daily workflow. The only existing object it changes is job
-messages (M1), when installed: a conversation may also be about a daywork. Not applied
-to any hosted project.
+messages (M1), when installed: a conversation may also be about a daywork. Applied to
+production on 28 October 2026, after M1 (owner approval A9).
 
 | What | Who | Where | Notes |
 | --- | --- | --- | --- |
