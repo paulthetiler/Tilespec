@@ -2,7 +2,7 @@ import { boundedPhotoForm } from "@/lib/operations/photo-form";
 import { NextResponse } from "next/server";
 import { requireActor } from "@/lib/auth";
 import { createStorageVerifier } from "@/lib/supabase/storage-admin";
-import { inspectEvidence, verifyStoredEvidence } from "@/lib/operations/evidence";
+import { alreadyStored, inspectEvidence, verifyStoredEvidence } from "@/lib/operations/evidence";
 import { uuid, text, MAX_FILE_BYTES, ValidationError } from "@/lib/operations/validation";
 import { rpcErrorMessage } from "@/lib/operations/errors";
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}) {
@@ -22,8 +22,14 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
   const metadata=await supabase.from("supervisor_issue_photos").select("id,issue_id,actor_id,object_path,sha256,bytes,mime_type,purpose,uploaded_at").eq("id",reservation.data).single();
   if(metadata.error || !metadata.data || metadata.data.actor_id!==member.user_id || metadata.data.issue_id!==issue)
    return NextResponse.json({error:"Photo reservation unavailable."},{status:403});
-  await supabase.storage.from("supervisor-evidence").upload(metadata.data.object_path,bytes,{contentType:type.mime,upsert:false});
-  // A conflicting upload is a safe retry only if the actual stored bytes match.
+  // A retry (same request key) returns the same reservation. Its object may already be stored by an
+  // earlier attempt, including one whose verification failed: that is a safe retry only if the
+  // actual stored bytes match, which is checked next. Any other upload failure stops here, unsaved.
+  if(!metadata.data.uploaded_at) {
+   const upload=await supabase.storage.from("supervisor-evidence").upload(metadata.data.object_path,bytes,{contentType:type.mime,upsert:false});
+   if(upload.error && !alreadyStored(upload.error))
+    return NextResponse.json({error:"The photograph was not uploaded. It has not been saved; retry the same photograph."},{status:503});
+  }
   const stored=await verifier.storage.from("supervisor-evidence").download(metadata.data.object_path);
   if(stored.error || !stored.data) return NextResponse.json({error:"Upload remains pending. Retry the same photograph; it has not been confirmed saved."},{status:503});
   verifyStoredEvidence(new Uint8Array(await stored.data.arrayBuffer()),metadata.data);

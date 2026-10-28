@@ -150,7 +150,7 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
       expectedNetwork = true;
       storage.faults.failUploads = 1;
       await target.getByRole('button', { name: 'Submit snag', exact: true }).click();
-      await target.getByRole('alert').filter({ hasText: /not been confirmed saved|remains pending|could not confirm/i }).first().waitFor();
+      await target.getByRole('alert').filter({ hasText: 'The photograph was not uploaded' }).first().waitFor();
       const id = sql(`select id from public.supervisor_issues where description='${description}'`);
       assert.equal(state(id), 'draft');
       assert.equal(eventCount(id, 'submit'), 0);
@@ -164,10 +164,13 @@ export async function runSnags({ browser, origin, sql, signIn, contractId, pass,
       assert.equal(state(id), 'draft');
       assert.equal(eventCount(id, 'submit'), 0);
       assert.equal(sql(`select count(*) from public.supervisor_issue_photos where issue_id='${id}' and uploaded_at is not null`), '0');
+      // This retry finds the first photograph already stored, checks its exact bytes and completes it.
       await target.getByRole('button', { name: 'Retry verification and submission', exact: true }).click();
       await target.waitForURL(`**/admin/snags/${id}`);
       await openAdvanced(target);
       expectedNetwork = false;
+      assert.equal(sql(`select count(*) from public.supervisor_issue_photos where issue_id='${id}'`), '2', 'every retry reused its reservation');
+      assert.equal(sql(`select count(*) from public.supervisor_issue_photos where issue_id='${id}' and uploaded_at is not null`), '2');
       return id;
     }
     await target.getByRole('button', { name: 'Submit snag', exact: true }).click();
