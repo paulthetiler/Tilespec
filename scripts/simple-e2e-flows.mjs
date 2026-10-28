@@ -359,11 +359,26 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await signature.getByRole('button', { name: 'Save', exact: true }).click();
     await page.locator('[data-status="signature"]').getByText('Signed by the client\'s representative', { exact: true }).waitFor();
     const evidence = page.getByRole('region', { name: 'Photographs', exact: true });
+    const photoRows = state => sql(`select count(*) from public.daywork_photos where daywork_id='${dayworkId}'${state === 'verified' ? ' and uploaded_at is not null' : ''}`);
     await evidence.getByLabel('Choose photographs', { exact: true }).setInputFiles(image);
+    // A failed upload is reported and saves nothing; the daywork itself is unaffected.
+    expectedNetwork = true; storage.faults.failUploads = 1;
+    await evidence.getByRole('button', { name: 'Upload photographs', exact: true }).click();
+    await evidence.getByRole('alert').filter({ hasText: 'The photograph was not uploaded' }).first().waitFor();
+    assert.equal(photoRows('verified'), '0', 'a failed upload is never counted as a saved photograph');
+    assert.equal(sql(`select site_status from public.dayworks where id='${dayworkId}'`), 'sent', 'the daywork stays saved and sent without its photograph');
+    // The retry uploads the bytes, but the verifier reads different bytes back: still not saved.
+    storage.faults.corruptDownloads = 1;
+    await evidence.getByRole('button', { name: 'Upload photographs', exact: true }).click();
+    await evidence.getByRole('alert').filter({ hasText: 'does not match the one you chose' }).first().waitFor();
+    assert.equal(photoRows('verified'), '0', 'a photograph whose stored bytes do not match is never completed');
+    // Retrying after the failed verification finds the object already stored, checks its exact bytes and completes it once.
     await evidence.getByRole('button', { name: 'Upload photographs', exact: true }).click();
     await evidence.getByRole('img', { name: 'Daywork photograph' }).waitFor();
-    assert.equal(sql(`select count(*) from public.daywork_photos where daywork_id='${dayworkId}' and uploaded_at is not null`), '1');
-    pass('Simple M4a: Dave records a daywork from his dashboard with people, plant and materials, sends it, records the client representative\'s signature and adds a verified photograph');
+    expectedNetwork = false;
+    assert.equal(photoRows('verified'), '1');
+    assert.equal(photoRows('all'), '1', 'every retry reused the one reservation');
+    pass('Simple M4a: Dave records a daywork from his dashboard with people, plant and materials, sends it, and records the client representative\'s signature; a failed photo upload and a failed verification save nothing and leave the daywork sent, and a retry stores one verified photograph');
 
     const record = `${site}/dayworks/${dayworkId}`;
     await manager.goto(record);

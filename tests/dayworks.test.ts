@@ -8,6 +8,7 @@ import { currentLines, currentRates, dayworkStatuses, dayworkWarning, eventLine,
 import { chargeInput, clientAuthorisationInput, dayworkInput, decisionInput, linesInput, pricingInput, rateInput, signoffInput } from "../lib/operations/daywork-input";
 import { londonDate } from "../lib/operations/planning";
 import { ValidationError } from "../lib/operations/validation";
+import { alreadyStored } from "../lib/operations/evidence";
 import { adminActionHref, compute, ctaLabel, hrefIsExistingForm, type DayworkRow, type NextActionSnapshot, type ViewerAction } from "../lib/operations/next-actions";
 
 const root = path.resolve(__dirname, "..");
@@ -194,6 +195,18 @@ test("job activity tells each daywork step without any money", () => {
   assert.equal(line("daywork-event:2"), "Sam Patel asked for more detail on DW-3 — Which day was the saw on site?");
   assert.equal(line("daywork-event:3"), "Sam Patel priced DW-3");
   assert.equal(entries[0].href, "/admin/supervisor/sites/c1/dayworks/d1");
+});
+
+// --- Photographs ----------------------------------------------------------------------------
+test("a photo retry may find its object already stored; every other upload failure is a failure", () => {
+  for (const error of [{ status: 409 }, { status: 400, statusCode: "409" }, { code: "ResourceAlreadyExists" }, { message: "The resource already exists" }])
+    assert.equal(alreadyStored(error), true, JSON.stringify(error));
+  for (const error of [null, { status: 503, statusCode: "503", message: "Simulated lost storage connection" }, { status: 403, message: "new row violates row-level security policy" }])
+    assert.equal(alreadyStored(error), false, JSON.stringify(error));
+  const route = source("app/api/supervisor/dayworks/[id]/photos/route.ts");
+  assert.match(route, /if\(upload\.error && !alreadyStored\(upload\.error\)\)/, "an upload failure is handled, not ignored");
+  assert.ok(route.indexOf("verifyStoredEvidence(") < route.indexOf('rpc("complete_daywork_photo"'), "the stored bytes are checked before completion");
+  assert.doesNotMatch(source("app/admin/supervisor/daywork-actions.ts"), /photo/i, "saving or sending a daywork never depends on photographs");
 });
 
 // --- Money stays with money access; screens stay hidden until the migration is applied --------
