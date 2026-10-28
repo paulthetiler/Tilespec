@@ -134,7 +134,7 @@ create table public.contract_daywork_rates (
 );
 create table public.daywork_pricings (
   id uuid primary key default gen_random_uuid(), daywork_id uuid not null, organisation_id uuid not null, contract_id uuid not null,
-  lines_version integer not null, total numeric(12,2) not null check(total>=0),
+  lines_version integer not null, total numeric(16,2) not null check(total>=0),
   priced_by uuid not null references auth.users(id), priced_by_name text not null, priced_at timestamptz not null default now(),
   request_key uuid not null, unique(organisation_id,priced_by,request_key),
   foreign key(organisation_id,contract_id,daywork_id) references public.dayworks(organisation_id,contract_id,id)
@@ -145,7 +145,7 @@ create table public.daywork_pricing_lines (
   organisation_id uuid not null, contract_id uuid not null, line_id uuid not null references public.daywork_lines(id),
   rate_id uuid not null references public.contract_daywork_rates(id),
   category text not null, item text not null, unit text not null, rate numeric(10,2) not null, quantity numeric(10,2) not null,
-  amount numeric(12,2) not null check(amount>=0), unique(pricing_id,line_id)
+  amount numeric(14,2) not null check(amount>=0), unique(pricing_id,line_id)
 );
 -- TileSPEC's internal approval of the charge. It is not the client's acceptance or agreement to pay.
 create table public.daywork_commercial_approvals (
@@ -552,6 +552,8 @@ begin
   perform private.assert_daywork_version(d,p_version);
   if d.site_status<>'sent' or d.office_status='rejected' then raise exception 'Only a daywork sent to the office, and not rejected, can be priced' using errcode='22023'; end if;
   if d.commercial_status='commercially_approved' then raise exception 'The charge has already been approved' using errcode='22023'; end if;
+  -- Wait for any rate change on this job, so every line is priced at a rate that is still current.
+  perform pg_advisory_xact_lock(hashtextextended('daywork-rates:'||d.contract_id::text,0));
   select count(*) into v_count from public.daywork_lines where daywork_id=d.id and lines_version=d.lines_version;
   if jsonb_typeof(p_data->'lines') is distinct from 'array' or jsonb_array_length(p_data->'lines')<>v_count
     or (select count(distinct e->>'line_id') from jsonb_array_elements(p_data->'lines') e)<>v_count then

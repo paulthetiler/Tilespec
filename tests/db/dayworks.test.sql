@@ -207,6 +207,20 @@ select test.assert((select total=6.5*30+1*42.5+85+3*12.5 from public.daywork_pri
  and (select commercial_status='priced' from public.dayworks where id=:'dw1'),
  'pricing works out each line from the job''s rates and keeps the total');
 
+-- The largest allowed line (100,000 units at £100,000) prices without overflowing.
+select set_config('request.jwt.claims',format('{"sub":"%s"}',:'dave'),true);
+select public.create_daywork(gen_random_uuid(),jsonb_build_object('contract_id',:'c1','description','Bulk material at the largest allowed size','instructed_by_name','Sam Site',
+ 'lines',jsonb_build_array(jsonb_build_object('kind','material','label','Bulk aggregate','unit','tonne','quantity',100000),
+   jsonb_build_object('kind','material','label','Bulk aggregate','unit','tonne','quantity',100000)))) as dw_large \gset
+select public.send_daywork(:'dw_large',gen_random_uuid(),1);
+select set_config('request.jwt.claims',format('{"sub":"%s"}',:'faye'),true);
+select public.save_daywork_rate(gen_random_uuid(),jsonb_build_object('contract_id',:'c1','category','material','item','Bulk aggregate','unit','tonne','rate',100000)) as r_large \gset
+select coalesce(jsonb_agg(jsonb_build_object('line_id',id,'rate_id',:'r_large')),'[]') as large_mapping from public.daywork_lines where daywork_id=:'dw_large' \gset
+select public.price_daywork(:'dw_large',gen_random_uuid(),2,jsonb_build_object('lines',:'large_mapping'::jsonb)) as large_price \gset
+select test.assert((select total=20000000000 from public.daywork_pricings where id=:'large_price')
+ and (select bool_and(amount=10000000000) from public.daywork_pricing_lines where pricing_id=:'large_price'),
+ 'the largest allowed lines and totals are stored exactly, without overflow');
+
 -- A later rate change never alters a price already worked out.
 select public.save_daywork_rate(gen_random_uuid(),jsonb_build_object('contract_id',:'c1','supersedes_id',:'r_op','rate',35)) as r_op2 \gset
 select test.assert((select rate=30 and rate_id=:'r_op' from public.daywork_pricing_lines where pricing_id=:'pricing1' and category='operative')
