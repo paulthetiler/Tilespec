@@ -44,7 +44,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     'location_inspection_allocations', 'location_inspection_requirements', 'supervisor_issues', 'supervisor_issue_events', 'supervisor_issue_photos',
     'work_holds', 'work_hold_events', 'hold_photos', 'planned_allocations', 'actual_allocations', 'actual_allocation_operatives',
     'allocation_absences', 'team_memberships', 'document_revisions', 'supervisor_office_items', 'supervisor_office_acknowledgements', 'supervisor_qa_submissions', 'site_handovers',
-    'job_messages', 'job_message_reads'];
+    'job_messages', 'job_message_reads', 'dayworks', 'daywork_lines', 'daywork_events', 'daywork_signoffs', 'daywork_client_authorisations',
+    'daywork_photos', 'contract_daywork_rates', 'daywork_pricings', 'daywork_pricing_lines', 'daywork_commercial_approvals'];
   const history = new Map(tables.map(table => [table, JSON.parse(sql(`select coalesce(jsonb_agg(to_jsonb(r) order by id),'[]') from public.${table} r`))]));
 
   const contractId = await rpc(emails.manager, 'create_contract', { p_organisation: ids.organisation, p_request_key: randomUUID(), p_data: {
@@ -322,6 +323,100 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await manager.reload();
     await manager.locator(`${thread} [data-seen]`).getByText(/^Seen by .+ at /).waitFor();
     pass('Simple M1: Dave asks the office about his snag from the snag page; a lost reply is retried once; the office replies, Dave taps Got it, and the office sees when he saw it');
+
+    // M4 (approved by the owner): Dave records a daywork from his dashboard and gets it signed; the
+    // office approves it and records the client's authorisation; only money access prices it and
+    // approves the charge; Dave sees every status but never a rate, price or total.
+    await page.goto(site);
+    await page.getByText('Site details and earlier records', { exact: true }).click();
+    await page.getByRole('link', { name: 'Dayworks: record extra work', exact: true }).click();
+    await page.waitForURL(url => url.pathname.endsWith('/commercial') && url.searchParams.get('kind') === 'dayworks');
+    await page.getByRole('link', { name: 'Record a daywork', exact: true }).click();
+    await page.waitForURL('**/dayworks/new');
+    const dayworkForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Save daywork', exact: true }) });
+    await dayworkForm.locator('textarea[name=description]').fill('Tile the bin store wall for the main contractor');
+    await dayworkForm.locator('input[name=instructed_by_name]').fill('Sam Site');
+    await dayworkForm.locator('input[name=instructed_by_company]').fill('Fictional Principal Contractor');
+    await dayworkForm.getByLabel('People and hours 1: name', { exact: true }).fill('Dave Acceptance Tiler');
+    await dayworkForm.getByLabel('People and hours 1: hours', { exact: true }).fill('7.5');
+    await dayworkForm.getByRole('button', { name: 'Add plant', exact: true }).click();
+    await dayworkForm.getByLabel('Plant 1: item', { exact: true }).fill('Wet saw');
+    await dayworkForm.getByLabel('Plant 1: quantity', { exact: true }).fill('1');
+    await dayworkForm.getByRole('button', { name: 'Add materials', exact: true }).click();
+    await dayworkForm.getByLabel('Materials 1: item', { exact: true }).fill('Adhesive');
+    await dayworkForm.getByLabel('Materials 1: quantity', { exact: true }).fill('3');
+    assert.equal(await dayworkForm.locator('input[name=send_now]').isChecked(), true, 'a new daywork goes to the office by default');
+    await dayworkForm.getByRole('button', { name: 'Save daywork', exact: true }).click();
+    await page.waitForURL(url => /\/dayworks\/[0-9a-f-]{36}$/.test(url.pathname));
+    const dayworkId = page.url().split('/').at(-1);
+    const recorded = JSON.parse(sql(`select to_jsonb(d) from public.dayworks d where id='${dayworkId}'`));
+    assert.equal(recorded.site_status, 'sent'); assert.equal(recorded.office_status, 'awaiting_review'); assert.equal(recorded.number, 1);
+    assert.equal(sql(`select count(*) from public.daywork_lines where daywork_id='${dayworkId}' and lines_version=1`), '3');
+    await page.getByText('Not approved by the office yet. Recording this work is not permission to proceed or an agreement to pay.', { exact: true }).waitFor();
+    const signature = page.getByRole('region', { name: 'Client signature', exact: true });
+    await signature.locator('input[name=signer_name]').fill('Sam Site');
+    await signature.locator('input[name=signer_position]').fill('Site manager');
+    await signature.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.locator('[data-status="signature"]').getByText('Signed by the client\'s representative', { exact: true }).waitFor();
+    const evidence = page.getByRole('region', { name: 'Photographs', exact: true });
+    await evidence.getByLabel('Choose photographs', { exact: true }).setInputFiles(image);
+    await evidence.getByRole('button', { name: 'Upload photographs', exact: true }).click();
+    await evidence.getByRole('img', { name: 'Daywork photograph' }).waitFor();
+    assert.equal(sql(`select count(*) from public.daywork_photos where daywork_id='${dayworkId}' and uploaded_at is not null`), '1');
+    pass('Simple M4a: Dave records a daywork from his dashboard with people, plant and materials, sends it, records the client representative\'s signature and adds a verified photograph');
+
+    const record = `${site}/dayworks/${dayworkId}`;
+    await manager.goto(record);
+    const decision = manager.getByRole('region', { name: 'Office decision', exact: true });
+    await decision.getByRole('button', { name: 'Save decision', exact: true }).click();
+    await manager.locator('[data-status="office"]').getByText('Approved by the office', { exact: true }).waitFor();
+    assert.equal(await manager.getByRole('region', { name: 'Charge', exact: true }).count(), 0, 'an office user without money access sees no charge');
+    assert.doesNotMatch(await manager.locator('main').innerText(), /£/);
+    const client = manager.getByRole('region', { name: 'Client authorisation', exact: true });
+    await client.getByText('Record the client\'s decision', { exact: true }).click();
+    await client.locator('input[name=client_name]').fill('Pat Client');
+    await client.locator('input[name=reference]').fill('CVI-7');
+    await client.getByRole('button', { name: 'Save the client\'s decision', exact: true }).click();
+    await manager.locator('[data-status="client"]').getByText('Client authorised the cost', { exact: true }).waitFor();
+    assert.equal(sql(`select reference from public.daywork_client_authorisations where daywork_id='${dayworkId}'`), 'CVI-7');
+
+    const owner = await account(emails.owner, { width: 1180, height: 820 });
+    for (const [category, item, unit, rateValue] of [['operative', 'Tiler', 'hour', '30'], ['plant', 'Wet saw', 'day', '85'], ['material', 'Adhesive', 'bag', '12.50']]) {
+      await owner.goto(`${origin}/admin/contracts/${contractId}#daywork-rates`);
+      const rates = owner.getByRole('region', { name: 'Daywork rates', exact: true });
+      if (!await rates.locator('details[open] select[name=category]').count()) await rates.getByText('Add a rate', { exact: true }).click();
+      await rates.locator('select[name=category]').selectOption(category);
+      await rates.locator('input[name=item]').fill(item);
+      await rates.locator('select[name=unit]').selectOption(unit);
+      await rates.locator('input[name=rate]').last().fill(rateValue);
+      await rates.getByRole('button', { name: 'Add rate', exact: true }).click();
+      await rates.getByRole('status').waitFor();
+    }
+    assert.equal(sql(`select count(*) from public.contract_daywork_rates where contract_id='${contractId}'`), '3');
+    await owner.goto(record);
+    const charge = owner.getByRole('region', { name: 'Charge', exact: true });
+    await charge.getByRole('button', { name: 'Price it', exact: true }).click();
+    await owner.locator('[data-daywork-total]').getByText('Total £347.50', { exact: false }).waitFor();
+    await owner.getByRole('region', { name: 'Charge', exact: true }).getByRole('button', { name: 'Approve the charge internally', exact: true }).click();
+    await owner.locator('[data-charge-approved]').waitFor();
+    assert.equal(sql(`select total from public.daywork_pricings where daywork_id='${dayworkId}'`), '347.50');
+    assert.equal(sql(`select commercial_status||':'||client_status||':'||signoff_status from public.dayworks where id='${dayworkId}'`), 'commercially_approved:authorised:signed');
+    await owner.goto(`${origin}/admin/contracts/${contractId}#daywork-rates`);
+    const tiler = owner.getByRole('region', { name: 'Daywork rates', exact: true }).locator('li').filter({ hasText: 'Operative: Tiler' });
+    await tiler.getByText('Change or retire', { exact: true }).click();
+    await tiler.locator('input[name=rate]').fill('35');
+    await tiler.getByRole('button', { name: 'Save rate', exact: true }).click();
+    await tiler.getByRole('status').waitFor();
+    assert.equal(sql(`select string_agg(rate::text,',' order by rate) from public.daywork_pricing_lines l join public.daywork_pricings p on p.id=l.pricing_id where p.daywork_id='${dayworkId}'`), '12.50,30.00,85.00',
+      'a later rate change leaves the approved price exactly as it was');
+    pass('Simple M4b: the office approves the daywork and records the client\'s authorisation; only the owner (money access) sets rates, prices it and approves the charge, which keeps its rates after a change');
+
+    await page.goto(record);
+    await page.locator('[data-status="charge"]').getByText('Charge approved internally by TileSPEC', { exact: true }).waitFor();
+    await page.locator('[data-status="client"]').getByText('Client authorised the cost', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('region', { name: 'Charge', exact: true }).count(), 0);
+    assert.doesNotMatch(await page.locator('main').innerText(), /£|347|12\.50|85\.00/, 'the supervisor never sees a rate, price or total');
+    pass('Simple M4c: Dave sees the office, signature, charge and client statuses separately, with no rate, price or total');
 
     await page.goto(site);
     await page.getByRole('link', { name: 'STOP WORK', exact: true }).click();

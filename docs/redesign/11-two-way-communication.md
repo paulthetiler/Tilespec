@@ -1,7 +1,8 @@
 # 11. Two-way communication and commercial records
 
 **Status: M3 and M2 are approved and built (section 8). M1 is approved and built
-(section 9). M4 and M5 are still proposals.** Every item labelled New backend needs the owner's approval before any
+(section 9). M4 dayworks is approved and built (section 10). M5 variations is approved
+in principle and follows in its own pull request.** Every item labelled New backend needs the owner's approval before any
 migration is written, and applying a migration to a hosted project is a separate
 approval. The Query-only stage (section 2) is in the pull request before the M3/M2 one.
 
@@ -175,8 +176,8 @@ All forms follow the existing pattern: a failed save keeps everything typed, and
 | --- | --- | --- | --- |
 | 1 | M3 office reviews and M2 instruction changes (**approved and built**) | Small | Closes the loops found in the audit, using records that already exist |
 | 2 | M1 messages and replies (**approved and built**) | Medium | Lets the supervisor talk to the office about any record |
-| 3 | M4 dayworks | Large | Direct commercial value; reuses M1 for questions |
-| 4 | M5 variations | Large | Builds on the daywork pattern |
+| 3 | M4 dayworks (**approved and built**) | Large | Direct commercial value; reuses M1 for questions |
+| 4 | M5 variations (approved in principle) | Large | Builds on the daywork pattern |
 
 Each step is one pull request: a migration with preflight and tests, engine rules
 and screens behind the existing flags, then a hosted rehearsal before production.
@@ -184,20 +185,31 @@ and screens behind the existing flags, then a hosted rehearsal before production
 ## 7. Decisions needed from the owner
 
 1. Approve M1 to M5 individually, and the order above. M3 and M2 were approved on
-   23 October 2026 and M1 on 24 October 2026; M4 (dayworks) comes next, then M5.
-2. Dayworks: who may authorise (any office user, a named manager, or the owner)? Is
-   the client's signature required on every daywork, or only above a value or for
-   some clients?
-3. Daywork rates: per person, per trade or per job? Who enters them?
-4. Variations: does the supervisor raise them, or only flag "possible variation" for
-   the office to raise? Should work be blocked in the database until approved, or
-   is a clear warning enough?
+   23 October 2026, M1 on 24 October 2026, and M4 and M5 (in principle) on
+   28 October 2026. M5 follows once M4 has been reviewed.
+2. Dayworks: **decided (28 October 2026).** Any office user can approve a daywork, but
+   never one they submitted; the owner can override, and every override is logged. The
+   client's site representative signs each sheet to confirm the work, hours and
+   materials only; if they refuse or are not there, that is recorded. The client's
+   commercial authorisation is recorded separately, with an instruction reference or
+   a document.
+3. Daywork rates: **decided.** Set per job by the office with money access, for
+   operatives, supervisors, plant and materials. The supervisor records hours and
+   quantities; pricing copies the exact rate used, so later rate changes never alter a
+   priced or approved daywork. A daywork can be saved and signed without rates; it stays
+   "Awaiting pricing" and its charge cannot be approved until every line is priced.
+   "Commercially approved" means TileSPEC has approved the charge internally. It is never
+   the client's acceptance or agreement to pay. Supervisors see quantities, hours,
+   descriptions, signatures and statuses, never rates, margins or totals.
+4. Variations: **decided.** Supervisors raise "possible variations" (description,
+   photos, site instruction); the office prices, submits and records the client's
+   decision. Work is never blocked from being recorded; Today shows clear warnings and
+   statuses, and recording work is not permission to proceed or agreement to pay.
 5. Messages: should a supervisor be able to message the office about the job in
    general, or only about a specific record? Built as both (section 9); this can be
    narrowed later.
-6. Notifications: is an email or phone notification needed for urgent instructions
-   and safety stops? This is separate from the records above and needs its own
-   approval.
+6. Notifications: **decided.** Today and the office queue only, for now. Email, push or
+   phone notifications are outside this phase and need their own approval.
 
 ## 8. As built: M3 office reviews and M2 instruction changes
 
@@ -271,3 +283,35 @@ Differences from the proposal above, kept small on purpose:
   the office" and the page opens with the message box.
 - Until the migration is applied, every screen works exactly as before: no message
   box, no "Ask the office about this" link and no R20 or R21 actions.
+
+## 10. As built: M4 dayworks and day rates
+
+Migration `20261028090000_dayworks.sql`, with the read-only report
+`supabase/inspection/dayworks-preflight.sql`. Additive and transactional; it refuses to
+run twice or before the daily workflow. The only existing object it changes is job
+messages (M1), when installed: a conversation may also be about a daywork. Not applied
+to any hosted project.
+
+| What | Who | Where | Notes |
+| --- | --- | --- | --- |
+| Record a daywork | Supervisor on the job (or the office) | Report an issue → "Daywork (paid by the hour)", or the job's Dayworks list | What, where, who asked (name, company, date), people and hours, plant and materials. Saved and sent in one step; photos and signature come after, so neither can block it |
+| Client representative's sign-off | Supervisor | The daywork | Signed (name, position, company, time), refused (reason) or not available (reason). Confirms the work only, not payment |
+| Photographs | Supervisor or office | The daywork | Optional, verified private evidence of the work or the signed sheet. Without the Production secret key (A1) the daywork is saved without them |
+| Approve, ask for more detail, reject | Office or owner | Office Today "Review daywork DW-n", then the daywork | Never your own; the owner can override with a reason that is logged. More detail sends it back to site to correct and resend |
+| Client's authorisation | Office or owner | The daywork | Authorised (with instruction reference or a job document) or declined (with why). Separate from the signature and from the office approval |
+| Day rates | Office with money access, owner | The job page, "Daywork rates" | Per job: operative and supervisor per hour, plant and materials per unit. A change is a new version; nothing priced is altered |
+| Price | Office with money access, owner | Office Today "Price daywork DW-n", then the daywork | Every line needs a current rate of the same kind and unit; each priced line keeps an exact copy of the rate |
+| Approve the charge internally | Office with money access, owner | Office Today "Approve the charge for daywork DW-n" | Only once the office has approved the work and every line is priced. Not by whoever submitted it. Never the client's acceptance |
+
+Four statuses stay separate on every daywork: site (recorded, sent), signature, office
+(waiting, more detail, approved, rejected), charge (awaiting pricing, priced, approved
+internally) and client (not authorised, authorised, declined). The daywork page and Today
+always say that recording work is not permission to proceed or agreement to pay.
+
+Money stays with money access: rates, prices, totals and internal approvals live in
+separate tables that only money access can read, and their audit records are marked
+commercial. Supervisors and office users without money access see statuses only.
+
+Next Actions R22 to R28 (doc 04). Job activity tells every step, without money.
+Until the migration is applied, every screen works exactly as before and Dayworks stays
+"Not built yet".
