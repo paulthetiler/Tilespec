@@ -56,6 +56,7 @@ var TSEngine = (() => {
     toMinutes: () => toMinutes,
     todayCountCopy: () => todayCountCopy,
     visibleContractIds: () => visibleContractIds,
+    withoutFigures: () => withoutFigures,
     workflowPreviewExposed: () => workflowPreviewExposed
   });
 
@@ -1340,6 +1341,7 @@ var TSEngine = (() => {
     const seen = /* @__PURE__ */ new Set();
     return mine.filter((a) => seen.has(a.id) ? false : (seen.add(a.id), true));
   }
+  var withoutFigures = (actions) => actions.filter((a) => a.process !== "money");
   function nextAction(actions) {
     var _a;
     return (_a = actions.find((a) => a.state === "ready")) != null ? _a : null;
