@@ -381,7 +381,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     assert.equal(sql(`select reference from public.daywork_client_authorisations where daywork_id='${dayworkId}'`), 'CVI-7');
 
     const owner = await account(emails.owner, { width: 1180, height: 820 });
-    for (const [category, item, unit, rateValue] of [['operative', 'Tiler', 'hour', '30'], ['plant', 'Wet saw', 'day', '85'], ['material', 'Adhesive', 'bag', '12.50']]) {
+    for (const [category, item, unit, rateValue, shown] of [['operative', 'Tiler', 'hour', '30', 'Operative: Tiler'], ['plant', 'Wet saw', 'day', '85', 'Plant: Wet saw'],
+      ['material', 'Adhesive', 'bag', '12.50', 'Material: Adhesive']]) {
       await owner.goto(`${origin}/admin/contracts/${contractId}#daywork-rates`);
       const rates = owner.getByRole('region', { name: 'Daywork rates', exact: true });
       if (!await rates.locator('details[open] select[name=category]').count()) await rates.getByText('Add a rate', { exact: true }).click();
@@ -390,7 +391,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
       await rates.locator('select[name=unit]').selectOption(unit);
       await rates.locator('input[name=rate]').last().fill(rateValue);
       await rates.getByRole('button', { name: 'Add rate', exact: true }).click();
-      await rates.getByRole('status').waitFor();
+      // The saved rate is listed; the add form folds away once the job has rates.
+      await rates.locator('li').filter({ hasText: shown }).waitFor();
     }
     assert.equal(sql(`select count(*) from public.contract_daywork_rates where contract_id='${contractId}'`), '3');
     await owner.goto(record);
@@ -406,7 +408,7 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await tiler.getByText('Change or retire', { exact: true }).click();
     await tiler.locator('input[name=rate]').fill('35');
     await tiler.getByRole('button', { name: 'Save rate', exact: true }).click();
-    await tiler.getByRole('status').waitFor();
+    await owner.getByRole('region', { name: 'Daywork rates', exact: true }).locator('li').filter({ hasText: 'Operative: Tiler · £35.00 per hour' }).waitFor();
     assert.equal(sql(`select string_agg(rate::text,',' order by rate) from public.daywork_pricing_lines l join public.daywork_pricings p on p.id=l.pricing_id where p.daywork_id='${dayworkId}'`), '12.50,30.00,85.00',
       'a later rate change leaves the approved price exactly as it was');
     pass('Simple M4b: the office approves the daywork and records the client\'s authorisation; only the owner (money access) sets rates, prices it and approves the charge, which keeps its rates after a change');
