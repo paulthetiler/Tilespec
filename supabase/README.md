@@ -239,6 +239,9 @@ append-only and audited, and writes go only through `post_job_message` and
 transactional; it refuses to run before `20261015130000` and `20261015091000` or a
 second time.
 
+Applied to the TileSpec production project on 28 October 2026 with the owner's approval,
+recorded in its migration history as `20261028163603 job_messages`.
+
 1. Take a database backup.
 2. Run `inspection/job-messages-preflight.sql` (read-only) as the applying role and
    keep the output. Every prerequisite must be present and every name collision absent.
@@ -266,6 +269,14 @@ after this migration, M1 installs without the daywork subject, so "Ask the offic
 on a daywork is refused until a follow-up migration adds it. It creates storage policies on
 `storage.objects`, as the work-holds migration does, so the applying role needs the same
 privilege there; rehearse on a staging copy first.
+
+Applied to the TileSpec production project on 28 October 2026, after M1, with the owner's
+approval, recorded in its migration history as `20261028165123 dayworks`.
+
+Production's migration history does not follow these filenames: each entry carries the
+time it was applied, and four applied migrations (`20261014120000`, `20261015091000`,
+`20261015130000`, `20261015131000`) were applied without being recorded. Do not run
+`supabase db push` against production; apply each approved migration on its own.
 
 1. Take a database backup.
 2. Run `inspection/dayworks-preflight.sql` (read-only) as the applying role and keep the
