@@ -106,7 +106,7 @@ export async function runHolds({ browser, origin, sql, signIn, pass, screenshots
     if (fault) {
       expectedNetwork = true; storage.faults.failUploads = 1;
       await region.getByRole('button', { name: 'Upload photographs', exact: true }).click();
-      await region.getByRole('alert').first().waitFor();
+      await region.getByRole('alert').filter({ hasText: 'The photograph was not uploaded' }).first().waitFor();
       assert.equal(sql(`select count(*) from public.hold_photos where hold_id='${id}' and purpose='${purpose}' and uploaded_at is not null`), '0');
       assert.equal(await region.getByText('Verified in private storage', { exact: true }).count(), 0);
       storage.faults.corruptDownloads = 1;
@@ -114,9 +114,14 @@ export async function runHolds({ browser, origin, sql, signIn, pass, screenshots
       await region.getByRole('alert').filter({ hasText: 'stored file does not match' }).first().waitFor();
       assert.equal(sql(`select count(*) from public.hold_photos where hold_id='${id}' and purpose='${purpose}' and uploaded_at is not null`), '0');
     }
+    const reservations = sql(`select count(*) from public.hold_photos where hold_id='${id}' and purpose='${purpose}'`);
     await region.getByRole('button', { name: 'Upload photographs', exact: true }).click();
     await region.getByText('Verified in private storage', { exact: true }).waitFor();
-    if (fault) expectedNetwork = false;
+    if (fault) {
+      expectedNetwork = false;
+      // The retry found the object already stored by the failed verification, checked its bytes and reused the reservation.
+      assert.equal(sql(`select count(*) from public.hold_photos where hold_id='${id}' and purpose='${purpose}'`), reservations, 'every retry reused its reservation');
+    }
     const photo = JSON.parse(sql(`select to_jsonb(p) from public.hold_photos p where hold_id='${id}' and purpose='${purpose}'
       and uploaded_at is not null and event_id is null order by created_at desc limit 1`));
     assert.ok(photo.id); assert.equal(photo.sha256, createHash('sha256').update(png).digest('hex'));
