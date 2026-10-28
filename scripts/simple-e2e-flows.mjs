@@ -467,20 +467,22 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await officeHandover.getByText(notes.work_completed, { exact: true }).waitFor();
     pass('Simple J/M: five short handover notes persist for the office and finish existing workforce periods; null HTTP 200 and lost replies cannot show false success or duplicate the handover');
 
-    // Variations and dayworks stay reachable from the job's secondary links, clearly marked as not
-    // built, with no form or button that could look like a saved record.
+    // Variations stay reachable from the job's secondary links, clearly marked as not built, with no
+    // form or button that could look like a saved record. Dayworks, now installed here, lead to the
+    // job's real list (before their migration they show the same "Not built yet" page).
     await page.goto(site);
     await page.getByText('Site details and earlier records', { exact: true }).click();
-    for (const [label, kind] of [['Variations (not built yet)', 'variations'], ['Dayworks (not built yet)', 'dayworks']]) {
+    for (const [label, kind] of [['Variations (not built yet)', 'variations'], ['Dayworks: record extra work', 'dayworks']]) {
       assert.equal(await page.getByRole('link', { name: label, exact: true }).getAttribute('href'), `/admin/supervisor/sites/${contractId}/commercial?kind=${kind}`);
     }
-    for (const kind of ['variations', 'dayworks']) {
-      await page.goto(`${site}/commercial?kind=${kind}`);
-      await page.getByText('Not built yet. Nothing on this page is saved.', { exact: true }).waitFor();
-      await page.getByText('New backend, awaiting approval.', { exact: false }).waitFor();
-      assert.equal(await page.locator('main form').count(), 0, `${kind} has no recording form`);
-      assert.equal(await page.locator('main button').count(), 0, `${kind} has no submit button`);
-    }
+    await page.goto(`${site}/commercial?kind=variations`);
+    await page.getByText('Not built yet. Nothing on this page is saved.', { exact: true }).waitFor();
+    await page.getByText('New backend, awaiting approval.', { exact: false }).waitFor();
+    assert.equal(await page.locator('main form').count(), 0, 'variations has no recording form');
+    assert.equal(await page.locator('main button').count(), 0, 'variations has no submit button');
+    await page.goto(`${site}/commercial?kind=dayworks`);
+    await page.getByRole('region', { name: 'Dayworks on this job', exact: true }).getByText('Tile the bin store wall for the main contractor', { exact: true }).waitFor();
+    assert.equal(await page.getByText('Not built yet', { exact: false }).count(), 0, 'installed dayworks are not presented as unbuilt');
     const other = await account(emails.other);
     for (const path of ['/messages', `/tasks/${taskId}`, '/finish']) assert.equal((await other.goto(`${site}${path}`)).status(), 404);
     const hidden = await rest(emails.other, `supervisor_office_items?id=eq.${taskId}`);
