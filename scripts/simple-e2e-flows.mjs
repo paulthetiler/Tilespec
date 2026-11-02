@@ -436,6 +436,47 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     assert.doesNotMatch(await page.locator('main').innerText(), /£|347|12\.50|85\.00/, 'the supervisor never sees a rate, price or total');
     pass('Simple M4c: Dave sees the office, signature, charge and client statuses separately, with no rate, price or total');
 
+    // Nobody approves a daywork they submitted. The office records one for site: it cannot approve it
+    // and is told why. The owner, who did not submit it, approves it normally. The owner's own daywork
+    // can be approved only with a reason, which is logged.
+    const recordFor = async (target, description) => {
+      await target.goto(`${site}/dayworks/new`);
+      const form = target.locator('form').filter({ has: target.getByRole('button', { name: 'Save daywork', exact: true }) });
+      await form.locator('textarea[name=description]').fill(description);
+      await form.locator('input[name=instructed_by_name]').fill('Sam Site');
+      await form.getByLabel('People and hours 1: name', { exact: true }).fill('Dave Acceptance Tiler');
+      await form.getByLabel('People and hours 1: hours', { exact: true }).fill('2');
+      await form.getByRole('button', { name: 'Save daywork', exact: true }).click();
+      await target.waitForURL(url => /\/dayworks\/[0-9a-f-]{36}$/.test(url.pathname));
+      return target.url().split('/').at(-1);
+    };
+    const officeRecorded = await recordFor(manager, 'Grout the bin store wall after the extra tiling');
+    const officeDecision = manager.getByRole('region', { name: 'Office decision', exact: true });
+    await officeDecision.getByText('You recorded or sent this daywork, so another office user must approve it.', { exact: false }).waitFor();
+    assert.equal(await officeDecision.locator('input[name=decision][value=approve]').count(), 0, 'whoever submitted a daywork is not offered its approval');
+    await owner.goto(`${site}/dayworks/${officeRecorded}`);
+    const ownerDecision = owner.getByRole('region', { name: 'Office decision', exact: true });
+    assert.equal(await ownerDecision.locator('textarea[name=override_reason]').count(), 0, 'no override is asked of someone who did not submit it');
+    await ownerDecision.getByRole('button', { name: 'Save decision', exact: true }).click();
+    await owner.locator('[data-status="office"]').getByText('Approved by the office', { exact: true }).waitFor();
+    assert.equal(sql(`select string_agg(action||':'||owner_override,',' order by id) from public.daywork_events where daywork_id='${officeRecorded}'`), 'record:false,send:false,approve:false');
+    const ownerRecorded = await recordFor(owner, 'Seal the bin store wall after grouting');
+    const ownDecision = owner.getByRole('region', { name: 'Office decision', exact: true });
+    expectedNetwork = true;
+    await ownDecision.getByRole('button', { name: 'Save decision', exact: true }).click();
+    await ownDecision.getByRole('alert').filter({ hasText: 'Give a reason for approving a daywork you submitted' }).waitFor();
+    expectedNetwork = false;
+    assert.equal(sql(`select office_status from public.dayworks where id='${ownerRecorded}'`), 'awaiting_review', 'without a reason the owner cannot approve their own daywork');
+    await owner.reload();
+    const ownRetry = owner.getByRole('region', { name: 'Office decision', exact: true });
+    await ownRetry.locator('textarea[name=override_reason]').fill('Only office user on site today; checked against the signed sheet');
+    await ownRetry.getByRole('button', { name: 'Save decision', exact: true }).click();
+    await owner.locator('[data-status="office"]').getByText('Approved by the office', { exact: true }).waitFor();
+    assert.equal(sql(`select owner_override||':'||note from public.daywork_events where daywork_id='${ownerRecorded}' and action='approve'`),
+      'true:Only office user on site today; checked against the signed sheet', 'the owner override and its reason are logged');
+    await owner.getByRole('region', { name: 'History', exact: true }).getByText('Only office user on site today; checked against the signed sheet', { exact: false }).waitFor();
+    pass('Simple M4d: whoever submits a daywork cannot approve it and is told why; the owner approves another\'s daywork without an override, and their own only with a logged reason');
+
     await page.goto(site);
     await page.getByRole('link', { name: 'STOP WORK', exact: true }).click();
     await page.waitForURL(url => url.pathname === '/admin/holds/new' && url.searchParams.get('contract') === contractId);
@@ -529,7 +570,8 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
 
     const screens = [['daily-dashboard', site], ['morning-checks', `${site}/checks`], ['workmanship', `${site}/inspections?location=${floor}&stage=installation&template=${template}`],
       ['raise-snag', `${origin}/admin/snags/new?contract=${contractId}&location=${bathroom}`], ['office-messages', `${site}/messages`],
-      ['outstanding-snags', `${site}/snags`], ['inspection-request', `${site}/tasks/${taskId}`], ['finish-today', `${site}/finish`]];
+      ['outstanding-snags', `${site}/snags`], ['inspection-request', `${site}/tasks/${taskId}`], ['finish-today', `${site}/finish`],
+      ['dayworks', `${site}/commercial?kind=dayworks`], ['record-daywork', `${site}/dayworks/new`], ['daywork', `${site}/dayworks/${dayworkId}`]];
     for (const viewport of [{ name: 'mobile', width: 390, height: 844 }, { name: 'tablet', width: 820, height: 1180 }]) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       for (const [name, url] of screens) {
@@ -547,7 +589,7 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
         // Remove only Next's development indicator from review images.
         if (screenshots) await page.screenshot({ path: join(screenshots, `simple-${name}-${viewport.name}.png`), fullPage: true, caret: 'initial', style: 'nextjs-portal { display: none !important; }' });
       }
-      pass(`Simple L: the dashboard, morning checks, workmanship, snag, messages, QA task and handover fit ${viewport.width}px ${viewport.name} without sideways scrolling`);
+      pass(`Simple L: the dashboard, morning checks, workmanship, snag, messages, QA task, handover and dayworks fit ${viewport.width}px ${viewport.name} without sideways scrolling`);
     }
     assert.deepEqual(errors, [], 'simplified authenticated journeys have no unexpected browser console or runtime errors');
     pass('Simple regression: no unexpected browser errors across the real authenticated daily journeys');
