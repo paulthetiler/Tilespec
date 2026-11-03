@@ -138,6 +138,7 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
             {snapshot.job_threads && member.role === "supervisor" && <Link className={styles.row} href={`${base}/messages#ask`}><strong>Message the office</strong><span>Ask a question or tell them something about this job</span></Link>}
             <Link className={styles.row} href={`${base}/messages`}><strong>Office messages</strong><span>Instructions and requests</span></Link>
             <Link className={styles.row} href={`${base}/finish`}><strong>Finish today</strong><span>Send the handover</span></Link>
+            <Link className={styles.row} href={`${base}/materials`}><strong>Materials used</strong><span>What you used and how much. No prices</span></Link>
             <Link className={styles.row} href={`${base}/activity`}><strong>Job activity</strong><span>Everything you and the office have recorded, newest first</span></Link>
             {/* Essential commercial records: reachable, and never presented as working before their migration is applied. */}
             {snapshot.variations_available ? <Link className={styles.row} href={`${base}/commercial?kind=variations`}><strong>Variations</strong><span>Raise a change to the agreed work before starting it, and follow it</span></Link>

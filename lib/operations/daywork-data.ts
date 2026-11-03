@@ -131,3 +131,13 @@ export async function dayworkLabelsFor(supabase: SupabaseClient, ids: string[]):
   return ((result.data ?? []) as Record<string, unknown>[]).map(row => ({ id: String(row.id), number: Number(row.number), description: String(row.description),
     kind: row.kind === "variation" ? "variation" : "daywork" }));
 }
+
+/** Every daywork and variation on a job, for choosing one (no statuses, no money). */
+export async function dayworkLabelsForContract(supabase: SupabaseClient, contractId: string): Promise<DayworkLabel[]> {
+  let result: Result = await supabase.from("dayworks").select("id,kind,number,description").eq("contract_id", contractId).order("number");
+  if (result.error?.code === "42703") result = await supabase.from("dayworks").select("id,number,description").eq("contract_id", contractId).order("number");
+  if (missing(result.error)) return [];
+  checkDatabase(result.error);
+  return ((result.data ?? []) as Record<string, unknown>[]).map(row => ({ id: String(row.id), number: Number(row.number), description: String(row.description),
+    kind: row.kind === "variation" ? "variation" : "daywork" }));
+}

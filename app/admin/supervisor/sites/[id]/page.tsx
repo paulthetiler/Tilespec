@@ -172,6 +172,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
         <Link href={fullRegisterHref}>Detailed snag register</Link>
         <Link href={`${base}/history`}>Workforce history</Link>
         <Link href={`${base}/checks`}>Earlier morning checks</Link>
+        <Link href={`${base}/materials`}>Materials used</Link>
         <Link href={`${base}/commercial?kind=variations`}>{variations ? "Variations: raise a change to the work" : "Variations (not available yet)"}</Link>
         <Link href={`${base}/commercial?kind=dayworks`}>{dayworks ? "Dayworks: record extra work" : "Dayworks (not built yet)"}</Link>
         <Link href="/admin/supervisor">Choose another site</Link>
