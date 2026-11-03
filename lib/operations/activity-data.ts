@@ -5,6 +5,7 @@ import { buildActivity, type ActivityEntry, type ActivitySources } from "./activ
 import { aboutLabel, emptyLookups } from "./conversations";
 import type { AboutType } from "./daily";
 import { checkDatabase, locationsFor } from "./data";
+import { dayworkLabelsFor } from "./daywork-data";
 import { indexLocations, locationPath } from "./locations";
 import { canManageContracts } from "./permissions";
 
@@ -116,7 +117,7 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
       [...reviewRows.map(row => row.handover_id), ...aboutIds("handover")].filter((id): id is string => typeof id === "string" && !listedHandovers.has(id))),
     byIds("supervisor_issues", "id,check_label", aboutIds("snag")),
     byIds("work_holds", "id,hold_type,category", aboutIds("hold")),
-    byIds("dayworks", "id,number,description", [...aboutIds("daywork"), ...(dayworkEvents?.rows ?? []).map(row => String(row.daywork_id))]),
+    dayworkLabelsFor(supabase, [...aboutIds("daywork"), ...(dayworkEvents?.rows ?? []).map(row => String(row.daywork_id))]),
   ]);
   // Acknowledgements, results, withdrawals, changes and conversations can refer to an earlier message than this page shows.
   const olderMessages = await byIds("supervisor_office_items", "*", [...acknowledgements.rows, ...results.rows, ...olderResults, ...(withdrawals?.rows ?? [])]
@@ -128,7 +129,7 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
   for (const row of [...handovers.rows, ...olderHandovers]) lookups.handovers.set(String(row.id), { work_date: String(row.work_date), actor_name: String(row.actor_name) });
   for (const row of [...snagList, ...aboutSnags]) lookups.snags.set(String(row.id), String(row.check_label));
   for (const row of aboutHolds) lookups.holds.set(String(row.id), `${row.hold_type === "safety" ? "Safety stop" : "Quality hold"}, ${row.category}`);
-  for (const row of aboutDayworks) lookups.dayworks.set(String(row.id), { number: Number(row.number), description: String(row.description) });
+  for (const row of aboutDayworks) lookups.dayworks.set(row.id, { number: row.number, description: row.description, kind: row.kind });
   const teamName = new Map(teams.map(row => [String(row.id), String(row.name)]));
   const sources: ActivitySources = {
     snagEvents,
@@ -146,7 +147,7 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
       const daywork = aboutDayworks.find(entry => entry.id === row.daywork_id);
       return { id: String(row.id), daywork_id: String(row.daywork_id), actor_id: String(row.actor_id), actor_name: String(row.actor_name), action: String(row.action),
         note: (row.note as string | null) ?? null, owner_override: row.owner_override === true, created_at: String(row.created_at),
-        number: daywork ? Number(daywork.number) : null, description: daywork ? String(daywork.description) : null };
+        number: daywork ? daywork.number : null, kind: daywork?.kind ?? "daywork", description: daywork ? daywork.description : null };
     }),
     jobMessages: messageRows.map(row => {
       const root = roots.get(String(row.thread_id));

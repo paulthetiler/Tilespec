@@ -40,6 +40,24 @@ export async function updateContractAction(_: ActionState, form: FormData): Prom
     return { success: "Contract details saved. Installation remains unreleased." };
   } catch (error) { return failure(error); }
 }
+// What the contract requires before extra work goes ahead. Not money: the office decides it.
+export async function setExtraWorkAuthorisationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const { supabase, member } = await requireActor();
+  try {
+    manage(member);
+    const id = uuid(form, "contract_id"), dayworks = text(form, "dayworks", 12, true), variations = text(form, "variations", 12);
+    const answer = (value: string) => {
+      if (value !== "required" && value !== "not_required") throw new ValidationError("Say whether the client's authorisation is required.");
+      return value === "required";
+    };
+    const data = { dayworks: answer(dayworks), ...(variations ? { variations: answer(variations) } : {}) };
+    const result = await supabase.rpc("set_extra_work_authorisation", { p_contract: id, p_version: integer(form, "version", 1), p_data: data });
+    checkDatabase(result.error);
+    revalidatePath(`/admin/contracts/${id}`);
+    revalidatePath(`/admin/supervisor/sites/${id}`, "layout");
+    return { success: "Saved. The site sees go ahead only once everything this contract requires is recorded." };
+  } catch (error) { return failure(error); }
+}
 export async function saveCommercialAction(_: ActionState, form: FormData): Promise<ActionState> {
   const { supabase, member } = await requireActor();
   try {

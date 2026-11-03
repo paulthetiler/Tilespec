@@ -32,7 +32,7 @@ export type ActivitySources = {
     about: string | null }[];
   /** Empty until dayworks are installed. Each step of a daywork; never any money. */
   dayworkEvents?: { id: string | number; daywork_id: string; actor_id: string; actor_name: string; action: string; note: string | null; owner_override: boolean;
-    created_at: string; number: number | null; description: string | null }[];
+    created_at: string; number: number | null; kind?: "daywork" | "variation"; description: string | null }[];
   acknowledgements: { id: string; item_id: string; actor_id: string; acknowledged_at: string }[];
   results: { id: string; item_id: string; submitted_by: string; submitted_at: string; has_issues: boolean }[];
   handovers: { id: string; actor_id: string; actor_name: string; created_at: string; outstanding_problems: string; areas_awaiting_attention: string; office_notes: string; work_completed: string }[];
@@ -117,7 +117,7 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
       href: `${siteBase}/messages?thread=${j.thread_id}#thread-${j.thread_id}` });
   }
   for (const d of src.dayworkEvents ?? []) {
-    const reference = d.number ? `DW-${d.number}` : "a daywork";
+    const reference = d.number ? `${d.kind === "variation" ? "VO" : "DW"}-${d.number}` : d.kind === "variation" ? "a variation" : "a daywork";
     entries.push({ id: `daywork-event:${d.id}`, at: d.created_at, who: person(d.actor_id, d.actor_name), what: eventLine(d, reference),
       detail: (d.action === "request_detail" || d.action === "reject" || d.owner_override) && d.note ? brief(d.note) : d.action === "record" && d.description ? brief(d.description) : undefined,
       href: `${siteBase}/dayworks/${d.daywork_id}`, tone: d.action === "reject" ? "problem" : d.action === "approve" ? "done" : undefined });

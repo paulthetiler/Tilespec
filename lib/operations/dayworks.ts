@@ -12,13 +12,52 @@ export const rateCategories = ["operative", "supervisor", "plant", "material"] a
 export type RateCategory = (typeof rateCategories)[number];
 export const categoryLabels: Record<RateCategory, string> = { operative: "Operative", supervisor: "Supervisor", plant: "Plant", material: "Material" };
 
+/** A variation is a change to the agreed work; it uses the same records and workflow as a daywork. */
+export const dayworkKinds = ["daywork", "variation"] as const;
+export type DayworkKind = (typeof dayworkKinds)[number];
+export const kindWords: Record<DayworkKind, { prefix: string; noun: string; title: string; plural: string }> = {
+  daywork: { prefix: "DW", noun: "daywork", title: "Daywork", plural: "Dayworks" },
+  variation: { prefix: "VO", noun: "variation", title: "Variation", plural: "Variations" },
+};
 export type Daywork = {
-  id: string; contract_id: string; number: number; work_area_id: string | null; location_path: string[]; description: string;
+  id: string; contract_id: string; kind: DayworkKind; number: number; work_area_id: string | null; location_path: string[]; description: string;
   instructed_by_name: string; instructed_by_company: string | null; instructed_on: string; created_by: string; created_by_name: string; created_at: string;
   site_status: "recorded" | "sent"; office_status: "awaiting_review" | "more_detail" | "approved" | "rejected" | null;
-  signoff_status: "none" | "signed" | "refused" | "unavailable"; commercial_status: "awaiting_pricing" | "priced" | "commercially_approved";
-  client_status: "not_authorised" | "authorised" | "declined"; lines_version: number; version: number; updated_at: string;
+  signoff_status: "none" | "signed" | "refused" | "unavailable"; lines_version: number; version: number; updated_at: string;
 };
+/**
+ * The only daywork columns a signed-in user may read directly. The client's commercial status and
+ * the internal charge status are read through `daywork_office_statuses`, by the office only.
+ */
+export const DAYWORK_BASE_COLUMNS = "id,organisation_id,contract_id,number,work_area_id,location_path,description,instructed_by_name,instructed_by_company,"
+  + "instructed_on,created_by,created_by_name,created_at,request_key,site_status,office_status,signoff_status,lines_version,version,updated_at";
+/** With `kind` (variations). Before the variations update is applied, loaders fall back to the base columns and every record is a daywork. */
+export const DAYWORK_COLUMNS = `${DAYWORK_BASE_COLUMNS},kind`;
+export const DAYWORK_EVENT_COLUMNS = "id,daywork_id,organisation_id,contract_id,actor_id,actor_name,action,note,owner_override,created_at";
+/** Office only. `commercial_status` is null without money access. */
+export type DayworkOfficeStatus = {
+  client_status: "not_authorised" | "authorised" | "declined";
+  commercial_status: "awaiting_pricing" | "priced" | "commercially_approved" | null;
+  client_authorisation_required: boolean;
+};
+/**
+ * The site's one answer to "may this extra work go ahead?", worked out by the database from the
+ * office's decision and, where the contract requires it, the client's authorisation. TileSPEC's
+ * internal charge approval is never an input.
+ */
+export const goAheads = ["not_sent", "awaiting_office", "more_detail", "awaiting_client", "client_declined", "rejected", "proceed"] as const;
+export type GoAhead = (typeof goAheads)[number];
+export const goAheadLabels: Record<GoAhead, string> = {
+  not_sent: "Not sent to the office yet. Recording extra work is not permission to carry on with it.",
+  awaiting_office: "Waiting for the office. Do not carry on with this extra work until it is approved.",
+  more_detail: "The office needs more detail before it can decide. Do not carry on with this work yet.",
+  awaiting_client: "Approved by the office, waiting for the client's authorisation. Do not carry on with this work yet.",
+  client_declined: "The client declined this work. Do not carry on with it without a new instruction from the office.",
+  rejected: "The office rejected this. Do not carry out this work as extra work.",
+  proceed: "Approved. You can go ahead with this work.",
+};
+/** Unknown (for example before the database update is applied) is answered safely. */
+export const goAheadLine = (goAhead: GoAhead | null | undefined) => (goAhead ? goAheadLabels[goAhead] : "Ask the office before carrying on with this work.");
 export type DayworkLine = {
   id: string; daywork_id: string; lines_version: number; position: number; kind: "labour" | "plant" | "material"; label: string;
   role: "operative" | "supervisor" | null; work_date: string | null; quantity: number; unit: DayworkUnit;
@@ -40,32 +79,27 @@ export type DayworkRate = {
   id: string; contract_id: string; category: RateCategory; item: string; unit: DayworkUnit; rate: number; retired: boolean;
   supersedes_id: string | null; created_by_name: string; created_at: string;
 };
-export type DayworkPricing = { id: string; daywork_id: string; lines_version: number; total: number; priced_by_name: string; priced_at: string };
+export type DayworkPricing = { id: string; daywork_id: string; lines_version: number; total: number; method?: "day_rates" | "quoted"; note?: string | null; priced_by_name: string; priced_at: string };
 export type DayworkPricingLine = { id: string; pricing_id: string; line_id: string; rate_id: string; category: string; item: string; unit: string; rate: number; quantity: number; amount: number };
 export type DayworkApproval = { id: string; daywork_id: string; pricing_id: string; note: string | null; owner_override: boolean; override_reason: string | null; approved_by_name: string; approved_at: string };
 /** A rate item without its money: what a supervisor may pick from. */
 export type RateItem = { category: RateCategory; item: string; unit: DayworkUnit };
 
-export const dayworkReference = (daywork: Pick<Daywork, "number">) => `DW-${daywork.number}`;
+export const dayworkReference = (daywork: { number: number; kind?: DayworkKind | null }) => `${kindWords[daywork.kind ?? "daywork"].prefix}-${daywork.number}`;
 export const currentLines = (daywork: Pick<Daywork, "id" | "lines_version">, lines: DayworkLine[]) =>
   lines.filter(line => line.daywork_id === daywork.id && line.lines_version === daywork.lines_version).sort((a, b) => a.position - b.position);
 
-/** The four statuses, each in plain words. None of them says anything about money. */
-export function dayworkStatuses(daywork: Daywork) {
+/** Site, signature and office statuses for everyone; client and charge statuses for the office only. */
+export function dayworkStatuses(daywork: Daywork, office?: DayworkOfficeStatus | null) {
   const site = daywork.office_status === "more_detail" ? "Sent back for more detail" : daywork.site_status === "sent" ? "Sent to the office" : "Recorded, not sent yet";
   const signature = { none: "Not signed yet", signed: "Signed by the client's representative", refused: "Client's representative refused to sign", unavailable: "Client's representative not available" }[daywork.signoff_status];
-  const office = { awaiting_review: "Waiting for the office", more_detail: "Office asked for more detail", approved: "Approved by the office", rejected: "Rejected by the office" }[daywork.office_status ?? "awaiting_review"];
-  const charge = { awaiting_pricing: "Awaiting pricing", priced: "Priced, waiting for internal approval", commercially_approved: "Charge approved internally by TileSPEC" }[daywork.commercial_status];
-  const client = { not_authorised: "Client has not authorised the cost", authorised: "Client authorised the cost", declined: "Client declined the cost" }[daywork.client_status];
-  return { site, signature, office: daywork.office_status ? office : "Not sent to the office yet", charge, client };
-}
-/** What stays true until the client authorises the cost. Recording work is never permission or agreement to pay. */
-export function dayworkWarning(daywork: Daywork): string | null {
-  if (daywork.office_status === "rejected") return "The office rejected this daywork. Do not carry out more of this work as a daywork.";
-  if (daywork.client_status === "authorised") return null;
-  if (daywork.client_status === "declined") return "The client declined this cost. Do not carry out more of this work as a daywork without a new instruction from the office.";
-  if (daywork.office_status !== "approved") return "Not approved by the office yet. Recording this work is not permission to proceed or an agreement to pay.";
-  return "Approved by the office, but the client has not authorised the cost yet. A signature on the sheet confirms the work only, not payment.";
+  const decision = { awaiting_review: "Waiting for the office", more_detail: "Office asked for more detail", approved: "Approved by the office", rejected: "Rejected by the office" }[daywork.office_status ?? "awaiting_review"];
+  // Office only: the client's commercial decision, and (with money access) the internal charge.
+  const client = office ? { not_authorised: office.client_authorisation_required ? "Client has not authorised the cost" : "Client's authorisation not required by the contract",
+    authorised: "Client authorised the cost", declined: "Client declined the cost" }[office.client_status] : null;
+  const charge = office?.commercial_status ? { awaiting_pricing: "Awaiting pricing", priced: "Priced, waiting for internal approval",
+    commercially_approved: "Charge approved internally by TileSPEC" }[office.commercial_status] : null;
+  return { site, signature, office: daywork.office_status ? decision : "Not sent to the office yet", client, charge };
 }
 export const lineCategory = (line: Pick<DayworkLine, "kind" | "role">): RateCategory => (line.kind === "labour" ? line.role! : line.kind);
 export function lineSummary(line: DayworkLine): string {
@@ -91,7 +125,7 @@ export const pounds = (value: number) => new Intl.NumberFormat("en-GB", { style:
 /** What happened, for the daywork's history and Job activity. Never mentions money. */
 export function eventLine(event: Pick<DayworkEvent, "action" | "note" | "owner_override">, reference: string): string {
   switch (event.action) {
-    case "record": return `recorded daywork ${reference}`;
+    case "record": return `recorded ${reference.startsWith("VO-") ? "variation" : "daywork"} ${reference}`;
     case "update_lines": return `corrected the people, plant and materials on ${reference}`;
     case "send": return `sent ${reference} to the office`;
     case "request_detail": return `asked for more detail on ${reference}`;

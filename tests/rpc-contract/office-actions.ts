@@ -45,9 +45,11 @@ for (const line of query(`select table_name || '|' || column_name from informati
   const [table, column] = line.split("|");
   columns.set(table, (columns.get(table) ?? new Set()).add(column));
 }
-const readable = new Set(query(`select r.rolname || ':' || c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
-  cross join pg_roles r where r.rolname in ('authenticated', 'service_role') and n.nspname = 'public' and c.relkind in ('r', 'v')
-    and has_table_privilege(r.rolname, c.oid, 'select')`));
+// Column by column: some tables grant signed-in users only some of their columns (for example the
+// commercial statuses of a daywork), so a table-level check would be both too strict and too loose.
+const readable = new Set(query(`select r.rolname || ':' || c.table_name || '.' || c.column_name from information_schema.columns c
+  cross join pg_roles r where r.rolname in ('authenticated', 'service_role') and c.table_schema = 'public'
+    and has_column_privilege(r.rolname, format('public.%I', c.table_name), c.column_name, 'select')`));
 
 // The upload verifier is the one server-side client with the service role.
 const rpcCalls: { file: string; name: string; keys: string[]; role: string }[] = [];
@@ -83,9 +85,9 @@ for (const call of rpcCalls) {
 pass(`all ${rpcCalls.length} database function calls in the application match an existing function's parameters and are executable by the calling role`);
 assert.ok(selects.length >= 10, `expected the data loaders' column lists, found ${selects.length}`);
 for (const select of selects) {
-  assert.ok(readable.has(`${select.role}:${select.table}`), `${select.file}: ${select.role} cannot read public.${select.table}`);
   for (const column of select.list.split(",").map(item => item.trim())) {
     assert.ok(columns.get(select.table)?.has(column), `${select.file}: public.${select.table} has no column ${column}`);
+    assert.ok(readable.has(`${select.role}:${select.table}.${column}`), `${select.file}: ${select.role} cannot read public.${select.table}.${column}`);
   }
 }
 pass(`all ${selects.length} column lists the screens read exist, on tables the reading role can read`);

@@ -13,7 +13,7 @@ import { conversationsAvailable } from "@/lib/operations/daily-data";
 import { isRecordId } from "@/lib/operations/daily-input";
 import { dayworkMoneyFor, dayworksFor, rateItemsFor } from "@/lib/operations/daywork-data";
 import {
-  categoryLabels, currentLines, currentRates, dayworkReference, dayworkStatuses, dayworkWarning, eventLine, lineCategory, lineSummary, pounds, suggestRates, unitLabels,
+  categoryLabels, currentLines, currentRates, dayworkReference, dayworkStatuses, eventLine, goAheadLine, kindWords, lineCategory, lineSummary, pounds, suggestRates, unitLabels,
 } from "@/lib/operations/dayworks";
 import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
 import { requireSite } from "../../../../site-access";
@@ -29,10 +29,11 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
   const { supabase, member, contract } = await requireSite(id);
   if (!contract) return null;
   if (!isRecordId(dayworkId)) notFound();
-  const records = await dayworksFor(supabase, id, dayworkId);
+  const office = canManageContracts(member), money = canReadFinancial(member), owner = member.role === "owner";
+  // Client and charge statuses are requested only for the office; the database returns them to nobody else.
+  const records = await dayworksFor(supabase, id, dayworkId, { office });
   const daywork = records?.dayworks[0];
   if (!records || !daywork) notFound();
-  const office = canManageContracts(member), money = canReadFinancial(member), owner = member.role === "owner";
   const base = `/admin/supervisor/sites/${id}`, reference = dayworkReference(daywork);
   const [moneyRecords, items, documents, ask] = await Promise.all([
     money ? dayworkMoneyFor(supabase, id) : Promise.resolve(null),
@@ -42,7 +43,8 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
     member.role === "supervisor" ? conversationsAvailable(supabase) : Promise.resolve(false),
   ]);
   checkDatabase(documents.error);
-  const lines = currentLines(daywork, records.lines), statuses = dayworkStatuses(daywork), warning = dayworkWarning(daywork);
+  const lines = currentLines(daywork, records.lines), officeStatus = records.office?.get(daywork.id) ?? null,
+    statuses = dayworkStatuses(daywork, officeStatus), goAhead = records.goAhead.get(daywork.id);
   const events = records.events.filter(event => event.daywork_id === daywork.id);
   const submitted = events.some(event => event.actor_id === member.user_id && ["record", "update_lines", "send"].includes(event.action));
   const officeNote = [...events].reverse().find(event => event.action === "request_detail" || event.action === "reject");
@@ -57,18 +59,18 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
   const ids = <><input type="hidden" name="daywork_id" value={daywork.id} /><input type="hidden" name="contract_id" value={id} /></>;
   const versioned = <>{ids}<input type="hidden" name="version" value={daywork.version} /></>;
   return <>
-    <p className={styles.eyebrow}>Daywork</p>
+    <p className={styles.eyebrow}>{kindWords[daywork.kind].title}</p>
     <h1 className={styles.title}>{reference}</h1>
     <p>{daywork.description}</p>
-    {warning && <p className={styles.warning} role="status" data-daywork-warning="">{warning}</p>}
+    <p className={goAhead === "proceed" ? styles.success : styles.warning} role="status" data-daywork-go-ahead={goAhead ?? "unknown"}>{goAheadLine(goAhead)}</p>
     <section className={styles.panel} aria-label="Statuses">
       <h2>Where it stands</h2>
       <dl data-daywork-statuses="">
         <dt>Site</dt><dd data-status="site">{statuses.site}</dd>
         <dt>Signature</dt><dd data-status="signature">{statuses.signature}</dd>
         <dt>Office</dt><dd data-status="office">{statuses.office}</dd>
-        <dt>Charge</dt><dd data-status="charge">{statuses.charge}</dd>
-        <dt>Client</dt><dd data-status="client">{statuses.client}</dd>
+        {statuses.client && <><dt>Client</dt><dd data-status="client">{statuses.client}</dd></>}
+        {statuses.charge && <><dt>Charge</dt><dd data-status="charge">{statuses.charge}</dd></>}
       </dl>
       {officeNote && <p><strong>{officeNote.action === "reject" ? "Why the office rejected it" : "The office asked"}:</strong> {officeNote.note}</p>}
     </section>
@@ -85,12 +87,14 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
         return <li key={line.id} data-line-id={line.id}>{lineSummary(line)}
           {priced && <span className={styles.small}> · {pounds(priced.rate)} per {priced.unit === "m2" ? "m²" : priced.unit} = <strong>{pounds(priced.amount)}</strong></span>}</li>;
       })}</ul> : <p>No lines yet. Add the people, plant and materials before sending it.</p>}
+      {pricing?.method === "quoted" && pricing.lines_version === daywork.lines_version && <p data-daywork-total="">
+        <strong>Quoted price {pounds(pricing.total)}</strong>{pricing.note ? ` · ${pricing.note}` : ""} · priced by {pricing.priced_by_name} at {when(pricing.priced_at)}</p>}
       {pricing && pricedLines.length > 0 && <p data-daywork-total=""><strong>Total {pounds(pricing.total)}</strong> · priced by {pricing.priced_by_name} at {when(pricing.priced_at)}</p>}
     </section>
 
     {!rejected && daywork.site_status === "recorded" && <section className={styles.panel} aria-label="Correct and send">
       <h2>{daywork.office_status === "more_detail" ? "Add the detail and send it again" : "Check and send"}</h2>
-      {lines.length > 0 && daywork.office_status !== "more_detail" && <DailyForm action={sendDayworkAction} label="Send to the office">{versioned}{key()}</DailyForm>}
+      {(lines.length > 0 || daywork.kind === "variation") && daywork.office_status !== "more_detail" && <DailyForm action={sendDayworkAction} label="Send to the office">{versioned}{key()}</DailyForm>}
       <details className={styles.details} open={daywork.office_status === "more_detail" || !lines.length}><summary>Correct the people, plant and materials</summary>
         <DailyForm action={saveDayworkLinesAction} label="Save the lines">
           {versioned}{key()}<input type="hidden" name="send_key" value={randomUUID()} />
@@ -149,7 +153,7 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
       </DailyForm>
     </section>}
 
-    {(office || records.clientAuthorisations.length > 0) && <section className={styles.panel} aria-label="Client authorisation">
+    {office && <section className={styles.panel} aria-label="Client authorisation">
       <h2>Client&apos;s authorisation of the cost</h2>
       {records.clientAuthorisations.length > 0 ? <ul className={styles.plainList}>{records.clientAuthorisations.map(row => <li key={row.id}>
         {row.outcome === "authorised" ? `Authorised by ${row.client_name}` : `Declined by ${row.client_name}: ${row.note}`}{row.reference ? ` · reference ${row.reference}` : ""}
@@ -177,10 +181,16 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
       <h2>Charge (money access only)</h2>
       {approval ? <p data-charge-approved="">Charge approved internally by {approval.approved_by_name} at {when(approval.approved_at)}
         {approval.owner_override ? ` (owner override: ${approval.override_reason})` : ""}{approval.note ? `. ${approval.note}` : ""}. This is not the client&apos;s acceptance or agreement to pay.</p> : null}
-      {!approval && daywork.site_status === "sent" && !rejected && <details className={styles.details} open={daywork.commercial_status === "awaiting_pricing"}>
-        <summary>{pricing && pricedLines.length ? "Price it again" : "Price it from the job's rates"}</summary>
+      {!approval && daywork.site_status === "sent" && !rejected && <details className={styles.details} open={officeStatus?.commercial_status === "awaiting_pricing"}>
+        <summary>{pricing && (pricedLines.length || pricing.method === "quoted") ? "Price it again" : daywork.kind === "variation" ? "Price it" : "Price it from the job's rates"}</summary>
+        {daywork.kind === "variation" && <DailyForm action={priceDayworkAction} label="Save the quoted price">
+          {versioned}{key()}<input type="hidden" name="method" value="quoted" />
+          <label className={styles.field}>Quoted price (£, excluding VAT)<input type="number" name="total" min="0.01" max="10000000" step="0.01" inputMode="decimal" required /></label>
+          <label className={styles.field}>Quotation reference (optional)<input name="note" maxLength={500} /></label>
+          <p className={styles.small}>Or price it from the job&apos;s day rates below, if its people, plant and materials are recorded.</p>
+        </DailyForm>}
         {!rates.length && <p>This job has no daywork rates yet. <Link href={`/admin/contracts/${id}#daywork-rates`}>Add them on the job</Link>.</p>}
-        <DailyForm action={priceDayworkAction} label="Price it">
+        {(daywork.kind === "daywork" || lines.length > 0) && <DailyForm action={priceDayworkAction} label="Price it">
           {versioned}{key()}<input type="hidden" name="line_ids" value={lines.map(line => line.id).join(",")} />
           {lines.map(line => {
             const options = rates.filter(rate => rate.category === lineCategory(line) && rate.unit === line.unit);
@@ -191,9 +201,9 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
               </select></label>;
           })}
           <p className={styles.small}>Each line keeps the rate it is priced at. Changing a rate later never changes this price.</p>
-        </DailyForm>
+        </DailyForm>}
       </details>}
-      {!approval && daywork.office_status === "approved" && daywork.commercial_status === "priced" && <div aria-label="Approve the charge">
+      {!approval && daywork.office_status === "approved" && officeStatus?.commercial_status === "priced" && <div aria-label="Approve the charge">
         <h3>Approve the charge</h3>
         {submitted && !owner ? <p>You recorded or sent this daywork, so another person with money access must approve its charge.</p>
           : <DailyForm action={approveChargeAction} label="Approve the charge internally">
@@ -203,7 +213,7 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
             <p className={styles.small}>This is TileSPEC&apos;s internal approval. It is not the client&apos;s acceptance or agreement to pay.</p>
           </DailyForm>}
       </div>}
-      {daywork.commercial_status === "awaiting_pricing" && daywork.office_status === "approved" && <p>Awaiting pricing: the charge can be approved once every line is priced.</p>}
+      {officeStatus?.commercial_status === "awaiting_pricing" && daywork.office_status === "approved" && <p>Awaiting pricing: the charge can be approved once every line is priced.</p>}
       <p className={styles.small}><Link href={`/admin/contracts/${id}#daywork-rates`}>Daywork rates for this job</Link></p>
     </section>}
 
@@ -215,6 +225,6 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
         <span className={styles.small}> · {when(event.created_at)}</span></li>)}</ol>
     </section>
     {ask && <Link className={styles.secondaryButton} href={`${base}/messages?about=daywork:${daywork.id}#ask`}>Ask the office about this</Link>}
-    <Link className={styles.secondaryButton} href={`${base}/commercial?kind=dayworks`}>All dayworks on this job</Link>
+    <Link className={styles.secondaryButton} href={`${base}/commercial?kind=${daywork.kind === "variation" ? "variations" : "dayworks"}`}>All {kindWords[daywork.kind].plural.toLowerCase()} on this job</Link>
   </>;
 }

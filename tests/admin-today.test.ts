@@ -127,7 +127,7 @@ test("Today never renders financial figures and Money links follow the authentic
 test("daywork money actions reach Office Today only with money access, and never with a figure", async () => {
   const s = snapshot();
   s.dayworks = [{ id: "dw", contract_id: "job", number: 4, description: "Tile the bin store wall", created_by: "supervisor", site_status: "sent", office_status: "approved",
-    signoff_status: "signed", commercial_status: "awaiting_pricing", client_status: "not_authorised", submitted_by: ["supervisor"] }];
+    signoff_status: "signed", commercial_status: "awaiting_pricing", client_status: "not_authorised", client_authorisation_required: true, submitted_by: ["supervisor"] }];
   const money = await render(s, { ...office, financial_access: true }), noMoney = await render(s, office);
   assert.ok(actionIds(money).includes("daywork-price:dw"), "the office user with money access is asked to price it");
   assert.ok(!actionIds(noMoney).includes("daywork-price:dw"), "the office user without money access is not");

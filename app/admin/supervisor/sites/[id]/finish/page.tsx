@@ -43,6 +43,7 @@ export default async function FinishToday({ params }: { params: Promise<{ id: st
           <label className={styles.field}>Work completed<textarea name="work_completed" maxLength={2000} rows={2} placeholder="A sentence is enough" /></label>
           <label className={styles.field}>Outstanding problems<textarea name="outstanding_problems" maxLength={2000} rows={2} /></label>
           <label className={styles.field}>Materials needed for tomorrow<textarea name="materials_needed" maxLength={2000} rows={2} /></label>
+          <p className={styles.small}>Record what you used today on <Link href={`/admin/supervisor/sites/${id}/materials`}>Materials used</Link>.</p>
           <label className={styles.field}>Areas awaiting attention<textarea name="areas_awaiting_attention" maxLength={2000} rows={2} /></label>
           <label className={styles.field}>Important information for the office<textarea name="office_notes" maxLength={2000} rows={2} /></label>
           <label className={`${styles.field} ${styles.timeField}`}>Work finished at<input type="time" name="at_time" required defaultValue={londonClock(new Date().toISOString())} /><small>Use the actual finish time for today.</small></label>

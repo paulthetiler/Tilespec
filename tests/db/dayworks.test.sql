@@ -28,6 +28,10 @@ insert into public.document_revisions(id,organisation_id,contract_id,document_re
 values ('dd540000-0000-4000-8000-000000000001',:'org',:'c1','CVI-12',1,'Client variation instruction 12','operational',
  :'org'||'/'||:'c1'||'/operational/contract/dd540000-0000-4000-8000-000000000001.pdf',repeat('b',64),'application/pdf',10,:'owner');
 update public.document_revisions set uploaded_at=now() where id='dd540000-0000-4000-8000-000000000001';
+-- Test-only full view of one daywork, including the statuses app users read only through functions.
+create function test.dw(p_id uuid) returns public.dayworks language sql stable security definer set search_path='' as $$
+  select * from public.dayworks where id=p_id $$;
+grant execute on function test.dw(uuid) to authenticated;
 set local role authenticated;
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'owner'),true);
 select public.create_locations(:'c1',gen_random_uuid(),null,'[{"name":"Bin store"}]');
@@ -46,7 +50,7 @@ select jsonb_build_object('contract_id',:'c1','work_area_id',:'bin_store','descr
 select public.create_daywork(:'key1',:'data1') as dw1 \gset
 select test.assert(public.create_daywork(:'key1',:'data1')=:'dw1'
  and (select number=1 and site_status='recorded' and office_status is null and signoff_status='none' and commercial_status='awaiting_pricing'
-   and client_status='not_authorised' and location_path=array['Bin store'] and created_by_name='Dave Supervisor' from public.dayworks where id=:'dw1')
+   and client_status='not_authorised' and location_path=array['Bin store'] and created_by_name='Dave Supervisor' from test.dw(:'dw1'))
  and (select count(*)=4 from public.daywork_lines where daywork_id=:'dw1' and lines_version=1),
  'a supervisor records a daywork with labour, plant and materials and no photograph, and a safe retry returns the same record');
 select test.expect_error(format('select public.create_daywork(%L,%L::jsonb||''{"description":"Something else entirely"}'')',:'key1',:'data1'),array['22023'],
@@ -101,7 +105,7 @@ select test.expect_error(format('select public.record_daywork_signoff(%L,gen_ran
 select public.record_daywork_signoff(:'dw1',gen_random_uuid(),jsonb_build_object('outcome','refused','signer_name','Sam Site','reason','Wants to check with his manager first')) as refused \gset
 select public.record_daywork_signoff(:'dw1',gen_random_uuid(),jsonb_build_object('outcome','signed','signer_name','Sam Site','signer_position','Site manager',
  'signer_company','Main Contractor Ltd','signed_at',to_jsonb(now())#>>'{}')) as signed \gset
-select test.assert((select signoff_status='signed' and office_status is null and client_status='not_authorised' from public.dayworks where id=:'dw1')
+select test.assert((select signoff_status='signed' and office_status is null and client_status='not_authorised' from test.dw(:'dw1'))
  and (select count(*)=2 from public.daywork_signoffs where daywork_id=:'dw1'),
  'a refusal is kept, a later signature is recorded, and signing neither sends it nor authorises payment');
 
@@ -140,7 +144,7 @@ select public.send_daywork(:'dw1',gen_random_uuid(),:v);
 select version as v from public.dayworks where id=:'dw1' \gset
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'mia'),true);
 select public.decide_daywork(:'dw1',gen_random_uuid(),:v,'{"decision":"approve"}');
-select test.assert((select office_status='approved' and commercial_status='awaiting_pricing' and client_status='not_authorised' from public.dayworks where id=:'dw1'),
+select test.assert((select office_status='approved' and commercial_status='awaiting_pricing' and client_status='not_authorised' from test.dw(:'dw1')),
  'the office approves the work; the charge and the client''s authorisation stay separate');
 
 -- Nobody approves their own daywork; the owner may, with a logged reason.
@@ -204,7 +208,7 @@ select test.expect_error(format('select public.price_daywork(%L,gen_random_uuid(
 select public.price_daywork(:'dw1',gen_random_uuid(),:v,jsonb_build_object('lines',:'mapping'::jsonb)) as pricing1 \gset
 select test.assert((select total=6.5*30+1*42.5+85+3*12.5 from public.daywork_pricings where id=:'pricing1')
  and (select count(*)=4 and bool_and(amount=round(quantity*rate,2)) from public.daywork_pricing_lines where pricing_id=:'pricing1')
- and (select commercial_status='priced' from public.dayworks where id=:'dw1'),
+ and (select commercial_status='priced' from test.dw(:'dw1')),
  'pricing works out each line from the job''s rates and keeps the total');
 
 -- The largest allowed line (100,000 units at £100,000) prices without overflowing.
@@ -236,7 +240,7 @@ select version as owner_v from public.dayworks where id=:'dw_owner' \gset
 select test.expect_error(format('select public.approve_daywork_charge(%L,gen_random_uuid(),%s,''{}'')',:'dw_owner',:owner_v),array['22023'],
  'a charge cannot be approved before it is priced');
 select public.approve_daywork_charge(:'dw1',gen_random_uuid(),:v,'{"note":"Checked against the site diary"}') as approval1 \gset
-select test.assert((select commercial_status='commercially_approved' and client_status='not_authorised' from public.dayworks where id=:'dw1')
+select test.assert((select commercial_status='commercially_approved' and client_status='not_authorised' from test.dw(:'dw1'))
  and (select pricing_id=:'pricing1' and not owner_override from public.daywork_commercial_approvals where id=:'approval1'),
  'the charge is approved internally against the exact price, and the client is still not recorded as agreeing to pay');
 select version as v from public.dayworks where id=:'dw1' \gset
@@ -256,7 +260,7 @@ select test.expect_error(format('select public.approve_daywork_charge(%L,gen_ran
  'nobody approves the charge on a daywork they submitted');
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'owner'),true);
 select public.approve_daywork_charge(:'dw_faye',gen_random_uuid(),4,'{}');
-select test.assert((select commercial_status='commercially_approved' from public.dayworks where id=:'dw_faye'),'another person with money access approves it');
+select test.assert((select commercial_status='commercially_approved' from test.dw(:'dw_faye')),'another person with money access approves it');
 
 -- Changing lines after pricing needs a new price.
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'dave'),true);
@@ -269,9 +273,11 @@ select public.price_daywork(:'dw_reprice',gen_random_uuid(),2,jsonb_build_object
 select public.decide_daywork(:'dw_reprice',gen_random_uuid(),3,'{"decision":"request_detail","note":"How many bags exactly?"}');
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'dave'),true);
 select public.save_daywork_lines(:'dw_reprice',gen_random_uuid(),4,'{"lines":[{"kind":"material","label":"Adhesive","unit":"bag","quantity":4}]}');
-select test.assert((select commercial_status='awaiting_pricing' and lines_version=2 from public.dayworks where id=:'dw_reprice')
+select set_config('request.jwt.claims',format('{"sub":"%s"}',:'faye'),true);
+select test.assert((select commercial_status='awaiting_pricing' and lines_version=2 from test.dw(:'dw_reprice'))
  and (select count(*)=1 from public.daywork_events where daywork_id=:'dw_reprice' and action='price'),
  'changing the lines after pricing puts the daywork back to awaiting pricing and keeps the earlier price on record');
+select set_config('request.jwt.claims',format('{"sub":"%s"}',:'dave'),true);
 
 -- The client's commercial authorisation, separate from the signature and the office approval.
 select test.expect_error(format('select public.record_daywork_client_authorisation(%L,gen_random_uuid(),''{"outcome":"authorised","client_name":"Pat Client"}'')',:'dw1'),array['42501'],
@@ -285,7 +291,7 @@ select test.expect_error(format('select public.record_daywork_client_authorisati
  array['22023'],'the evidence must be a document saved on this job');
 select public.record_daywork_client_authorisation(:'dw1',gen_random_uuid(),jsonb_build_object('outcome','authorised','client_name','Pat Client',
  'reference','CVI-12','document_id','dd540000-0000-4000-8000-000000000001')) as client1 \gset
-select test.assert((select client_status='authorised' and commercial_status='commercially_approved' and signoff_status='signed' from public.dayworks where id=:'dw1')
+select test.assert((select client_status='authorised' and commercial_status='commercially_approved' and signoff_status='signed' from test.dw(:'dw1'))
  and (select reference='CVI-12' and recorded_by_name='Mia Manager' from public.daywork_client_authorisations where id=:'client1'),
  'the client''s authorisation is recorded with its reference and evidence, alongside the separate site and internal statuses');
 
@@ -312,13 +318,23 @@ select test.expect_error(format('select public.complete_daywork_photo(%L,%L,repe
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'mia'),true);
 select test.assert((select count(*)=0 from public.daywork_photos where id=:'photo'),'an unconfirmed photograph is visible only to the person who took it');
 
--- Supervisors see statuses and history, never money.
+-- Supervisors see the site record and whether to go ahead, never money or commercial approvals.
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'dave'),true);
-select test.assert((select commercial_status='commercially_approved' from public.dayworks where id=:'dw1')
- and (select count(*)=0 from public.daywork_commercial_approvals) and (select count(*)=0 from public.daywork_pricing_lines)
- and not exists(select 1 from public.daywork_events where snapshot ?| array['total','rate','amount'])
+select test.assert((select count(*)=0 from public.daywork_commercial_approvals) and (select count(*)=0 from public.daywork_pricing_lines)
  and not exists(select 1 from public.audit_events where entity_type in ('contract_daywork_rates','daywork_pricings','daywork_pricing_lines','daywork_commercial_approvals')),
- 'a supervisor sees that the charge was approved but no rate, price, total or money audit');
+ 'a supervisor sees no rate, price, total, charge approval or money audit');
+select test.expect_error(format('select commercial_status from public.dayworks where id=%L',:'dw1'),array['42501'],
+ 'a supervisor cannot read whether a daywork was priced or its charge approved');
+select test.expect_error(format('select client_status from public.dayworks where id=%L',:'dw1'),array['42501'],
+ 'a supervisor cannot read the client''s commercial status directly');
+select test.expect_error('select snapshot from public.daywork_events',array['42501'],'a supervisor cannot read status snapshots kept with the history');
+select test.assert((select count(*)=0 from public.daywork_client_authorisations)
+ and not exists(select 1 from public.daywork_events where action in ('price','commercial_approval','client_authorisation'))
+ and not exists(select 1 from public.audit_events where entity_type='daywork_client_authorisations' or (entity_type='dayworks' and action='update' and details->'changed_fields' ?| array['commercial_status','client_status'])),
+ 'a supervisor sees no client authorisation record, no commercial history step and no audit of either');
+select test.assert((select go_ahead='proceed' from public.daywork_site_statuses(array[:'c1'::uuid]) where daywork_id=:'dw1'),
+ 'the supervisor is told the approved and client-authorised daywork may go ahead');
+select test.assert((select count(*)=0 from public.daywork_office_statuses(array[:'c1'::uuid])),'office statuses are not returned to a supervisor');
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'mia'),true);
 select test.assert(not exists(select 1 from public.audit_events where entity_type in ('contract_daywork_rates','daywork_pricings','daywork_pricing_lines','daywork_commercial_approvals')),
  'an office user without money access cannot read money audit either');
@@ -335,8 +351,11 @@ select test.expect_error(format('select public.post_job_message(gen_random_uuid(
  array['22023','42501'],'a conversation about a daywork must be on its own job');
 
 -- History and permanence.
+select test.assert((select array_agg(action order by id)=array['record','sign_off','sign_off','send','request_detail','update_lines','send','approve']
+  from public.daywork_events where daywork_id=:'dw1'),'the supervisor sees every site and office step of the history, in order');
+select set_config('request.jwt.claims',format('{"sub":"%s"}',:'mia'),true);
 select test.assert((select array_agg(action order by id)=array['record','sign_off','sign_off','send','request_detail','update_lines','send','approve','price','commercial_approval','client_authorisation']
-  from public.daywork_events where daywork_id=:'dw1'),'every step is in the daywork''s history, in order');
+  from public.daywork_events where daywork_id=:'dw1'),'the office sees every step of the history, in order');
 reset role;
 select test.expect_error(format('update public.dayworks set description=''Rewritten'' where id=%L',:'dw1'),array['42501'],'the recorded facts of a daywork cannot be rewritten');
 select test.expect_error(format('delete from public.dayworks where id=%L',:'dw1'),array['42501'],'a daywork cannot be deleted');

@@ -143,12 +143,21 @@ export interface NextActionSnapshot {
   job_threads?: JobThreadRow[];
   /** Present only once dayworks are installed. Statuses only: no rate, price or total ever reaches the engine. */
   dayworks?: DayworkRow[];
+  /** True once variations are installed (they share the daywork records). */
+  variations_available?: boolean;
 }
 export interface DayworkRow {
-  id: string; contract_id: string; number: number; description: string; created_by: string;
+  id: string; contract_id: string; number: number;
+  /** Absent before the variations update: a daywork. */
+  kind?: "daywork" | "variation"; description: string; created_by: string;
   site_status: "recorded" | "sent"; office_status: "awaiting_review" | "more_detail" | "approved" | "rejected" | null;
-  signoff_status: "none" | "signed" | "refused" | "unavailable"; commercial_status: "awaiting_pricing" | "priced" | "commercially_approved";
-  client_status: "not_authorised" | "authorised" | "declined";
+  signoff_status: "none" | "signed" | "refused" | "unavailable";
+  /** Office only, from `daywork_office_statuses`. Absent for a supervisor; null without money access. */
+  commercial_status?: "awaiting_pricing" | "priced" | "commercially_approved" | null;
+  /** Office only. Absent for a supervisor. */
+  client_status?: "not_authorised" | "authorised" | "declined";
+  /** Office only: whether this contract needs the client's authorisation before the work goes ahead. */
+  client_authorisation_required?: boolean;
   /** Everyone who recorded, corrected or sent it. None of them may approve it (the owner may override on the record). */
   submitted_by: string[];
 }

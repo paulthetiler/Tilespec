@@ -9,7 +9,7 @@ export type AboutLookups = {
   handovers: Map<string, { work_date: string; actor_name: string }>;
   snags: Map<string, string>;
   holds: Map<string, string>;
-  dayworks: Map<string, { number: number; description: string }>;
+  dayworks: Map<string, { number: number; description: string; kind?: "daywork" | "variation" }>;
 };
 export const emptyLookups = (): AboutLookups => ({ items: new Map(), results: new Map(), handovers: new Map(), snags: new Map(), holds: new Map(), dayworks: new Map() });
 
@@ -31,7 +31,7 @@ export function aboutLabel(type: AboutType, id: string | null, lookups: AboutLoo
     }
     case "daywork": {
       const daywork = id ? lookups.dayworks.get(id) : undefined;
-      return daywork ? `About daywork DW-${daywork.number}: ${daywork.description.length > 60 ? `${daywork.description.slice(0, 59).trimEnd()}…` : daywork.description}` : "About a daywork";
+      return daywork ? `About ${daywork.kind === "variation" ? "variation VO" : "daywork DW"}-${daywork.number}: ${daywork.description.length > 60 ? `${daywork.description.slice(0, 59).trimEnd()}…` : daywork.description}` : "About a daywork";
     }
     default: return "About the job";
   }

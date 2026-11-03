@@ -9,6 +9,10 @@ export type Contract = {
   working_hours: string; insurance_requirements: string; defects_liability: string;
   start_date: string | null; end_date: string | null; state: "draft"; version: number;
   created_at: string; updated_at: string;
+  /** Present once the commercial boundary migration is applied: dayworks need the client's authorisation before they go ahead. */
+  daywork_client_authorisation?: boolean;
+  /** Present once the variations migration is applied. */
+  variation_client_authorisation?: boolean;
 };
 export type Commercial = {
   contract_id: string; organisation_id: string; contract_value: number; labour_budget: number;
