@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { canReadFinancial, requireActor } from "@/lib/auth";
 import { checkRpc } from "@/lib/operations/data";
 import { jobCostInput, labourRateInput } from "@/lib/operations/job-costs";
-import { text, uuid, ValidationError } from "@/lib/operations/validation";
+import { applicationInput, certifyInput, receiptInput, type ClaimableExtra } from "@/lib/operations/payments";
+import { claimableExtrasFor } from "@/lib/operations/payments-data";
+import { integer, text, uuid, ValidationError } from "@/lib/operations/validation";
 import type { ActionState } from "@/lib/operations/types";
 
 // Job money (C3 onwards). Every action here is refused in the application for anyone without money
@@ -74,5 +76,71 @@ export async function unmatchMaterialAction(_: ActionState, form: FormData): Pro
     checkRpc((await supabase.rpc("unmatch_material_cost", { p_match: uuid(form, "match_id"), p_reason: reason(form) })).error);
     refresh(contract);
     return { success: "Unmatched. The earlier match stays on record." };
+  } catch (error) { return failure(error); }
+}
+
+// Payment applications (C4).
+export async function createApplicationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await moneyActor();
+    const contract = uuid(form, "contract_id"), extras: ClaimableExtra[] = await claimableExtrasFor(supabase, contract);
+    const data = { contract_id: contract, ...applicationInput(form, extras) };
+    checkRpc((await supabase.rpc("create_payment_application", { p_request_key: uuid(form, "request_key"), p_data: data })).error);
+    refresh(contract);
+    return { success: "Draft application saved. Check it, then submit it." };
+  } catch (error) { return failure(error); }
+}
+export async function updateApplicationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await moneyActor();
+    const contract = uuid(form, "contract_id"), extras = await claimableExtrasFor(supabase, contract), data = applicationInput(form, extras);
+    checkRpc((await supabase.rpc("update_payment_application", { p_application: uuid(form, "application_id"), p_request_key: uuid(form, "request_key"), p_version: integer(form, "version", 1), p_data: data })).error);
+    refresh(contract);
+    return { success: "Draft corrected. The earlier figures stay on record." };
+  } catch (error) { return failure(error); }
+}
+export async function submitApplicationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await moneyActor();
+    const contract = uuid(form, "contract_id");
+    checkRpc((await supabase.rpc("submit_payment_application", { p_application: uuid(form, "application_id"), p_request_key: uuid(form, "request_key"), p_version: integer(form, "version", 1) })).error);
+    refresh(contract);
+    return { success: "Submitted. Its figures and retention are now fixed." };
+  } catch (error) { return failure(error); }
+}
+export async function certifyApplicationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await moneyActor();
+    const contract = uuid(form, "contract_id"), data = certifyInput(form);
+    checkRpc((await supabase.rpc("certify_payment_application", { p_application: uuid(form, "application_id"), p_request_key: uuid(form, "request_key"), p_version: integer(form, "version", 1), p_data: data })).error);
+    refresh(contract);
+    return { success: "Certificate recorded." };
+  } catch (error) { return failure(error); }
+}
+export async function cancelApplicationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await moneyActor();
+    const contract = uuid(form, "contract_id");
+    checkRpc((await supabase.rpc("cancel_payment_application", { p_application: uuid(form, "application_id"), p_version: integer(form, "version", 1), p_reason: reason(form) })).error);
+    refresh(contract);
+    return { success: "Cancelled. It stays on record with your reason." };
+  } catch (error) { return failure(error); }
+}
+export async function recordReceiptAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await moneyActor();
+    const contract = uuid(form, "contract_id"), data = receiptInput(form);
+    checkRpc((await supabase.rpc("record_payment_receipt", { p_request_key: uuid(form, "request_key"), p_data: data })).error);
+    refresh(contract);
+    return { success: "Payment recorded." };
+  } catch (error) { return failure(error); }
+}
+export async function voidReceiptAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const { supabase } = await moneyActor();
+    const contract = uuid(form, "contract_id");
+    checkRpc((await supabase.rpc("void_payment_receipt", { p_receipt: uuid(form, "receipt_id"), p_reason: reason(form) })).error);
+    refresh(contract);
+    return { success: "Payment voided. It stays on record with your reason." };
   } catch (error) { return failure(error); }
 }

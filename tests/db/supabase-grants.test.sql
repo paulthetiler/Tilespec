@@ -18,7 +18,8 @@ select test.assert((select count(*) = 0 from information_schema.role_table_grant
       'supervisor_office_item_withdrawals', 'office_reviews', 'job_messages', 'job_message_reads',
       'dayworks', 'daywork_lines', 'daywork_events', 'daywork_signoffs', 'daywork_client_authorisations', 'daywork_photos',
       'contract_daywork_rates', 'daywork_pricings', 'daywork_pricing_lines', 'daywork_commercial_approvals',
-      'labour_cost_rates', 'job_cost_entries', 'site_material_records', 'material_cost_matches')),
+      'labour_cost_rates', 'job_cost_entries', 'site_material_records', 'material_cost_matches',
+      'payment_applications', 'payment_application_lines', 'payment_receipts')),
   'Supervisor V2, company and issue-register tables are read-only to signed-in users; every write goes through a checked function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')),
