@@ -1,9 +1,10 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkDatabase } from "./data";
-import type {
-  Daywork, DayworkApproval, DayworkClientAuthorisation, DayworkEvent, DayworkLine, DayworkPhoto, DayworkPricing, DayworkPricingLine, DayworkRate,
-  DayworkSignoff, RateItem,
+import {
+  DAYWORK_COLUMNS, DAYWORK_EVENT_COLUMNS, goAheads,
+  type Daywork, type DayworkApproval, type DayworkClientAuthorisation, type DayworkEvent, type DayworkLine, type DayworkOfficeStatus, type DayworkPhoto,
+  type DayworkPricing, type DayworkPricingLine, type DayworkRate, type DayworkSignoff, type GoAhead, type RateItem,
 } from "./dayworks";
 
 type Result = { data: unknown; error: { code?: string; message?: string } | null };
@@ -20,13 +21,21 @@ export async function dayworksAvailable(supabase: SupabaseClient) {
 export type DayworkRecords = {
   dayworks: Daywork[]; lines: DayworkLine[]; events: DayworkEvent[]; signoffs: DayworkSignoff[];
   clientAuthorisations: DayworkClientAuthorisation[]; photos: DayworkPhoto[];
+  /** The site's go-ahead for each daywork. Empty if the database cannot answer yet: the pages then say to ask the office. */
+  goAhead: Map<string, GoAhead>;
+  /** Office only (`office: true`), and only what the database returns to this person. */
+  office: Map<string, DayworkOfficeStatus> | null;
 };
-/** A job's dayworks with the signed-in person's own access. Null until the migration is applied. Reads only. */
-export async function dayworksFor(supabase: SupabaseClient, contractId: string, dayworkId?: string): Promise<DayworkRecords | null> {
-  async function rows(table: string, order: string) {
+const absentFunction = (error: { code?: string } | null) => !!error && ["PGRST202", "42883"].includes(error.code ?? "");
+/**
+ * A job's dayworks with the signed-in person's own access. Null until the migration is applied. Reads only.
+ * Pass `office: true` only for the office on the job; the database returns nothing to anyone else anyway.
+ */
+export async function dayworksFor(supabase: SupabaseClient, contractId: string, dayworkId?: string, options: { office?: boolean } = {}): Promise<DayworkRecords | null> {
+  async function rows(table: string, order: string, columns = "*") {
     const all: Record<string, unknown>[] = [];
     for (let start = 0; ; start += 500) {
-      let query = supabase.from(table).select("*").eq("contract_id", contractId);
+      let query = supabase.from(table).select(columns).eq("contract_id", contractId);
       if (dayworkId) query = query.eq(table === "dayworks" ? "id" : "daywork_id", dayworkId);
       const result: Result = await query.order(order).order("id").range(start, start + 499);
       if (result.error) return { data: null, error: result.error };
@@ -35,17 +44,31 @@ export async function dayworksFor(supabase: SupabaseClient, contractId: string, 
       if (page.length < 500) return { data: all, error: null };
     }
   }
-  const [dayworks, lines, events, signoffs, authorisations, photos] = await Promise.all([
-    rows("dayworks", "number"), rows("daywork_lines", "position"), rows("daywork_events", "created_at"), rows("daywork_signoffs", "recorded_at"),
-    rows("daywork_client_authorisations", "recorded_at"), rows("daywork_photos", "created_at"),
+  const [dayworks, lines, events, signoffs, authorisations, photos, siteStatuses, officeStatuses] = await Promise.all([
+    rows("dayworks", "number", DAYWORK_COLUMNS), rows("daywork_lines", "position"), rows("daywork_events", "created_at", DAYWORK_EVENT_COLUMNS),
+    rows("daywork_signoffs", "recorded_at"), rows("daywork_client_authorisations", "recorded_at"), rows("daywork_photos", "created_at"),
+    supabase.rpc("daywork_site_statuses", { p_contracts: [contractId] }) as unknown as Promise<Result>,
+    options.office ? supabase.rpc("daywork_office_statuses", { p_contracts: [contractId] }) as unknown as Promise<Result> : Promise.resolve(null),
   ]);
   if (missing(dayworks.error)) return null;
   for (const result of [dayworks, lines, events, signoffs, authorisations, photos]) checkDatabase(result.error);
+  const goAhead = new Map<string, GoAhead>();
+  if (!absentFunction(siteStatuses.error)) {
+    checkDatabase(siteStatuses.error);
+    for (const row of (siteStatuses.data ?? []) as { daywork_id: string; go_ahead: string }[])
+      if ((goAheads as readonly string[]).includes(row.go_ahead)) goAhead.set(row.daywork_id, row.go_ahead as GoAhead);
+  }
+  let office: Map<string, DayworkOfficeStatus> | null = null;
+  if (officeStatuses && !absentFunction(officeStatuses.error)) {
+    checkDatabase(officeStatuses.error);
+    office = new Map(((officeStatuses.data ?? []) as (DayworkOfficeStatus & { daywork_id: string })[])
+      .map(({ daywork_id, ...status }) => [daywork_id, status]));
+  }
   const numeric = <T,>(list: Record<string, unknown>[], keys: string[]) => list.map(row => ({ ...row, ...Object.fromEntries(keys.map(key => [key, Number(row[key])])) })) as T[];
   return {
     dayworks: dayworks.data as unknown as Daywork[], lines: numeric<DayworkLine>(lines.data!, ["quantity"]), events: events.data as unknown as DayworkEvent[],
     signoffs: signoffs.data as unknown as DayworkSignoff[], clientAuthorisations: authorisations.data as unknown as DayworkClientAuthorisation[],
-    photos: photos.data as unknown as DayworkPhoto[],
+    photos: photos.data as unknown as DayworkPhoto[], goAhead, office,
   };
 }
 

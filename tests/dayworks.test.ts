@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import Data from "../docs/redesign/prototype/data.js";
 import { buildActivity, type ActivitySources } from "../lib/operations/activity";
-import { currentLines, currentRates, dayworkStatuses, dayworkWarning, eventLine, suggestRates, type Daywork, type DayworkLine, type DayworkRate } from "../lib/operations/dayworks";
+import { currentLines, currentRates, dayworkStatuses, eventLine, goAheadLabels, goAheadLine, goAheads, suggestRates, type Daywork, type DayworkLine, type DayworkOfficeStatus, type DayworkRate } from "../lib/operations/dayworks";
 import { chargeInput, clientAuthorisationInput, dayworkInput, decisionInput, linesInput, pricingInput, rateInput, signoffInput } from "../lib/operations/daywork-input";
 import { londonDate } from "../lib/operations/planning";
 import { ValidationError } from "../lib/operations/validation";
@@ -23,7 +23,7 @@ const today = londonDate();
 const daywork = (over: Partial<Daywork> = {}): Daywork => ({
   id: "d1", contract_id: "c1", number: 3, work_area_id: null, location_path: [], description: "Tile the bin store wall", instructed_by_name: "Sam Site",
   instructed_by_company: null, instructed_on: today, created_by: "u-dave", created_by_name: "Dave Collins", created_at: `${today}T08:00:00Z`,
-  site_status: "recorded", office_status: null, signoff_status: "none", commercial_status: "awaiting_pricing", client_status: "not_authorised",
+  site_status: "recorded", office_status: null, signoff_status: "none",
   lines_version: 1, version: 1, updated_at: `${today}T08:00:00Z`, ...over,
 });
 const line = (over: Partial<DayworkLine>): DayworkLine => ({ id: "l1", daywork_id: "d1", lines_version: 1, position: 1, kind: "labour", label: "Marek",
@@ -32,22 +32,30 @@ const rate = (over: Partial<DayworkRate>): DayworkRate => ({ id: "r1", contract_
   retired: false, supersedes_id: null, created_by_name: "Sam Patel", created_at: `${today}T07:00:00Z`, ...over });
 
 // --- Statuses and wording -------------------------------------------------------------------
-test("the four statuses stay separate and say nothing about money", () => {
-  const recorded = dayworkStatuses(daywork());
-  assert.deepEqual(Object.values(recorded), ["Recorded, not sent yet", "Not signed yet", "Not sent to the office yet", "Awaiting pricing", "Client has not authorised the cost"]);
-  const approved = dayworkStatuses(daywork({ site_status: "sent", office_status: "approved", signoff_status: "signed", commercial_status: "commercially_approved" }));
+const officeView = (over: Partial<DayworkOfficeStatus> = {}): DayworkOfficeStatus =>
+  ({ client_status: "not_authorised", commercial_status: "awaiting_pricing", client_authorisation_required: true, ...over });
+test("site statuses are separate from the office-only client and charge statuses, and none mentions money", () => {
+  const site = dayworkStatuses(daywork());
+  assert.deepEqual([site.site, site.signature, site.office], ["Recorded, not sent yet", "Not signed yet", "Not sent to the office yet"]);
+  assert.equal(site.client, null, "without the office's statuses there is no client line");
+  assert.equal(site.charge, null, "without the office's statuses there is no charge line");
+  const approved = dayworkStatuses(daywork({ site_status: "sent", office_status: "approved", signoff_status: "signed" }), officeView({ commercial_status: "commercially_approved" }));
   assert.equal(approved.charge, "Charge approved internally by TileSPEC");
   assert.equal(approved.client, "Client has not authorised the cost", "an internal approval is never the client's acceptance");
+  assert.equal(dayworkStatuses(daywork(), officeView({ commercial_status: null })).charge, null, "no charge line without money access");
+  assert.equal(dayworkStatuses(daywork(), officeView({ client_authorisation_required: false })).client, "Client's authorisation not required by the contract");
   assert.equal(dayworkStatuses(daywork({ office_status: "more_detail" })).site, "Sent back for more detail");
-  for (const value of [...Object.values(recorded), ...Object.values(approved)]) assert.doesNotMatch(value, /£|\d/);
+  for (const value of [...Object.values(site), ...Object.values(approved)].filter((v): v is string => !!v)) assert.doesNotMatch(value, /£|\d/);
 });
 
-test("recording work is never permission to proceed or agreement to pay", () => {
-  assert.match(dayworkWarning(daywork())!, /not permission to proceed or an agreement to pay/);
-  assert.match(dayworkWarning(daywork({ site_status: "sent", office_status: "approved", signoff_status: "signed" }))!, /signature on the sheet confirms the work only, not payment/);
-  assert.equal(dayworkWarning(daywork({ site_status: "sent", office_status: "approved", client_status: "authorised" })), null);
-  assert.match(dayworkWarning(daywork({ site_status: "sent", office_status: "rejected" }))!, /rejected/);
-  assert.match(dayworkWarning(daywork({ client_status: "declined" }))!, /declined/);
+test("only an explicit go-ahead lets the site carry on; anything else, or not knowing, says do not", () => {
+  assert.deepEqual(Object.keys(goAheadLabels).sort(), [...goAheads].sort());
+  for (const state of goAheads.filter(g => g !== "proceed")) assert.match(goAheadLabels[state], /[Dd]o not|not permission/, state);
+  assert.match(goAheadLabels.proceed, /You can go ahead/);
+  assert.match(goAheadLine(undefined), /Ask the office/);
+  assert.match(goAheadLine(null), /Ask the office/);
+  assert.match(goAheadLabels.awaiting_client, /client's authorisation/);
+  for (const value of Object.values(goAheadLabels)) assert.doesNotMatch(value, /£|\d|charge|price/i, "the go-ahead never mentions pricing or the charge");
 });
 
 test("only the current set of lines is shown, and the history reads in plain words", () => {
@@ -117,7 +125,7 @@ test("signatures, decisions, client authorisations, rates and prices each need w
 const row = (s: NextActionSnapshot, over: Partial<DayworkRow> = {}): DayworkRow => ({
   id: "d1", contract_id: "c1", number: 3, description: "Tile the bin store wall", created_by: who(s, "Dave").user_id,
   site_status: "sent", office_status: "awaiting_review", signoff_status: "signed", commercial_status: "awaiting_pricing", client_status: "not_authorised",
-  submitted_by: [who(s, "Dave").user_id], ...over,
+  client_authorisation_required: true, submitted_by: [who(s, "Dave").user_id], ...over,
 });
 
 test("a daywork sent to the office is reviewed by an office user who did not submit it", () => {
@@ -174,6 +182,10 @@ test("site is asked to send, sign and add detail; the office records the client'
   assert.equal(client.title, "Record the client's decision on daywork DW-3");
   s.dayworks = [row(s, { office_status: "approved", client_status: "authorised", commercial_status: "commercially_approved" })];
   assert.deepEqual(compute(s, who(s, "Sam")).filter(a => a.source.table === "dayworks"), [], "nothing is left once every status is complete");
+  s.dayworks = [row(s, { office_status: "approved", commercial_status: "commercially_approved", client_authorisation_required: false })];
+  assert.deepEqual(ofRule(compute(s, who(s, "Jo")), "R28"), [], "no reminder to chase the client where the contract does not require it");
+  s.dayworks = [row(s, { office_status: "approved", commercial_status: undefined, client_status: undefined, client_authorisation_required: undefined })];
+  assert.deepEqual(compute(s, who(s, "Jo")).filter(a => ["R26", "R27", "R28"].includes(a.rule)), [], "without the office-only statuses no commercial action is worked out");
 });
 
 test("without dayworks in the database there are no daywork actions", () => {

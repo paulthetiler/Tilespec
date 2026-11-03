@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { canReadFinancial } from "@/lib/auth";
+import { canManageContracts, canReadFinancial } from "@/lib/auth";
 import { dayworksFor } from "@/lib/operations/daywork-data";
-import { currentLines, dayworkReference, dayworkStatuses, dayworkWarning } from "@/lib/operations/dayworks";
+import { currentLines, dayworkReference, dayworkStatuses, goAheadLine } from "@/lib/operations/dayworks";
 import { dayLabel } from "@/lib/operations/planning";
 import { requireSite } from "../../../site-access";
 import styles from "../../../../admin.module.css";
@@ -52,7 +52,7 @@ export default async function AdditionalWork({ params, searchParams }: { params:
   const { kind } = await searchParams;
   const page = pages[kind === "dayworks" ? "dayworks" : "variations"];
   const base = `/admin/supervisor/sites/${id}`;
-  const records = kind === "dayworks" ? await dayworksFor(supabase, id) : null;
+  const records = kind === "dayworks" ? await dayworksFor(supabase, id, undefined, { office: canManageContracts(member) }) : null;
   if (records) return <>
     <div className={styles.pageHeader}><div><h1 className={styles.title}>Dayworks</h1>
       <p className={styles.description}>Extra work paid by the hour on this job. Recording one is not permission to proceed or an agreement to pay.</p></div>
@@ -60,13 +60,13 @@ export default async function AdditionalWork({ params, searchParams }: { params:
     {canReadFinancial(member) && <p className={styles.small}><Link href={`/admin/contracts/${id}#daywork-rates`}>Daywork rates for this job</Link></p>}
     <section className={styles.cardList} aria-label="Dayworks on this job">
       {[...records.dayworks].reverse().map(daywork => {
-        const statuses = dayworkStatuses(daywork), lines = currentLines(daywork, records.lines), warning = dayworkWarning(daywork);
+        const statuses = dayworkStatuses(daywork, records.office?.get(daywork.id)), lines = currentLines(daywork, records.lines);
         return <article key={daywork.id} className={styles.card} data-daywork-id={daywork.id}>
           <p className={styles.eyebrow}>{dayworkReference(daywork)} · {dayLabel(daywork.instructed_on)}</p>
           <h2><Link href={`${base}/dayworks/${daywork.id}`}>{daywork.description}</Link></h2>
-          <p className={styles.small}>{statuses.office} · {statuses.signature} · {statuses.charge} · {statuses.client}</p>
+          <p className={styles.small}>{[statuses.office, statuses.signature, statuses.client, statuses.charge].filter(Boolean).join(" · ")}</p>
           <p className={styles.small}>{lines.length} {lines.length === 1 ? "line" : "lines"} · asked for by {daywork.instructed_by_name}</p>
-          {warning && <p className={styles.small}>{warning}</p>}
+          <p className={styles.small} data-go-ahead={records.goAhead.get(daywork.id) ?? "unknown"}>{goAheadLine(records.goAhead.get(daywork.id))}</p>
         </article>;
       })}
       {!records.dayworks.length && <p>No dayworks on this job yet.</p>}

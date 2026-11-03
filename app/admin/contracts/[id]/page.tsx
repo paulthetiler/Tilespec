@@ -10,7 +10,7 @@ import { indexLocations, locationPath, orderLocations } from "@/lib/operations/l
 import { addDays, londonDate, weekStart } from "@/lib/operations/planning";
 import { SiteSetup } from "@/components/office/site-setup";
 import { MAX_FILE_BYTES } from "@/lib/operations/validation";
-import { assignContractAction, assignPackageAction, createPackageAction, removeContractAssignmentAction, removePackageAssignmentAction, saveCommercialAction, updateContractAction, uploadDocumentAction } from "@/app/admin/actions";
+import { assignContractAction, assignPackageAction, createPackageAction, removeContractAssignmentAction, removePackageAssignmentAction, saveCommercialAction, setExtraWorkAuthorisationAction, updateContractAction, uploadDocumentAction } from "@/app/admin/actions";
 import { ContractFields } from "@/components/operations/contract-fields";
 import { AuditHistory } from "@/components/operations/audit-history";
 import { OperationsForm } from "@/components/operations/operations-form";
@@ -101,6 +101,17 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       {manage && <details className={styles.details}><summary>Edit operational contract details</summary><OperationsForm key={`contract-${contract.version}`} action={updateContractAction} submitLabel="Save contract details"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="version" value={contract.version} /><input type="hidden" name="request_key" value={randomUUID()} /><ContractFields contract={contract} /></OperationsForm></details>}
     </section>
 
+    {manage && typeof contract.daywork_client_authorisation === "boolean" && <section className={styles.panel} id="extra-work">
+      <h2>Extra work: when it may go ahead</h2>
+      <p className={styles.muted}>Dayworks always need the office&apos;s approval. TileSPEC&apos;s internal approval of a charge is never permission to go ahead.</p>
+      <OperationsForm key={`extra-work-${contract.version}`} action={setExtraWorkAuthorisationAction} submitLabel="Save">
+        <input type="hidden" name="contract_id" value={id} /><input type="hidden" name="version" value={contract.version} />
+        <fieldset className={styles.plainFieldset}><legend>What does this contract require for dayworks?</legend>
+          <label className={styles.checkboxRow}><input type="radio" name="dayworks" value="required" defaultChecked={contract.daywork_client_authorisation} />The client&apos;s authorisation, then the site may go ahead</label>
+          <label className={styles.checkboxRow}><input type="radio" name="dayworks" value="not_required" defaultChecked={!contract.daywork_client_authorisation} />The office&apos;s approval is enough</label>
+        </fieldset>
+      </OperationsForm>
+    </section>}
     {dayworkMoney && <DayworkRates contractId={id} rates={dayworkMoney.rates} />}
     {financial && <section className={styles.panel} id="commercial-budget"><h2>Original commercial budget</h2>
       {summary ? <div className={styles.metrics}>

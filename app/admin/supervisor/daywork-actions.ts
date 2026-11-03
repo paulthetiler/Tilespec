@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireActor } from "@/lib/auth";
+import { canManageContracts, canReadFinancial, requireActor } from "@/lib/auth";
+import { DAYWORK_COLUMNS } from "@/lib/operations/dayworks";
 import { isRecordId } from "@/lib/operations/daily-input";
 import { chargeInput, clientAuthorisationInput, dayworkInput, decisionInput, linesInput, pricingInput, rateInput, signoffInput } from "@/lib/operations/daywork-input";
 import { rpcErrorMessage } from "@/lib/operations/errors";
@@ -23,12 +24,21 @@ function declined(error: { code?: string; message?: string }): DailyActionState 
 function failure(error: unknown, attempted: boolean): DailyActionState {
   return { error: error instanceof ValidationError ? error.message : uncertainError, uncertain: attempted && !(error instanceof ValidationError) };
 }
+// The database refuses these for anyone else; checking here as well means an unauthorised
+// request is turned away before it reaches the database at all.
+type Actor = Parameters<typeof canManageContracts>[0];
+const notOffice = (member: Actor): DailyActionState | null =>
+  canManageContracts(member) ? null : { error: "Only the office for this job can do this." };
+const notMoney = (member: Actor): DailyActionState | null =>
+  canReadFinancial(member) ? null : { error: "Money access has not been authorised for your account." };
 /** A save counts only once the saved daywork itself shows it. */
 async function savedDaywork(supabase: SupabaseClient, id: string, contract: string) {
-  const saved = await supabase.from("dayworks").select("*").eq("id", id).single();
-  if (saved.error || !saved.data || saved.data.contract_id !== contract) throw new Error("Unconfirmed daywork");
-  return saved.data as { id: string; number: number; version: number; site_status: string; office_status: string | null; created_by: string; request_key: string;
-    signoff_status: string; client_status: string; commercial_status: string; lines_version: number };
+  const saved = await supabase.from("dayworks").select(DAYWORK_COLUMNS).eq("id", id).single();
+  if (saved.error || !saved.data) throw new Error("Unconfirmed daywork");
+  const row = saved.data as unknown as { id: string; contract_id: string; number: number; version: number; site_status: string; office_status: string | null;
+    created_by: string; request_key: string; signoff_status: string; lines_version: number };
+  if (row.contract_id !== contract) throw new Error("Unconfirmed daywork");
+  return row;
 }
 
 export type CreateDayworkState = DailyActionState & { href?: string };
@@ -112,7 +122,9 @@ export async function recordSignoffAction(_: DailyActionState, form: FormData): 
 }
 
 export async function decideDayworkAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
-  const { supabase } = await requireActor();
+  const { supabase, member } = await requireActor();
+  const refused = notOffice(member);
+  if (refused) return refused;
   let attempted = false;
   try {
     const daywork = uuid(form, "daywork_id"), contract = uuid(form, "contract_id"), version = integer(form, "version", 1), key = uuid(form, "request_key");
@@ -131,6 +143,8 @@ export async function decideDayworkAction(_: DailyActionState, form: FormData): 
 
 export async function clientAuthorisationAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
   const { supabase, member } = await requireActor();
+  const refused = notOffice(member);
+  if (refused) return refused;
   let attempted = false;
   try {
     const daywork = uuid(form, "daywork_id"), contract = uuid(form, "contract_id"), key = uuid(form, "request_key"), data = clientAuthorisationInput(form);
@@ -147,6 +161,8 @@ export async function clientAuthorisationAction(_: DailyActionState, form: FormD
 
 export async function saveRateAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
   const { supabase, member } = await requireActor();
+  const refused = notMoney(member);
+  if (refused) return refused;
   let attempted = false;
   try {
     const data = rateInput(form), key = uuid(form, "request_key");
@@ -164,6 +180,8 @@ export async function saveRateAction(_: DailyActionState, form: FormData): Promi
 
 export async function priceDayworkAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
   const { supabase, member } = await requireActor();
+  const refused = notMoney(member);
+  if (refused) return refused;
   let attempted = false;
   try {
     const daywork = uuid(form, "daywork_id"), contract = uuid(form, "contract_id"), version = integer(form, "version", 1), key = uuid(form, "request_key");
@@ -181,6 +199,8 @@ export async function priceDayworkAction(_: DailyActionState, form: FormData): P
 
 export async function approveChargeAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
   const { supabase, member } = await requireActor();
+  const refused = notMoney(member);
+  if (refused) return refused;
   let attempted = false;
   try {
     const daywork = uuid(form, "daywork_id"), contract = uuid(form, "contract_id"), version = integer(form, "version", 1), key = uuid(form, "request_key");

@@ -478,9 +478,9 @@ rule("R27_approve_daywork_charge", ({ s, L }) => (s.dayworks ?? []).filter(d => 
   requires: ["Check the priced lines"], doneWhen: "The charge is approved internally", next: null,
   audience: { office: "act", owner: "act" }, financial: true, independence: submittedBarred(s, d, "approve its charge"),
 } satisfies NextAction)));
-rule("R28_daywork_client", ({ s, L }) => (s.dayworks ?? []).filter(d => d.office_status === "approved" && d.client_status === "not_authorised").map(d => ({
+rule("R28_daywork_client", ({ s, L }) => (s.dayworks ?? []).filter(d => d.office_status === "approved" && d.client_status === "not_authorised" && d.client_authorisation_required === true).map(d => ({
   ...dayworkBase(d), id: `daywork-client:${d.id}`, rule: "R28", priority: 3, order: 16.3, job: L.job(d.contract_id), responsible: OFFICE,
-  title: `Record the client's decision on daywork ${dw(d)}`, why: "The client has not authorised this cost yet. Record their authorisation with its instruction reference or document, or that they declined.",
+  title: `Record the client's decision on daywork ${dw(d)}`, why: "The contract needs the client's authorisation before this work goes ahead, and it is not recorded yet. Record their authorisation with its instruction reference or document, or that they declined.",
   requires: ["Who decided for the client", "Their instruction reference or document"], doneWhen: "The client's decision is recorded", next: null,
   audience: { office: "act", owner: "act" },
 } satisfies NextAction)));

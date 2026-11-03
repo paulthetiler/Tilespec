@@ -119,6 +119,7 @@ function fixture(options: { holds?: number; failure?: string } = {}) {
       if (name === "site_supervisor_recipients") return { data: null, error: { code: "42501", message: "Office permission required for this site" } };
       if (name === "allocation_actor_names") return { data: [{ user_id: actor.user_id, display_name: actor.display_name }], error: null };
       if (name === "hold_register") return { data: { work_statuses: [], work_statuses_truncated: false }, error: null };
+      if (name === "daywork_site_statuses") return { data: [], error: null };
       throw new Error(`Unexpected RPC ${name}`);
     },
   } as unknown as SupabaseClient;
@@ -132,6 +133,7 @@ test("enabled Supervisor Today loads with the office-only recipient directory de
   assert.equal(viewer.user_id, actor.user_id);
   assert.equal(snapshot.members.find(member => member.user_id === actor.user_id)?.role, "supervisor");
   assert.ok(!f.rpcs.includes("site_supervisor_recipients"), "the live supervisor must never enumerate office recipients");
+  assert.ok(!f.rpcs.includes("daywork_office_statuses"), "the live supervisor never asks for the office-only daywork statuses");
   assert.deepEqual(snapshot.contracts.map(contract => contract.id), [contractId]);
   assert.deepEqual(snapshot.team_memberships.map(member => member.operative_id), ["current"]);
   assert.equal(snapshot.site_handovers[0].actor_id, "other-supervisor");

@@ -148,7 +148,7 @@ export async function loadOfficeSnapshot(
     optionalRows("job_messages", "id,contract_id,thread_id,site_user_id,author_id,author_name,author_side,body,needs_answer,about_type,about_id,created_at,request_key", { ...scope, order: ["created_at", "id"] }),
     optionalRows("job_message_reads", "id,message_id,reader_id,read_at", scope),
     // Dayworks arrive with their own migration. Statuses only: rates and prices are never read here.
-    optionalRows("dayworks", "id,contract_id,number,description,created_by,site_status,office_status,signoff_status,commercial_status,client_status", scope),
+    optionalRows("dayworks", "id,contract_id,number,description,created_by,site_status,office_status,signoff_status", scope),
     optionalRows("daywork_events", "id,daywork_id,actor_id,action", { ...scope, oneOf: { action: ["record", "update_lines", "send"] } }),
   ]);
   // Both arrive with one migration. Until it is applied, results and handovers stay in "From site".
@@ -161,6 +161,14 @@ export async function loadOfficeSnapshot(
   ]) : [[], []];
   const followedUp = new Set([...linkedSnags.map(row => String(row.location_inspection_id)), ...linkedHolds.map(row => String(row.source_inspection_id))]);
   const memberNames = new Map(memberRows.map(row => [String(row.user_id), String(row.display_name)]));
+  // The client's decision and (with money access) the internal charge come from the database's office-only function.
+  const dayworkStatuses = new Map<string, Record<string, unknown>>();
+  if (dayworks?.length) {
+    const statuses = await supabase.rpc("daywork_office_statuses", { p_contracts: [...new Set(dayworks.map(row => String(row.contract_id)))] });
+    if (statuses.error && !["PGRST202", "42883"].includes(statuses.error.code)) throw new Error("The office daily records could not be loaded. Try again.");
+    for (const row of (statuses.data ?? []) as Record<string, unknown>[]) dayworkStatuses.set(String(row.daywork_id), {
+      client_status: row.client_status, commercial_status: row.commercial_status ?? null, client_authorisation_required: row.client_authorisation_required === true });
+  }
   const conversations = messages !== null && messageReads !== null;
   const threads = conversations ? threadsFrom(messages as unknown as JobMessage[], messageReads as unknown as JobMessageRead[]) : [];
   // Titles for what each conversation is about, from records this snapshot already read. Closed records fall back to a plain description.
@@ -227,7 +235,7 @@ export async function loadOfficeSnapshot(
     } : {}),
     ...(conversations ? { job_threads: jobThreadRows(threads, lookups) } : {}),
     ...(dayworks && dayworkSubmissions ? { dayworks: dayworks.map(row => ({ ...(row as unknown as Omit<NonNullable<NextActionSnapshot["dayworks"]>[number], "submitted_by">),
-      number: Number(row.number),
+      number: Number(row.number), ...dayworkStatuses.get(String(row.id)),
       submitted_by: [...new Set(dayworkSubmissions.filter(event => event.daywork_id === row.id).map(event => String(event.actor_id)))] })) } : {}),
   };
   return { snapshot, viewer: { user_id: member.user_id, role: member.role, financial_access: financial } };
