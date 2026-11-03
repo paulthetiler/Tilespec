@@ -12,6 +12,8 @@ import { dayworkReference, pounds } from "@/lib/operations/dayworks";
 import { costCategories, costCategoryLabels, labourSummary, materialUnitLabels } from "@/lib/operations/job-costs";
 import { jobMoneyFor, materialsFor } from "@/lib/operations/job-costs-data";
 import { claimableExtrasFor, paymentsFor } from "@/lib/operations/payments-data";
+import { positionsFor } from "@/lib/operations/financial-position-data";
+import { FinancialPositionView } from "@/components/office/financial-position";
 import { PaymentApplications } from "@/components/office/payment-applications";
 import { indexLocations, locationPath } from "@/lib/operations/locations";
 import { dayLabel, londonDate } from "@/lib/operations/planning";
@@ -29,12 +31,12 @@ export default async function JobMoney({ params }: { params: Promise<{ id: strin
   const contract = await supabase.from("contracts").select("id,reference,name").eq("id", id).maybeSingle();
   checkDatabase(contract.error);
   if (!contract.data) notFound();
-  const [money, materials, operatives, teams, companies, locations, extras, documents, payments, claimable] = await Promise.all([
+  const [money, materials, operatives, teams, companies, locations, extras, documents, payments, claimable, positions] = await Promise.all([
     jobMoneyFor(supabase, id), materialsFor(supabase, id), supabase.from("operatives").select("id,display_name,company_id").order("display_name"),
     supabase.from("teams").select("id,name,company_id").order("name"), supabase.from("subcontractor_companies").select("id,name").order("name"),
     locationsFor(supabase, id), dayworkLabelsForContract(supabase, id),
     supabase.from("document_revisions").select("id,title,document_reference,revision").eq("contract_id", id).not("uploaded_at", "is", null).order("document_reference"),
-    paymentsFor(supabase, id), claimableExtrasFor(supabase, id),
+    paymentsFor(supabase, id), claimableExtrasFor(supabase, id), positionsFor(supabase, [id]),
   ]);
   for (const result of [operatives, teams, companies, documents]) checkDatabase(result.error);
   const header = <div className={styles.pageHeader}><div><p className={styles.eyebrow}>{contract.data.reference}</p><h1 className={styles.title}>Job money</h1>
@@ -54,6 +56,8 @@ export default async function JobMoney({ params }: { params: Promise<{ id: strin
   const job = <input type="hidden" name="contract_id" value={id} />;
   return <>
     {header}
+    {positions?.get(id) && <section className={styles.panel} id="position" aria-label="Financial position">
+      <h2>Financial position</h2><FinancialPositionView position={positions.get(id)!} /></section>}
     {payments ? <PaymentApplications contractId={id} payments={payments} extras={claimable} />
       : <p className={styles.warning}>Payment applications are not available until the office applies the database update.</p>}
     <section className={styles.panel} id="labour" aria-label="Labour">

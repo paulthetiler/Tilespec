@@ -16,6 +16,8 @@ import { AuditHistory } from "@/components/operations/audit-history";
 import { OperationsForm } from "@/components/operations/operations-form";
 import { calendarDate, eventDate, money } from "@/components/operations/format";
 import { DayworkRates } from "@/components/office/daywork-rates";
+import { FinancialPositionView } from "@/components/office/financial-position";
+import { positionsFor } from "@/lib/operations/financial-position-data";
 import { dayworkMoneyFor, dayworksAvailable, variationsAvailable } from "@/lib/operations/daywork-data";
 import styles from "../../admin.module.css";
 
@@ -45,7 +47,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
   if (!data) notFound();
   const { contract, areas, packages, documents, audit, commercial } = data;
   const installerRole = ["lead_installer", "subcontract_installer"].includes(member.role);
-  const [team, contractAssignmentResult, packageAssignmentResult, dayworks, dayworkMoney, variations] = await Promise.all([
+  const [team, contractAssignmentResult, packageAssignmentResult, dayworks, dayworkMoney, variations, positions] = await Promise.all([
     manage ? teamFor(supabase) : Promise.resolve([member]),
     supabase.from("contract_assignments").select("user_id,valid_from,valid_until").eq("contract_id", id),
     supabase.from("package_assignments").select("user_id,work_package_id").eq("contract_id", id),
@@ -53,6 +55,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
     installerRole ? Promise.resolve(false) : dayworksAvailable(supabase),
     financial ? dayworkMoneyFor(supabase, id) : Promise.resolve(null),
     installerRole ? Promise.resolve(false) : variationsAvailable(supabase),
+    financial ? positionsFor(supabase, [id]) : Promise.resolve(null),
   ]);
   checkDatabase(contractAssignmentResult.error);
   checkDatabase(packageAssignmentResult.error);
@@ -128,7 +131,9 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
         <div className={styles.metric}><span className={styles.metricLabel}>Margin after reserve</span><strong className={styles.metricValue}>{summary.margin === null ? "Not calculable" : `${summary.margin.toFixed(1)}%`}</strong></div>
       </div> : <p className={styles.muted}>No original budget has been recorded.</p>}
       {summary?.margin !== null && summary?.margin !== undefined && commercial && summary.margin < Number(commercial.target_margin) && <p className={styles.warning}><strong>Below target margin.</strong> The budget margin is {summary.margin.toFixed(1)}% against a target of {Number(commercial.target_margin).toFixed(1)}%. Explicit owner approval with a recorded reason is required before commercial acceptance.</p>}
-      <p className={styles.small}>These are budget amounts. Actual expenditure, approved variations, programme costs, payment notices and cash forecasts are not yet recorded. Contingency is a reserve.</p>
+      {positions?.get(id) ? <><h3>Position now</h3><FinancialPositionView position={positions.get(id)!} compact />
+        <p className={styles.small}><Link href={`/admin/contracts/${id}/money`}>Job money: costs, applications and payments</Link></p></>
+        : <p className={styles.small}>These are budget amounts. Costs, extras and payments appear here once the office applies the database update. Contingency is a reserve.</p>}
       <details className={styles.details}><summary>{commercial ? "Edit original budget and payment terms" : "Record original budget and payment terms"}</summary>
         <OperationsForm key={`commercial-${commercial?.version ?? 0}`} action={saveCommercialAction} submitLabel="Save original budget">
           <input type="hidden" name="contract_id" value={id} /><input type="hidden" name="version" value={commercial?.version ?? 0} /><input type="hidden" name="request_key" value={randomUUID()} />

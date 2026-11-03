@@ -582,7 +582,7 @@ rule("R11_insurance_expiring", ({ s, cfg }) => {
 rule("R14_margin_below_target", ({ s, L }) => s.commercials.map(c => ({ c, b: budgetOf(c) })).filter(({ c, b }) => b.margin !== null && b.margin < c.target_margin).map(({ c, b }) => ({
   id: `margin:${c.contract_id}`, rule: "R14", process: "money", kind: "reminder", priority: 2, order: 19, job: L.job(c.contract_id), location: null,
   responsible: { role: "owner", who: null, label: "Owner" }, title: `Budget margin is ${b.margin!.toFixed(1)}%, target is ${Number(c.target_margin).toFixed(0)}%`,
-  why: `Budgeted profit after reserve is ${pounds(b.profit)} on ${pounds(b.value)}. These are original budgets only: actual costs, variations and claims are not recorded.`,
+  why: `Budgeted profit after reserve is ${pounds(b.profit)} on ${pounds(b.value)}. This is the original budget. Money shows the forecast with agreed extras, costs to date and payments.`,
   due: null, requires: [], doneWhen: "Nothing to record. TileSpec cannot yet record an owner decision on margin", next: null,
   audience: { owner: "act", office: "see" }, blocks: null, enforcedByBackend: false, financial: true, informationOnly: true,
   source: { table: "contract_commercials", id: c.contract_id }, route: { screen: "money" },

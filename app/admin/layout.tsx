@@ -54,6 +54,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/quality">Quality control</Link>}
             {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
             {member.role === "owner" && <Link href="/admin/team">User access</Link>}
+            {canReadFinancial(member) && <Link href="/admin/money">Money</Link>}
             {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
           </nav>
           <nav className={`${styles.shell} ${styles.mobileNav}`} aria-label="Mobile admin navigation">
@@ -71,7 +72,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/quality">Quality control</Link>}
                 {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
                 {member.role === "owner" && <Link href="/admin/team">User access</Link>}
-                {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
+                {canReadFinancial(member) && <Link href="/admin/money">Money</Link>}
+            {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
               </div>
             </details>
           </nav>
