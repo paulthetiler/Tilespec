@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkDatabase } from "./data";
 import {
-  DAYWORK_COLUMNS, DAYWORK_EVENT_COLUMNS, goAheads,
+  DAYWORK_BASE_COLUMNS, DAYWORK_COLUMNS, DAYWORK_EVENT_COLUMNS, goAheads,
   type Daywork, type DayworkApproval, type DayworkClientAuthorisation, type DayworkEvent, type DayworkLine, type DayworkOfficeStatus, type DayworkPhoto,
   type DayworkPricing, type DayworkPricingLine, type DayworkRate, type DayworkSignoff, type GoAhead, type RateItem,
 } from "./dayworks";
@@ -18,6 +18,14 @@ export async function dayworksAvailable(supabase: SupabaseClient) {
   return true;
 }
 
+/** Variations need their own update (the kind column). Before it is applied, none can be raised. */
+export async function variationsAvailable(supabase: SupabaseClient) {
+  const result = await supabase.from("dayworks").select("kind").limit(1);
+  if (missing(result.error) || result.error?.code === "42703") return false;
+  checkDatabase(result.error);
+  return true;
+}
+
 export type DayworkRecords = {
   dayworks: Daywork[]; lines: DayworkLine[]; events: DayworkEvent[]; signoffs: DayworkSignoff[];
   clientAuthorisations: DayworkClientAuthorisation[]; photos: DayworkPhoto[];
@@ -25,6 +33,8 @@ export type DayworkRecords = {
   goAhead: Map<string, GoAhead>;
   /** Office only (`office: true`), and only what the database returns to this person. */
   office: Map<string, DayworkOfficeStatus> | null;
+  /** False until the variations update is applied: every record is then a daywork and no variation can be raised. */
+  variations: boolean;
 };
 const absentFunction = (error: { code?: string } | null) => !!error && ["PGRST202", "42883"].includes(error.code ?? "");
 /**
@@ -44,8 +54,15 @@ export async function dayworksFor(supabase: SupabaseClient, contractId: string, 
       if (page.length < 500) return { data: all, error: null };
     }
   }
+  // Before the variations update is applied there is no kind column: read the rest, and every record is a daywork.
+  const dayworkRows = async () => {
+    const withKind = await rows("dayworks", "number", DAYWORK_COLUMNS);
+    if (withKind.error?.code !== "42703") return { ...withKind, variations: true };
+    const legacy = await rows("dayworks", "number", DAYWORK_BASE_COLUMNS);
+    return { ...legacy, data: legacy.data?.map(row => ({ ...row, kind: "daywork" })) ?? null, variations: false };
+  };
   const [dayworks, lines, events, signoffs, authorisations, photos, siteStatuses, officeStatuses] = await Promise.all([
-    rows("dayworks", "number", DAYWORK_COLUMNS), rows("daywork_lines", "position"), rows("daywork_events", "created_at", DAYWORK_EVENT_COLUMNS),
+    dayworkRows(), rows("daywork_lines", "position"), rows("daywork_events", "created_at", DAYWORK_EVENT_COLUMNS),
     rows("daywork_signoffs", "recorded_at"), rows("daywork_client_authorisations", "recorded_at"), rows("daywork_photos", "created_at"),
     supabase.rpc("daywork_site_statuses", { p_contracts: [contractId] }) as unknown as Promise<Result>,
     options.office ? supabase.rpc("daywork_office_statuses", { p_contracts: [contractId] }) as unknown as Promise<Result> : Promise.resolve(null),
@@ -68,7 +85,7 @@ export async function dayworksFor(supabase: SupabaseClient, contractId: string, 
   return {
     dayworks: dayworks.data as unknown as Daywork[], lines: numeric<DayworkLine>(lines.data!, ["quantity"]), events: events.data as unknown as DayworkEvent[],
     signoffs: signoffs.data as unknown as DayworkSignoff[], clientAuthorisations: authorisations.data as unknown as DayworkClientAuthorisation[],
-    photos: photos.data as unknown as DayworkPhoto[], goAhead, office,
+    photos: photos.data as unknown as DayworkPhoto[], goAhead, office, variations: dayworks.variations,
   };
 }
 
@@ -89,7 +106,8 @@ export async function dayworkMoneyFor(supabase: SupabaseClient, contractId: stri
   const numbers = <T,>(list: unknown[] | null, keys: string[]) => (list ?? []).map(row => ({ ...(row as object),
     ...Object.fromEntries(keys.map(key => [key, Number((row as Record<string, unknown>)[key])])) })) as T[];
   return {
-    rates: numbers<DayworkRate>(rates.data, ["rate"]), pricings: numbers<DayworkPricing>(pricings.data, ["total", "lines_version"]),
+    rates: numbers<DayworkRate>(rates.data, ["rate"]),
+    pricings: numbers<DayworkPricing>(pricings.data, ["total", "lines_version"]).map(row => ({ ...row, method: row.method ?? "day_rates", note: row.note ?? null })),
     pricingLines: numbers<DayworkPricingLine>(pricingLines.data, ["rate", "quantity", "amount"]), approvals: (approvals.data ?? []) as DayworkApproval[],
   };
 }
@@ -100,4 +118,16 @@ export async function rateItemsFor(supabase: SupabaseClient, contractId: string)
   if (result.error && ["PGRST202", "42883"].includes(result.error.code)) return [];
   checkDatabase(result.error);
   return (result.data ?? []) as RateItem[];
+}
+
+export type DayworkLabel = { id: string; number: number; description: string; kind: "daywork" | "variation" };
+/** References for conversations and Job activity (DW-3 or VO-1). Before the variations update, every record is a daywork. */
+export async function dayworkLabelsFor(supabase: SupabaseClient, ids: string[]): Promise<DayworkLabel[]> {
+  if (!ids.length) return [];
+  const unique = [...new Set(ids)];
+  let result: Result = await supabase.from("dayworks").select("id,kind,number,description").in("id", unique);
+  if (result.error?.code === "42703") result = await supabase.from("dayworks").select("id,number,description").in("id", unique);
+  checkDatabase(result.error);
+  return ((result.data ?? []) as Record<string, unknown>[]).map(row => ({ id: String(row.id), number: Number(row.number), description: String(row.description),
+    kind: row.kind === "variation" ? "variation" : "daywork" }));
 }

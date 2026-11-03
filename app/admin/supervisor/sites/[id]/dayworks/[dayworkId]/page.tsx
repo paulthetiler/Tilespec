@@ -13,7 +13,7 @@ import { conversationsAvailable } from "@/lib/operations/daily-data";
 import { isRecordId } from "@/lib/operations/daily-input";
 import { dayworkMoneyFor, dayworksFor, rateItemsFor } from "@/lib/operations/daywork-data";
 import {
-  categoryLabels, currentLines, currentRates, dayworkReference, dayworkStatuses, eventLine, goAheadLine, lineCategory, lineSummary, pounds, suggestRates, unitLabels,
+  categoryLabels, currentLines, currentRates, dayworkReference, dayworkStatuses, eventLine, goAheadLine, kindWords, lineCategory, lineSummary, pounds, suggestRates, unitLabels,
 } from "@/lib/operations/dayworks";
 import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
 import { requireSite } from "../../../../site-access";
@@ -59,7 +59,7 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
   const ids = <><input type="hidden" name="daywork_id" value={daywork.id} /><input type="hidden" name="contract_id" value={id} /></>;
   const versioned = <>{ids}<input type="hidden" name="version" value={daywork.version} /></>;
   return <>
-    <p className={styles.eyebrow}>Daywork</p>
+    <p className={styles.eyebrow}>{kindWords[daywork.kind].title}</p>
     <h1 className={styles.title}>{reference}</h1>
     <p>{daywork.description}</p>
     <p className={goAhead === "proceed" ? styles.success : styles.warning} role="status" data-daywork-go-ahead={goAhead ?? "unknown"}>{goAheadLine(goAhead)}</p>
@@ -87,12 +87,14 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
         return <li key={line.id} data-line-id={line.id}>{lineSummary(line)}
           {priced && <span className={styles.small}> · {pounds(priced.rate)} per {priced.unit === "m2" ? "m²" : priced.unit} = <strong>{pounds(priced.amount)}</strong></span>}</li>;
       })}</ul> : <p>No lines yet. Add the people, plant and materials before sending it.</p>}
+      {pricing?.method === "quoted" && pricing.lines_version === daywork.lines_version && <p data-daywork-total="">
+        <strong>Quoted price {pounds(pricing.total)}</strong>{pricing.note ? ` · ${pricing.note}` : ""} · priced by {pricing.priced_by_name} at {when(pricing.priced_at)}</p>}
       {pricing && pricedLines.length > 0 && <p data-daywork-total=""><strong>Total {pounds(pricing.total)}</strong> · priced by {pricing.priced_by_name} at {when(pricing.priced_at)}</p>}
     </section>
 
     {!rejected && daywork.site_status === "recorded" && <section className={styles.panel} aria-label="Correct and send">
       <h2>{daywork.office_status === "more_detail" ? "Add the detail and send it again" : "Check and send"}</h2>
-      {lines.length > 0 && daywork.office_status !== "more_detail" && <DailyForm action={sendDayworkAction} label="Send to the office">{versioned}{key()}</DailyForm>}
+      {(lines.length > 0 || daywork.kind === "variation") && daywork.office_status !== "more_detail" && <DailyForm action={sendDayworkAction} label="Send to the office">{versioned}{key()}</DailyForm>}
       <details className={styles.details} open={daywork.office_status === "more_detail" || !lines.length}><summary>Correct the people, plant and materials</summary>
         <DailyForm action={saveDayworkLinesAction} label="Save the lines">
           {versioned}{key()}<input type="hidden" name="send_key" value={randomUUID()} />
@@ -180,9 +182,15 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
       {approval ? <p data-charge-approved="">Charge approved internally by {approval.approved_by_name} at {when(approval.approved_at)}
         {approval.owner_override ? ` (owner override: ${approval.override_reason})` : ""}{approval.note ? `. ${approval.note}` : ""}. This is not the client&apos;s acceptance or agreement to pay.</p> : null}
       {!approval && daywork.site_status === "sent" && !rejected && <details className={styles.details} open={officeStatus?.commercial_status === "awaiting_pricing"}>
-        <summary>{pricing && pricedLines.length ? "Price it again" : "Price it from the job's rates"}</summary>
+        <summary>{pricing && (pricedLines.length || pricing.method === "quoted") ? "Price it again" : daywork.kind === "variation" ? "Price it" : "Price it from the job's rates"}</summary>
+        {daywork.kind === "variation" && <DailyForm action={priceDayworkAction} label="Save the quoted price">
+          {versioned}{key()}<input type="hidden" name="method" value="quoted" />
+          <label className={styles.field}>Quoted price (£, excluding VAT)<input type="number" name="total" min="0.01" max="10000000" step="0.01" inputMode="decimal" required /></label>
+          <label className={styles.field}>Quotation reference (optional)<input name="note" maxLength={500} /></label>
+          <p className={styles.small}>Or price it from the job&apos;s day rates below, if its people, plant and materials are recorded.</p>
+        </DailyForm>}
         {!rates.length && <p>This job has no daywork rates yet. <Link href={`/admin/contracts/${id}#daywork-rates`}>Add them on the job</Link>.</p>}
-        <DailyForm action={priceDayworkAction} label="Price it">
+        {(daywork.kind === "daywork" || lines.length > 0) && <DailyForm action={priceDayworkAction} label="Price it">
           {versioned}{key()}<input type="hidden" name="line_ids" value={lines.map(line => line.id).join(",")} />
           {lines.map(line => {
             const options = rates.filter(rate => rate.category === lineCategory(line) && rate.unit === line.unit);
@@ -193,7 +201,7 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
               </select></label>;
           })}
           <p className={styles.small}>Each line keeps the rate it is priced at. Changing a rate later never changes this price.</p>
-        </DailyForm>
+        </DailyForm>}
       </details>}
       {!approval && daywork.office_status === "approved" && officeStatus?.commercial_status === "priced" && <div aria-label="Approve the charge">
         <h3>Approve the charge</h3>
@@ -217,6 +225,6 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
         <span className={styles.small}> · {when(event.created_at)}</span></li>)}</ol>
     </section>
     {ask && <Link className={styles.secondaryButton} href={`${base}/messages?about=daywork:${daywork.id}#ask`}>Ask the office about this</Link>}
-    <Link className={styles.secondaryButton} href={`${base}/commercial?kind=dayworks`}>All dayworks on this job</Link>
+    <Link className={styles.secondaryButton} href={`${base}/commercial?kind=${daywork.kind === "variation" ? "variations" : "dayworks"}`}>All {kindWords[daywork.kind].plural.toLowerCase()} on this job</Link>
   </>;
 }

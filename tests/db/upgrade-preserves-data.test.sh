@@ -91,7 +91,7 @@ snapshot() {
   "${psql[@]}" <<'SQL'
 select string_agg(t || ':' || h, E'\n' order by t) from (
   select 'organisation_members' t, md5(coalesce(string_agg(to_jsonb(x)::text, '|' order by user_id), '')) h from public.organisation_members x
-  union all select 'contracts', md5(coalesce(string_agg((to_jsonb(x)-array['daywork_client_authorisation'])::text, '|' order by id), '')) from public.contracts x
+  union all select 'contracts', md5(coalesce(string_agg((to_jsonb(x)-array['daywork_client_authorisation','variation_client_authorisation'])::text, '|' order by id), '')) from public.contracts x
   union all select 'contract_commercials', md5(coalesce(string_agg(to_jsonb(x)::text, '|' order by contract_id), '')) from public.contract_commercials x
   union all select 'contract_assignments', md5(coalesce(string_agg(to_jsonb(x)::text, '|' order by contract_id, user_id), '')) from public.contract_assignments x
   union all select 'work_areas', md5(coalesce(string_agg(jsonb_build_object('id', id, 'organisation_id', organisation_id, 'contract_id', contract_id, 'name', name,

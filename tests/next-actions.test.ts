@@ -471,25 +471,27 @@ test("no dead-end buttons: no claim or margin controls, and no prominent Stop Wo
   assert.ok(!/STOP WORK/.test(report), "no prominent Stop Work button");
 });
 
-test("variations and dayworks stay reachable from each job, clearly not built, and can never look submitted", () => {
+test("variations and dayworks stay reachable from each job, say plainly when not available, and raise nothing from the list page", () => {
   const links = /href=\{`\$\{base\}\/commercial\?kind=variations`\}[\s\S]*href=\{`\$\{base\}\/commercial\?kind=dayworks`\}/;
   // Supervisor: the new Today's secondary More list and the original dashboard's secondary links, never the main tiles.
   const today = source("components/site/next-actions-today.tsx");
   assert.match(today, links);
-  assert.match(today.slice(today.indexOf('aria-label="More"')), /Not built yet[\s\S]*Not built yet/, "each says it is not built yet");
+  assert.match(today, /snapshot\.variations_available \? <Link/, "variations are offered once their update is applied");
+  assert.match(today.slice(today.indexOf('aria-label="More"')), /Not available yet[\s\S]*Not available yet/, "until then each says it is not available yet");
   assert.ok(!/commercial/.test(today.slice(0, today.indexOf('aria-label="More"'))), "not in the main action area");
   const dashboard = source("app/admin/supervisor/sites/[id]/page.tsx");
   const tiles = dashboard.match(/const actions = \[([\s\S]*?)\];/)![1];
   assert.ok(!/commercial|Variation|Daywork/i.test(tiles), "not among the everyday tiles");
   assert.match(dashboard, links);
-  assert.match(dashboard, /Variations \(not built yet\)[\s\S]*Dayworks \(not built yet\)/);
+  assert.match(dashboard, /Variations \(not available yet\)[\s\S]*Dayworks \(not built yet\)/);
   // Office: the job page links to the same page.
   assert.match(source("app/admin/contracts/[id]/page.tsx"), /commercial\?kind=variations[\s\S]*commercial\?kind=dayworks/);
-  // The page itself saves nothing: no form, button, server action or record write, and says so.
+  // The list page itself saves nothing: no form, button, server action or record write. Records are raised on their own form.
   const page = source("app/admin/supervisor/sites/[id]/commercial/page.tsx");
   for (const forbidden of [/<form/i, /<button/i, /OperationsForm|DailyForm/, /action=/, /"use server"/, /\.rpc\(|\.insert\(|\.from\(/]) assert.ok(!forbidden.test(page), `no ${forbidden}`);
-  assert.match(page, /Not built yet\. Nothing on this page is saved\./);
-  assert.match(page, /New backend, awaiting approval/);
+  assert.match(page, /Not available yet\. Nothing on this page is saved\./);
+  assert.match(page, /wanted === "daywork" \|\| loaded\.variations/, "variations are listed only once their update is applied");
+  assert.match(page, /dayworks\/new\$\{wanted === "variation" \? "\?kind=variation" : ""\}/, "a variation is raised on the shared short form");
   for (const field of ["labour hours", "Materials used", "Who instructed it", "Authorisation and sign-off", "agreed scope", "Associated costs", "Approval status"]) assert.ok(page.includes(field), field);
 });
 

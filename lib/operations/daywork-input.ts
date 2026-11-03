@@ -44,13 +44,15 @@ export function linesInput(form: FormData): DayworkLineInput[] {
 }
 
 export function dayworkInput(form: FormData) {
+  const kind = text(form, "kind", 10) || "daywork";
+  if (kind !== "daywork" && kind !== "variation") throw new ValidationError("Choose a daywork or a variation.");
   const description = text(form, "description", 2000, true);
-  if (description.length < 5) throw new ValidationError("Say what extra work was done.");
+  if (description.length < 5) throw new ValidationError(kind === "variation" ? "Say what needs to change." : "Say what extra work was done.");
   const company = text(form, "instructed_by_company", 120);
   const instructed_on = optionalDate(form, "instructed_on", "date it was asked for");
   const work_area_id = optionalId(form, "work_area_id");
   return {
-    contract_id: uuid(form, "contract_id"), description, instructed_by_name: text(form, "instructed_by_name", 120, true),
+    contract_id: uuid(form, "contract_id"), ...(kind === "variation" ? { kind } : {}), description, instructed_by_name: text(form, "instructed_by_name", 120, true),
     ...(company ? { instructed_by_company: company } : {}), ...(instructed_on ? { instructed_on } : {}), ...(work_area_id ? { work_area_id } : {}),
     lines: linesInput(form),
   };
@@ -108,6 +110,13 @@ export function pricingInput(form: FormData) {
     if (!rate_id) throw new ValidationError("Choose a rate for every line. Add any missing rate to the job first.");
     return { line_id, rate_id: uuid(form, `rate_${line_id}`) };
   }) };
+}
+
+/** A variation's quoted sum (money access). Pounds and pence, with an optional quotation reference. */
+export function quotedPriceInput(form: FormData) {
+  const total = twoPlaces(form.get("total"), "the quoted price", 0.01, 10_000_000);
+  const note = text(form, "note", 500);
+  return { method: "quoted" as const, total, ...(note ? { note } : {}) };
 }
 
 export function chargeInput(form: FormData) {

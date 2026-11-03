@@ -21,7 +21,7 @@ const ofRule = (actions: ViewerAction[], rule: string) => actions.filter(a => a.
 const today = londonDate();
 
 const daywork = (over: Partial<Daywork> = {}): Daywork => ({
-  id: "d1", contract_id: "c1", number: 3, work_area_id: null, location_path: [], description: "Tile the bin store wall", instructed_by_name: "Sam Site",
+  id: "d1", contract_id: "c1", kind: "daywork", number: 3, work_area_id: null, location_path: [], description: "Tile the bin store wall", instructed_by_name: "Sam Site",
   instructed_by_company: null, instructed_on: today, created_by: "u-dave", created_by_name: "Dave Collins", created_at: `${today}T08:00:00Z`,
   site_status: "recorded", office_status: null, signoff_status: "none",
   lines_version: 1, version: 1, updated_at: `${today}T08:00:00Z`, ...over,

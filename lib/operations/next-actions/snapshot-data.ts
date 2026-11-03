@@ -136,7 +136,7 @@ export async function loadSiteSnapshot(
       office_item_withdrawals: daily.withdrawals.map(w => ({ item_id: w.item_id })),
     } : {}),
     ...(threadRows ? { job_threads: threadRows } : {}),
-    ...(dayworks ? { dayworks: dayworks.dayworks.map(d => ({ id: d.id, contract_id: d.contract_id, number: d.number, description: d.description, created_by: d.created_by,
+    ...(dayworks ? { variations_available: dayworks.variations, dayworks: dayworks.dayworks.map(d => ({ id: d.id, contract_id: d.contract_id, kind: d.kind, number: d.number, description: d.description, created_by: d.created_by,
       site_status: d.site_status, office_status: d.office_status, signoff_status: d.signoff_status, ...(dayworks.office?.get(d.id) ?? {}),
       submitted_by: [...new Set(dayworks.events.filter(e => e.daywork_id === d.id && ["record", "update_lines", "send"].includes(e.action)).map(e => e.actor_id))] })) } : {}),
   };

@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { canManageContracts, canReadFinancial, requireActor } from "@/lib/auth";
-import { DAYWORK_COLUMNS } from "@/lib/operations/dayworks";
+import { DAYWORK_BASE_COLUMNS, DAYWORK_COLUMNS, dayworkReference } from "@/lib/operations/dayworks";
 import { isRecordId } from "@/lib/operations/daily-input";
-import { chargeInput, clientAuthorisationInput, dayworkInput, decisionInput, linesInput, pricingInput, rateInput, signoffInput } from "@/lib/operations/daywork-input";
+import { chargeInput, clientAuthorisationInput, dayworkInput, decisionInput, linesInput, pricingInput, quotedPriceInput, rateInput, signoffInput } from "@/lib/operations/daywork-input";
 import { rpcErrorMessage } from "@/lib/operations/errors";
 import { integer, uuid, ValidationError } from "@/lib/operations/validation";
 import type { DailyActionState } from "@/components/site/daily-form";
@@ -33,10 +33,12 @@ const notMoney = (member: Actor): DailyActionState | null =>
   canReadFinancial(member) ? null : { error: "Money access has not been authorised for your account." };
 /** A save counts only once the saved daywork itself shows it. */
 async function savedDaywork(supabase: SupabaseClient, id: string, contract: string) {
-  const saved = await supabase.from("dayworks").select(DAYWORK_COLUMNS).eq("id", id).single();
+  let saved = await supabase.from("dayworks").select(DAYWORK_COLUMNS).eq("id", id).single();
+  // Before the variations update there is no kind column: every record is then a daywork.
+  if (saved.error?.code === "42703") saved = await supabase.from("dayworks").select(DAYWORK_BASE_COLUMNS).eq("id", id).single();
   if (saved.error || !saved.data) throw new Error("Unconfirmed daywork");
-  const row = saved.data as unknown as { id: string; contract_id: string; number: number; version: number; site_status: string; office_status: string | null;
-    created_by: string; request_key: string; signoff_status: string; lines_version: number };
+  const row = saved.data as unknown as { id: string; contract_id: string; kind?: "daywork" | "variation"; number: number; version: number; site_status: string;
+    office_status: string | null; created_by: string; request_key: string; signoff_status: string; lines_version: number };
   if (row.contract_id !== contract) throw new Error("Unconfirmed daywork");
   return row;
 }
@@ -47,7 +49,7 @@ export async function createDayworkAction(_: CreateDayworkState, form: FormData)
   let attempted = false;
   try {
     const data = dayworkInput(form), key = uuid(form, "request_key"), sendNow = form.get("send_now") === "on";
-    if (sendNow && !data.lines.length) throw new ValidationError("Add at least one line of labour, plant or materials before sending, or untick Send to the office now.");
+    if (sendNow && !data.lines.length && !("kind" in data)) throw new ValidationError("Add at least one line of labour, plant or materials before sending, or untick Send to the office now.");
     attempted = true;
     const result = await supabase.rpc("create_daywork", { p_request_key: key, p_data: data });
     if (result.error) return declined(result.error);
@@ -56,13 +58,13 @@ export async function createDayworkAction(_: CreateDayworkState, form: FormData)
     if (saved.created_by !== member.user_id || saved.request_key !== key) throw new Error("Unconfirmed daywork");
     if (sendNow && saved.site_status !== "sent") {
       const sent = await supabase.rpc("send_daywork", { p_daywork: saved.id, p_request_key: uuid(form, "send_key"), p_version: saved.version });
-      if (sent.error) return { ...declined(sent.error), error: `DW-${saved.number} is saved, but it was not sent: ${rpcErrorMessage(sent.error)} Open it to send it.` };
+      if (sent.error) return { ...declined(sent.error), error: `${dayworkReference(saved)} is saved, but it was not sent: ${rpcErrorMessage(sent.error)} Open it to send it.` };
       saved = await savedDaywork(supabase, saved.id, data.contract_id);
       if (saved.site_status !== "sent") throw new Error("Unconfirmed send");
     }
     refresh(data.contract_id, saved.id);
     return { id: saved.id, href: `/admin/supervisor/sites/${data.contract_id}/dayworks/${saved.id}`,
-      success: sendNow ? `DW-${saved.number} is saved and sent to the office.` : `DW-${saved.number} is saved. Send it to the office when it is ready.` };
+      success: sendNow ? `${dayworkReference(saved)} is saved and sent to the office.` : `${dayworkReference(saved)} is saved. Send it to the office when it is ready.` };
   } catch (error) { return failure(error, attempted); }
 }
 
@@ -185,7 +187,8 @@ export async function priceDayworkAction(_: DailyActionState, form: FormData): P
   let attempted = false;
   try {
     const daywork = uuid(form, "daywork_id"), contract = uuid(form, "contract_id"), version = integer(form, "version", 1), key = uuid(form, "request_key");
-    const data = pricingInput(form);
+    // A variation may be priced as a quoted sum; everything else is priced from the job's day rates.
+    const data = form.get("method") === "quoted" ? quotedPriceInput(form) : pricingInput(form);
     attempted = true;
     const result = await supabase.rpc("price_daywork", { p_daywork: daywork, p_request_key: key, p_version: version, p_data: data });
     if (result.error) return declined(result.error);
@@ -193,7 +196,7 @@ export async function priceDayworkAction(_: DailyActionState, form: FormData): P
     if (saved.error || !saved.data || saved.data.daywork_id !== daywork || saved.data.priced_by !== member.user_id || saved.data.request_key !== key)
       throw new Error("Unconfirmed price");
     refresh(contract, daywork);
-    return { id: result.data, success: "Priced from the job's rates. Each line keeps the rate it used." };
+    return { id: result.data, success: "method" in data ? "Priced at the quoted sum." : "Priced from the job's rates. Each line keeps the rate it used." };
   } catch (error) { return failure(error, attempted); }
 }
 

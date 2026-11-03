@@ -143,9 +143,13 @@ export interface NextActionSnapshot {
   job_threads?: JobThreadRow[];
   /** Present only once dayworks are installed. Statuses only: no rate, price or total ever reaches the engine. */
   dayworks?: DayworkRow[];
+  /** True once variations are installed (they share the daywork records). */
+  variations_available?: boolean;
 }
 export interface DayworkRow {
-  id: string; contract_id: string; number: number; description: string; created_by: string;
+  id: string; contract_id: string; number: number;
+  /** Absent before the variations update: a daywork. */
+  kind?: "daywork" | "variation"; description: string; created_by: string;
   site_status: "recorded" | "sent"; office_status: "awaiting_review" | "more_detail" | "approved" | "rejected" | null;
   signoff_status: "none" | "signed" | "refused" | "unavailable";
   /** Office only, from `daywork_office_statuses`. Absent for a supervisor; null without money access. */

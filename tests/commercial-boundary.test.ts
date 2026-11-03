@@ -18,6 +18,9 @@ test("signed-in users read only the site columns of a daywork and its history", 
   assert.ok(!events.includes("snapshot"), "history snapshots stay unread");
   const migration = source("supabase/migrations/20261104090000_supervisor_commercial_boundary.sql");
   const granted = migration.match(/grant select\(([^)]*)\)\s+on public\.dayworks/)![1].replace(/\s/g, "").split(",");
+  // Variations (C2) add one more readable column, the record's kind.
+  const variations = source("supabase/migrations/20261104100000_variations.sql");
+  granted.push(...variations.match(/grant select\(([^)]*)\)\s+on public\.dayworks/)![1].replace(/\s/g, "").split(","));
   assert.deepEqual([...granted].sort(), [...columns].sort(), "the app reads exactly the columns the database grants");
   const grantedEvents = migration.match(/grant select\(([^)]*)\)\s+on public\.daywork_events/)![1].replace(/\s/g, "").split(",");
   assert.deepEqual([...grantedEvents].sort(), [...events].sort());

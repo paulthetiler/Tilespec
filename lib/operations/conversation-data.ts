@@ -1,4 +1,5 @@
 import "server-only";
+import { dayworkLabelsFor } from "./daywork-data";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { emptyLookups, type AboutLookups } from "./conversations";
 import { checkDatabase } from "./data";
@@ -20,12 +21,11 @@ export async function aboutLookupsFor(supabase: SupabaseClient, daily: Superviso
   const [snags, holds, dayworks] = await Promise.all([
     ids("snag").length ? supabase.from("supervisor_issues").select("id,check_label").in("id", ids("snag")) : Promise.resolve({ data: [], error: null }),
     ids("hold").length ? supabase.from("work_holds").select("id,hold_type,category").in("id", ids("hold")) : Promise.resolve({ data: [], error: null }),
-    ids("daywork").length ? supabase.from("dayworks").select("id,number,description").in("id", ids("daywork")) : Promise.resolve({ data: [], error: null }),
+    dayworkLabelsFor(supabase, ids("daywork")),
   ]);
   checkDatabase(snags.error);
   checkDatabase(holds.error);
-  checkDatabase(dayworks.error);
-  for (const row of (dayworks.data ?? []) as { id: string; number: number; description: string }[]) lookups.dayworks.set(row.id, { number: row.number, description: row.description });
+  for (const row of dayworks) lookups.dayworks.set(row.id, { number: row.number, description: row.description, kind: row.kind });
   for (const row of (snags.data ?? []) as { id: string; check_label: string }[]) lookups.snags.set(row.id, row.check_label);
   for (const row of (holds.data ?? []) as { id: string; hold_type: string; category: string }[])
     lookups.holds.set(row.id, `${row.hold_type === "safety" ? "Safety stop" : "Quality hold"}, ${row.category}`);
