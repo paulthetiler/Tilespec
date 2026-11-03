@@ -946,7 +946,7 @@ var TSEngine = (() => {
       route: { screen: "thread", id: t.id }
     }));
   });
-  var dw = (d) => `DW-${d.number}`;
+  var dw = (d) => `${d.kind === "variation" ? "variation VO" : "daywork DW"}-${d.number}`;
   var short = (text) => briefly(text, 70);
   var submittedBarred = (s, d, what) => ({ forbidden: d.submitted_by.filter((id) => {
     var _a;
@@ -972,8 +972,8 @@ var TSEngine = (() => {
       order: 11.2,
       job: L.job(d.contract_id),
       responsible: OFFICE,
-      title: `Review daywork ${dw(d)}: ${short(d.description)}`,
-      why: "Site has sent extra work paid by the hour. Approve it, ask for more detail or reject it.",
+      title: `Review ${dw(d)}: ${short(d.description)}`,
+      why: d.kind === "variation" ? "Site has raised a change to the agreed work. Approve it, ask for more detail or reject it." : "Site has sent extra work paid by the hour. Approve it, ask for more detail or reject it.",
       requires: ["Your decision", "A note if you need more detail or reject it"],
       doneWhen: "The office decision is saved",
       next: "The supervisor sees the decision",
@@ -991,9 +991,9 @@ var TSEngine = (() => {
       order: 14.6,
       job: L.job(d.contract_id),
       responsible: supervisorLabel(L, d.contract_id),
-      title: `Send daywork ${dw(d)} to the office`,
+      title: `Send ${dw(d)} to the office`,
       why: `${short(d.description)}. It is saved but the office has not seen it yet.`,
-      requires: ["The people, plant and materials"],
+      requires: d.kind === "variation" ? ["What is changing, and where"] : ["The people, plant and materials"],
       doneWhen: "It is sent to the office",
       next: "The office reviews it",
       audience: { supervisor: "act" }
@@ -1009,7 +1009,7 @@ var TSEngine = (() => {
       order: 9.7,
       job: L.job(d.contract_id),
       responsible: supervisorLabel(L, d.contract_id),
-      title: `Office needs more detail on daywork ${dw(d)}`,
+      title: `Office needs more detail on ${dw(d)}`,
       why: `${short(d.description)}. Add what the office asked for and send it again.`,
       requires: ["The detail the office asked for"],
       doneWhen: "It is sent to the office again",
@@ -1019,7 +1019,7 @@ var TSEngine = (() => {
   });
   rule("R25_daywork_signature", ({ s, L }) => {
     var _a;
-    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.signoff_status === "none" && d.office_status !== "rejected").map((d) => ({
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.kind !== "variation" && d.signoff_status === "none" && d.office_status !== "rejected").map((d) => ({
       ...dayworkBase(d),
       id: `daywork-sign:${d.id}`,
       rule: "R25",
@@ -1027,7 +1027,7 @@ var TSEngine = (() => {
       order: 14.7,
       job: L.job(d.contract_id),
       responsible: supervisorLabel(L, d.contract_id),
-      title: `Get daywork ${dw(d)} signed`,
+      title: `Get ${dw(d)} signed`,
       why: "Ask the client's site representative to sign the sheet. It confirms the work, hours and materials only, not payment. If they refuse or are not there, record that.",
       requires: ["Their name and position, or why it was not signed"],
       doneWhen: "The signature, a refusal or their absence is recorded",
@@ -1045,9 +1045,9 @@ var TSEngine = (() => {
       order: 16.1,
       job: L.job(d.contract_id),
       responsible: OFFICE,
-      title: `Price daywork ${dw(d)}`,
-      why: "Price each line from the job's day rates. It stays awaiting pricing until every line has a rate.",
-      requires: ["A day rate for every line"],
+      title: `Price ${dw(d)}`,
+      why: d.kind === "variation" ? "Price it as a quoted sum, or from the job's day rates." : "Price each line from the job's day rates. It stays awaiting pricing until every line has a rate.",
+      requires: [d.kind === "variation" ? "A quoted sum or a day rate for every line" : "A day rate for every line"],
       doneWhen: "Every line is priced",
       next: "The charge can be approved internally",
       audience: { office: "act", owner: "act" },
@@ -1064,7 +1064,7 @@ var TSEngine = (() => {
       order: 16.2,
       job: L.job(d.contract_id),
       responsible: OFFICE,
-      title: `Approve the charge for daywork ${dw(d)}`,
+      title: `Approve the charge for ${dw(d)}`,
       why: "TileSPEC's internal approval of the priced charge. It is not the client's acceptance or agreement to pay.",
       requires: ["Check the priced lines"],
       doneWhen: "The charge is approved internally",
@@ -1076,7 +1076,7 @@ var TSEngine = (() => {
   });
   rule("R28_daywork_client", ({ s, L }) => {
     var _a;
-    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.office_status === "approved" && d.client_status === "not_authorised").map((d) => ({
+    return ((_a = s.dayworks) != null ? _a : []).filter((d) => d.office_status === "approved" && d.client_status === "not_authorised" && d.client_authorisation_required === true).map((d) => ({
       ...dayworkBase(d),
       id: `daywork-client:${d.id}`,
       rule: "R28",
@@ -1084,8 +1084,8 @@ var TSEngine = (() => {
       order: 16.3,
       job: L.job(d.contract_id),
       responsible: OFFICE,
-      title: `Record the client's decision on daywork ${dw(d)}`,
-      why: "The client has not authorised this cost yet. Record their authorisation with its instruction reference or document, or that they declined.",
+      title: `Record the client's decision on ${dw(d)}`,
+      why: "The contract needs the client's authorisation before this work goes ahead, and it is not recorded yet. Record their authorisation with its instruction reference or document, or that they declined.",
       requires: ["Who decided for the client", "Their instruction reference or document"],
       doneWhen: "The client's decision is recorded",
       next: null,
@@ -1277,7 +1277,7 @@ var TSEngine = (() => {
     location: null,
     responsible: { role: "owner", who: null, label: "Owner" },
     title: `Budget margin is ${b.margin.toFixed(1)}%, target is ${Number(c.target_margin).toFixed(0)}%`,
-    why: `Budgeted profit after reserve is ${pounds(b.profit)} on ${pounds(b.value)}. These are original budgets only: actual costs, variations and claims are not recorded.`,
+    why: `Budgeted profit after reserve is ${pounds(b.profit)} on ${pounds(b.value)}. This is the original budget. Money shows the forecast with agreed extras, costs to date and payments.`,
     due: null,
     requires: [],
     doneWhen: "Nothing to record. TileSpec cannot yet record an owner decision on margin",

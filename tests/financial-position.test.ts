@@ -45,7 +45,7 @@ test("every money screen shows the database's position and works out no figure o
   for (const file of ["app/admin/money/page.tsx", "app/admin/contracts/[id]/money/page.tsx", "app/admin/contracts/[id]/page.tsx"])
     assert.match(source(file), /positionsFor\(supabase, /, `${file} reads the database's position`);
   const money = source("app/admin/money/page.tsx");
-  assert.match(money, /if \(!canReadFinancial\(member\)\) notFound\(\);/);
+  assert.match(money, /\|\| !canReadFinancial\(member\)\) notFound\(\);/);
   assert.match(source("app/admin/contracts/[id]/page.tsx"), /financial \? positionsFor\(supabase, \[id\]\) : Promise\.resolve\(null\)/);
 });
 

@@ -352,7 +352,7 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     const recorded = JSON.parse(sql(`select to_jsonb(d) from public.dayworks d where id='${dayworkId}'`));
     assert.equal(recorded.site_status, 'sent'); assert.equal(recorded.office_status, 'awaiting_review'); assert.equal(recorded.number, 1);
     assert.equal(sql(`select count(*) from public.daywork_lines where daywork_id='${dayworkId}' and lines_version=1`), '3');
-    await page.getByText('Not approved by the office yet. Recording this work is not permission to proceed or an agreement to pay.', { exact: true }).waitFor();
+    await page.locator('[data-daywork-go-ahead="awaiting_office"]').getByText('Waiting for the office. Do not carry on with this extra work until it is approved.', { exact: true }).waitFor();
     const signature = page.getByRole('region', { name: 'Client signature', exact: true });
     await signature.locator('input[name=signer_name]').fill('Sam Site');
     await signature.locator('input[name=signer_position]').fill('Site manager');
@@ -430,11 +430,31 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     pass('Simple M4b: the office approves the daywork and records the client\'s authorisation; only the owner (money access) sets rates, prices it and approves the charge, which keeps its rates after a change');
 
     await page.goto(record);
-    await page.locator('[data-status="charge"]').getByText('Charge approved internally by TileSPEC', { exact: true }).waitFor();
-    await page.locator('[data-status="client"]').getByText('Client authorised the cost', { exact: true }).waitFor();
-    assert.equal(await page.getByRole('region', { name: 'Charge', exact: true }).count(), 0);
-    assert.doesNotMatch(await page.locator('main').innerText(), /£|347|12\.50|85\.00/, 'the supervisor never sees a rate, price or total');
-    pass('Simple M4c: Dave sees the office, signature, charge and client statuses separately, with no rate, price or total');
+    // Office approval plus the client's authorisation: Dave is told plainly he may go ahead, and sees
+    // no commercial approval (charge or client record), let alone a rate, price or total.
+    await page.locator('[data-daywork-go-ahead="proceed"]').getByText('Approved. You can go ahead with this work.', { exact: true }).waitFor();
+    await page.locator('[data-status="office"]').getByText('Approved by the office', { exact: true }).waitFor();
+    for (const hidden of ['charge', 'client']) assert.equal(await page.locator(`[data-status="${hidden}"]`).count(), 0, `the supervisor sees no ${hidden} status`);
+    for (const region of ['Charge', 'Client authorisation']) assert.equal(await page.getByRole('region', { name: region, exact: true }).count(), 0, `no ${region} section for the supervisor`);
+    assert.doesNotMatch(await page.locator('main').innerText(), /£|347|12\.50|85\.00|CVI-7|Pat Client|charge approved|priced/i, 'the supervisor never sees a rate, price, total or commercial approval');
+    // The same through the API with Dave's own session: the database itself refuses or returns nothing.
+    assert.equal((await rest(emails.supervisor, `dayworks?select=commercial_status&id=eq.${dayworkId}`)).status >= 400, true, 'the charge status column is refused');
+    assert.equal((await rest(emails.supervisor, `dayworks?select=client_status&id=eq.${dayworkId}`)).status >= 400, true, 'the client status column is refused');
+    assert.equal((await rest(emails.supervisor, `daywork_events?select=snapshot`)).status >= 400, true, 'history snapshots are refused');
+    for (const table of ['daywork_client_authorisations', 'contract_daywork_rates', 'daywork_pricings', 'daywork_pricing_lines', 'daywork_commercial_approvals',
+      'contract_commercials', 'labour_cost_rates', 'job_cost_entries', 'material_cost_matches', 'payment_applications', 'payment_application_lines', 'payment_receipts']) {
+      const response = await rest(emails.supervisor, `${table}?select=*`);
+      assert.deepEqual(response.status === 200 ? await response.json() : [], [], `the supervisor reads nothing from ${table}`);
+    }
+    assert.deepEqual(await (await rest(emails.supervisor, `daywork_events?select=action&daywork_id=eq.${dayworkId}&action=in.(price,commercial_approval,client_authorisation)`)).json(), [],
+      'no commercial history step reaches the supervisor');
+    assert.deepEqual(await (await rest(emails.supervisor, 'rpc/contract_financial_positions', 'POST', { p_contracts: [contractId] })).json(), [], 'no financial position for the supervisor');
+    for (const name of ['contract_labour_costs', 'payment_application_summaries'])
+      assert.ok((await rest(emails.supervisor, `rpc/${name}`, 'POST', { p_contract: contractId })).status >= 400, `${name} is refused to the supervisor`);
+    assert.deepEqual(await (await rest(emails.supervisor, 'rpc/daywork_office_statuses', 'POST', { p_contracts: [contractId] })).json(), [], 'office statuses are not returned to the supervisor');
+    assert.deepEqual(await (await rest(emails.supervisor, 'rpc/daywork_site_statuses', 'POST', { p_contracts: [contractId] })).json(),
+      [{ daywork_id: dayworkId, go_ahead: 'proceed' }], 'the supervisor reads the go-ahead from the database');
+    pass('Simple M4c: Dave is told to go ahead once the office and the client have approved, and sees no commercial approval, rate, price or total on screen or through the API');
 
     // Nobody approves a daywork they submitted. The office records one for site: it cannot approve it
     // and is told why. The owner, who did not submit it, approves it normally. The owner's own daywork
@@ -523,22 +543,31 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await officeHandover.getByText(notes.work_completed, { exact: true }).waitFor();
     pass('Simple J/M: five short handover notes persist for the office and finish existing workforce periods; null HTTP 200 and lost replies cannot show false success or duplicate the handover');
 
-    // Variations stay reachable from the job's secondary links, clearly marked as not built, with no
-    // form or button that could look like a saved record. Dayworks, now installed here, lead to the
-    // job's real list (before their migration they show the same "Not built yet" page).
+    // Variations and dayworks stay reachable from the job's secondary links. Each list page saves
+    // nothing itself; a variation is raised on the same short form as a daywork, before the work.
     await page.goto(site);
     await page.getByText('Site details and earlier records', { exact: true }).click();
-    for (const [label, kind] of [['Variations (not built yet)', 'variations'], ['Dayworks: record extra work', 'dayworks']]) {
+    for (const [label, kind] of [['Variations: raise a change to the work', 'variations'], ['Dayworks: record extra work', 'dayworks']]) {
       assert.equal(await page.getByRole('link', { name: label, exact: true }).getAttribute('href'), `/admin/supervisor/sites/${contractId}/commercial?kind=${kind}`);
     }
     await page.goto(`${site}/commercial?kind=variations`);
-    await page.getByText('Not built yet. Nothing on this page is saved.', { exact: true }).waitFor();
-    await page.getByText('New backend, awaiting approval.', { exact: false }).waitFor();
-    assert.equal(await page.locator('main form').count(), 0, 'variations has no recording form');
-    assert.equal(await page.locator('main button').count(), 0, 'variations has no submit button');
+    assert.equal(await page.locator('main form').count(), 0, 'the variations list has no form');
+    assert.equal(await page.locator('main button').count(), 0, 'the variations list has no submit button');
+    await page.getByRole('link', { name: 'Raise a variation', exact: true }).click();
+    await page.waitForURL(url => url.pathname.endsWith('/dayworks/new') && url.searchParams.get('kind') === 'variation');
+    const variationForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Save variation', exact: true }) });
+    await variationForm.locator('textarea[name=description]').fill('Client asks for the shower walls tiled to full height');
+    await variationForm.locator('input[name=instructed_by_name]').fill('Sam Site');
+    await variationForm.getByRole('button', { name: 'Save variation', exact: true }).click();
+    await page.waitForURL(url => /\/dayworks\/[0-9a-f-]{36}$/.test(url.pathname));
+    const variationId = page.url().split('/').at(-1);
+    assert.equal(sql(`select kind||':'||number||':'||site_status from public.dayworks where id='${variationId}'`), 'variation:1:sent', 'VO-1 is raised and sent with no people or materials');
+    await page.getByRole('heading', { name: 'VO-1', exact: true }).waitFor();
+    await page.locator('[data-daywork-go-ahead="awaiting_office"]').waitFor();
+    pass('Simple M5: Dave raises VO-1 before starting the change; it waits for the office and he is told not to start');
     await page.goto(`${site}/commercial?kind=dayworks`);
     await page.getByRole('region', { name: 'Dayworks on this job', exact: true }).getByText('Tile the bin store wall for the main contractor', { exact: true }).waitFor();
-    assert.equal(await page.getByText('Not built yet', { exact: false }).count(), 0, 'installed dayworks are not presented as unbuilt');
+    assert.equal(await page.getByText(/Not built yet|Not available yet/, { exact: false }).count(), 0, 'installed dayworks are not presented as unbuilt');
     const other = await account(emails.other);
     for (const path of ['/messages', `/tasks/${taskId}`, '/finish']) assert.equal((await other.goto(`${site}${path}`)).status(), 404);
     const hidden = await rest(emails.other, `supervisor_office_items?id=eq.${taskId}`);

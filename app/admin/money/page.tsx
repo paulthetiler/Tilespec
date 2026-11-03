@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { canReadFinancial, requireActor } from "@/lib/auth";
+import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import { checkDatabase, contractsFor } from "@/lib/operations/data";
 import { positionsFor } from "@/lib/operations/financial-position-data";
 import { budgetSummary } from "@/lib/operations/summary";
@@ -16,7 +17,8 @@ export const dynamic = "force-dynamic";
 // payments received. Nothing is added up on this page.
 export default async function MoneyPage() {
   const { supabase, member } = await requireActor();
-  if (!canReadFinancial(member)) notFound();
+  // Behind the role shell or Next Action opt-in, as before; and money access.
+  if ((!flagEnabled("roleShell", member.role) && !flagEnabled("nextActions", member.role)) || !canReadFinancial(member)) notFound();
   const contracts = await contractsFor(supabase);
   const positions = await positionsFor(supabase, contracts.map(contract => contract.id));
   const header = <div className={styles.pageHeader}><div><h1 className={styles.title}>Money</h1>

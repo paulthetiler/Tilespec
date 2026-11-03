@@ -20,6 +20,13 @@ are planned subsequent phases.
 The Supervisor Operations System V2 (locations, teams, planned and actual
 allocations, attribution) is planned in [supervisor-v2.md](docs/operations/supervisor-v2.md).
 
+Commercial integration (variations, labour and job costs, materials used, payment
+applications and one financial position per job, with supervisors kept out of all
+commercial information) is described in [commercial-integration.md](docs/operations/commercial-integration.md),
+following the [audit](docs/operations/commercial-audit.md). Its migrations must be
+reconciled and approved before they are applied to a hosted project; see
+[migration-reconciliation.md](docs/operations/migration-reconciliation.md).
+
 Read the [architecture, permissions and phased plan](docs/operations/architecture.md),
 [staging deployment instructions](docs/operations/deployment.md), and
 [database/bootstrap instructions](supabase/README.md). Copy `.env.example` to a
