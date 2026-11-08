@@ -180,3 +180,6 @@
 .tiling-process-icon{display:block;width:68px;height:68px;color:#69a9a1;margin:0 0 22px;animation:tilingProcessAppear .7s ease-out both}
 @keyframes tilingProcessAppear{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.tiling-process-icon{animation:none}}
+
+/* Wider illustrated trade icons, maintaining restrained mobile sizing. */
+.tiling-process-icon{width:108px;height:88px}
