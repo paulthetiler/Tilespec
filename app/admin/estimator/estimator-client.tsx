@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect, type FocusEvent } from "react";
 import Link from "next/link";
+import { saveSiteProgramme } from "./programme-actions";
 import styles from "./page.module.css";
 import { calculateEstimate, type EstimateArea, type CostArea, type MaterialSettings, type SupervisorSettings, type ProgrammeSettings } from "@/lib/estimator";
 
@@ -28,7 +29,7 @@ function EditableNumber({value,onValueChange,min=0,max,step="any"}:{value:number
   onBlur={()=>{setEditing(false);const parsed=draft.trim()===""?0:Number(draft);const next=Number.isFinite(parsed)?Math.max(min,max===undefined?parsed:Math.min(max,parsed)):0;onValueChange(next);setDraft(String(next));}}/>;
 }
 
-export default function CommercialEstimator(){
+export default function CommercialEstimator({contracts}:{contracts:{id:string;name:string;reference:string}[]}){
   const [areas,setAreas] = useState<Area[]>([initial]);
   const [other,setOther] = useState(1800);
   const [contingency,setContingency] = useState(5);
@@ -37,6 +38,10 @@ export default function CommercialEstimator(){
   const [programmeCopied,setProgrammeCopied] = useState(false);
   const [programme,setProgramme] = useState<ProgrammeSettings>({contingencyDays:2,startDate:""});
   const [projectName,setProjectName] = useState("");
+  const [contractId,setContractId] = useState("");
+  const [saveState,setSaveState] = useState("");
+  const [saving,setSaving] = useState(false);
+  const [programmeNotes,setProgrammeNotes] = useState("");
   const [materialSettings,setMaterialSettings] = useState<MaterialSettings>({adhesiveBagPrice:25,adhesiveCoverage:4,adhesiveBagKg:20,backButterKgPerSqm:1.5,groutPackPrice:18,groutPackKg:5,groutDensity:1.6,groutWaste:10});
   const [supervisor,setSupervisor] = useState<SupervisorSettings>({mode:"full-time",dayRate:230,days:2,expenses:0});
   const setMaterial=(key:keyof MaterialSettings,value:number)=>setMaterialSettings(v=>({...v,[key]:value}));
@@ -118,6 +123,15 @@ export default function CommercialEstimator(){
         </div>
         <div className={styles.areaTotals}><span>Installation <b>{figures.installationDays} days</b></span><span>Contingency <b>{figures.contingencyDays} days</b></span><span>Total planned <b>{figures.projectDays} days</b></span>{programme.startDate&&figures.projectDays>0&&<span>Target finish <b>{workday(programme.startDate,figures.projectDays-1)}</b></span>}</div>
         <div className={styles.programmePreview}><h3>TileSPEC — Site work programme</h3><p>{projectName||"Project to be confirmed"}</p>{programmeLines.map((a,i)=><div key={i} className={styles.programmeRow}><strong>{i+1}. {a.description}</strong><span>{a.sqm} m² · {a.output} m²/day · {a.days} working days</span>{programme.startDate&&<span>{workday(programme.startDate,a.start)} – {workday(programme.startDate,a.end-1)}</span>}</div>)}<p>Contingency: {figures.contingencyDays} days. Total: {figures.projectDays} working days.</p><p>Maintain quality and report delays or access problems promptly. Daily targets are guidelines, not permission to rush.</p></div>
+        <div className={styles.fields} style={{marginTop:24}}>
+          <label>File against existing contract<select value={contractId} onChange={e=>{setContractId(e.target.value);setSaveState("");}}><option value="">Choose a contract</option>{contracts.map(c=><option key={c.id} value={c.id}>{c.reference} — {c.name}</option>)}</select></label>
+          <label>Programme notes<input value={programmeNotes} onChange={e=>setProgrammeNotes(e.target.value)} placeholder="Access, sequencing, working hours"/></label>
+        </div>
+        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:16}}>
+          <button className={styles.copy} disabled={saving||!contractId} onClick={async()=>{setSaving(true);try{const r=await saveSiteProgramme({contractId,title:projectName||contracts.find(c=>c.id===contractId)?.name||"Site programme",startDate:programme.startDate||"",contingencyDays:programme.contingencyDays,items:programmeLines.map(a=>({description:a.description,sqm:a.sqm,output:a.output,days:a.days,extra:a.extra})),notes:programmeNotes,issue:false});setSaveState(r.error||"Saved draft revision "+r.revision);}catch{setSaveState("Save failed");}finally{setSaving(false);}}}>Save draft revision</button>
+          <button className={styles.copy} disabled={saving||!contractId||!programme.startDate} onClick={async()=>{setSaving(true);try{const r=await saveSiteProgramme({contractId,title:projectName||contracts.find(c=>c.id===contractId)?.name||"Site programme",startDate:programme.startDate||"",contingencyDays:programme.contingencyDays,items:programmeLines.map(a=>({description:a.description,sqm:a.sqm,output:a.output,days:a.days,extra:a.extra})),notes:programmeNotes,issue:true});setSaveState(r.error||"Issued revision "+r.revision+" to assigned site staff");}catch{setSaveState("Issue failed");}finally{setSaving(false);}}}>Issue programme revision</button>
+        </div>
+        {saveState&&<p role="status" className={styles.note}>{saveState} {contractId&&<Link href={"/admin/contracts/"+contractId+"/programme"}>View saved programme history</Link>}</p>}
         <button className={styles.copy} onClick={async()=>{try{await navigator.clipboard.writeText(siteProgramme);setProgrammeCopied(true)}catch{setProgrammeCopied(false)}}}>{programmeCopied?"Programme copied":"Copy supervisor programme"}</button>
         <p className={styles.note}>The copied programme contains no prices, wages, margin or financial information. It is a draft for review before issue.</p>
       </section>
