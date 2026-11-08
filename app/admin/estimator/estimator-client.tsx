@@ -75,12 +75,8 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
     <div className={styles.wrap}>
       <p className={styles.eyebrow}>INTERNAL PRICING TOOL</p>
       <h1>Commercial tender estimator</h1>
-      <p className={styles.intro}>Price work by area. Compare subcontractor £/m² with gang day rates, and see the margin before submitting a tender. Figures are editable assumptions, not market benchmarks.</p>
-      <div className={styles.metrics}>
-        <div><span>Contract value</span><strong>{gbp(figures.revenue)}</strong></div>
-        <div><span>Estimated profit</span><strong>{gbp(figures.profit)}</strong></div>
-        <div><span>Profit margin</span><strong className={figures.margin<target?styles.warning:""}>{figures.margin.toFixed(1)}%</strong></div>
-      </div>
+      <p className={styles.intro}>Start with the measured work, subcontract labour and site costs. Review the calculated tender value and gross margin at the end. All figures are editable assumptions, not market benchmarks.</p>
+
       <section className={styles.section}>
         <div className={styles.sectionTitle}><h2>Work areas</h2><button className={styles.add} onClick={add}>+ Add area</button></div>
         {areas.map(a=>{
@@ -106,7 +102,7 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
         })}
       </section>
       <section className={styles.section}>
-        <h2>Direct materials and supervision</h2>
+        <h2>2. Direct materials and supervision</h2>
         <p className={styles.note}>Draft assumptions only. Supplier prices and grout geometry must be verified. Other fixing materials default to £0/m² and must exclude adhesive and grout, which are calculated separately. Add primer, trims and other contract-specific materials only when required. Unsurveyed substrates remain provisional.</p>
         <div className={styles.fields}>
           {(["adhesiveBagPrice","adhesiveCoverage","adhesiveBagKg","backButterKgPerSqm","groutPackPrice","groutPackKg","groutDensity","groutWaste"] as const).map(k=><label key={k}>{({adhesiveBagPrice:"Adhesive £/bag",adhesiveCoverage:"Standard m²/bag",adhesiveBagKg:"Adhesive kg/bag",backButterKgPerSqm:"Extra back-butter kg/m²",groutPackPrice:"Grout £/pack",groutPackKg:"Grout kg/pack",groutDensity:"Grout density factor",groutWaste:"Grout wastage %"} as const)[k]}<EditableNumber min={0} step="any" value={materialSettings[k]} onValueChange={value=>setMaterial(k,num(Number(value)))}/></label>)}
@@ -116,7 +112,7 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
           <label>Supervisor expenses £<EditableNumber min={0} value={supervisor.expenses} onValueChange={value=>setSuper("expenses",num(Number(value)))}/></label>
         </div>
         <p className={styles.note}>Installation {figures.installationDays} days + {figures.contingencyDays} programme allowance days = {figures.projectDays} planned days; supervisor {figures.supervisorAttendance} chargeable days. For projects over 20 days, confirm attendance manually. Pre-start, in-progress and handover QA checks remain mandatory operational gates.</p>
-        <h2>Project allowances</h2>
+        <h2>3. Project allowances</h2>
         <div className={styles.fields}>
           <label>Other project costs (£)<EditableNumber min={0} step="any" value={other} onValueChange={value=>setOther(num(Number(value)))}/></label>
           <label>Contingency (% of revenue)<EditableNumber min={0} max={100} step="any" value={contingency} onValueChange={value=>setContingency(Math.min(100,num(Number(value))))}/></label>
@@ -125,7 +121,7 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
         <p className={styles.note}>Other costs should include travel, accommodation, equipment, insurance, overhead allocation and any separately paid preparation or finishing. Price-work mode assumes the agreed subcontract rate covers the specified measured work.</p>
       </section>
       <section className={styles.section}>
-        <h2>Site programme</h2>
+        <h2>4. Site programme</h2>
         <p className={styles.note}>A separate cost-free programme for the supervisor or main contractor. Work areas are sequenced in the order shown above, one after another. Dates assume Monday–Friday working and no bank holidays, access delays or overlapping gangs. Finishing days should include cuts, grouting and snagging where they are not already allowed in daily output.</p>
         <div className={styles.fields}>
           <label>Project / site<input value={projectName} onChange={e=>setProjectName(e.target.value)} placeholder="Project name"/></label>
@@ -147,7 +143,7 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
         <p className={styles.note}>The copied programme contains no prices, wages, margin or financial information. It is a draft for review before issue.</p>
       </section>
       <section className={styles.section}>
-        <h2>Supervisor performance bonus — internal forecast</h2>
+        <h2>5. Supervisor performance bonus — internal forecast</h2>
         <p className={styles.note}>Reward 25% of actual avoided supervisor and accommodation costs, less additional acceleration costs. Pricework subcontract labour does not reduce just because work finishes sooner. No bonus is approved or payable through this calculator.</p>
         <div className={styles.fields}>
           <label>Supervisor days actually avoided<EditableNumber min={0} max={figures.supervisorAttendance} step="1" value={bonusDays} onValueChange={setBonusDays}/></label>
@@ -168,7 +164,13 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
         <p className={styles.note}>Verify released paid days, cancelled accommodation, satisfactory QA, completed records, safe working, snag-free handover and no attributable remedials before authorising payment. Quality awards without savings are an extra cost. The bonus forecast does not change tender pricing, issue a payment or appear in supervisor views.</p>
       </section>
       <section className={styles.section}>
-        <h2>Commercial viability</h2>
+        <h2>6. Final tender pricing and viability</h2>
+        <p className={styles.note}>Review after entering the measured work, labour, materials and site costs above. The current selling rates are editable in each work area; the target margin below shows the revenue required to meet your chosen gross project margin. This is not company operating profit.</p>
+        <div className={styles.metrics}>
+          <div><span>Calculated contract value</span><strong>{gbp(figures.revenue)}</strong></div>
+          <div><span>Estimated project contribution</span><strong>{gbp(figures.profit)}</strong></div>
+          <div><span>Project margin</span><strong className={figures.margin<target?styles.warning:""}>{figures.margin.toFixed(1)}%</strong></div>
+        </div>
         <div className={styles.breakdown}>
           <div><span>Contract value</span><b>{gbp(figures.revenue)}</b></div>
           <div><span>Subcontract labour</span><b>{gbp(figures.labour)}</b></div>
