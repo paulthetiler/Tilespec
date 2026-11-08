@@ -327,3 +327,7 @@
 .package-transition-steps{display:flex;justify-content:center;gap:clamp(20px,5vw,75px);border-top:1px solid #45606a;padding-top:17px}
 .package-transition-steps span{font-size:11px;letter-spacing:.13em;font-weight:800}
 @media(max-width:760px){.package-transition-inner{padding-top:27px;padding-bottom:25px}.package-transition-kicker{font-size:9px;margin-bottom:11px}.package-transition h2{font-size:clamp(36px,9vw,54px);margin-bottom:20px}.package-transition-steps{gap:10px;justify-content:space-between;padding-top:15px}.package-transition-steps span{font-size:9px;letter-spacing:.06em}}
+
+/* Subtle white separation between photographic hero and navy package panel */
+.package-transition{border-top:30px solid #fff}
+@media(max-width:760px){.package-transition{border-top-width:20px}}
