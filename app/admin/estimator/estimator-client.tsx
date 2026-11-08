@@ -56,6 +56,21 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
   function edit(id:number,changes:Partial<Area>){setAreas(prev=>prev.map(a=>a.id===id?{...a,...changes}:a));}
   function add(){setAreas(prev=>[...prev,{...initial,id:Math.max(0,...prev.map(a=>a.id))+1,description:"New work area",sqm:50,sell:45,sub:22,output:30,materials:0,workType:"custom"}]);}
   const figures=useMemo(()=>calculateEstimate(areas,other,contingency,target,materialSettings,supervisor,programme),[areas,other,contingency,target,materialSettings,supervisor,programme]);
+  const totalSqm = areas.reduce((sum,a)=>sum+Math.max(0,a.sqm),0);
+  const pricingDenominator = 1-(target+contingency)/100;
+  const recommendedRates = figures.lines.map(line=>{
+    const share = totalSqm>0 ? line.sqm/totalSqm : 0;
+    const directCost = line.labour+line.material+(other+figures.supervisorCost)*share;
+    const recommendedTotal = pricingDenominator>0 ? directCost/pricingDenominator : Infinity;
+    return {id:line.id,description:line.description,sqm:line.sqm,rate:line.sqm>0?recommendedTotal/line.sqm:0,total:recommendedTotal};
+  });
+  const applyRecommendedRates = () => {
+    if(pricingDenominator<=0 || totalSqm<=0)return;
+    setAreas(prev=>prev.map(a=>{
+      const recommended=recommendedRates.find(r=>r.id===a.id);
+      return recommended&&recommended.sqm>0?{...a,sell:Math.ceil(recommended.rate*100)/100}:a;
+    }));
+  };
   const bonusSavings = Math.max(0, Math.min(bonusDays,figures.supervisorAttendance)*supervisor.dayRate + bonusNights*bonusNightRate - bonusExtraCosts);
   const earlyBonus = bonusSavings*bonusPercent/100;
   const payableBonus = earlyBonus+(qualityApproved?qualityBonus:0);
@@ -75,17 +90,17 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
     <div className={styles.wrap}>
       <p className={styles.eyebrow}>INTERNAL PRICING TOOL</p>
       <h1>Commercial tender estimator</h1>
-      <p className={styles.intro}>Start with the measured work, subcontract labour and site costs. Review the calculated tender value and gross margin at the end. All figures are editable assumptions, not market benchmarks.</p>
+      <p className={styles.intro}>Start with measured work, subcontract labour and site costs. The final section calculates recommended selling rates and gross margin. All figures are editable assumptions, not market benchmarks.</p>
 
       <section className={styles.section}>
-        <div className={styles.sectionTitle}><h2>Work areas</h2><button className={styles.add} onClick={add}>+ Add area</button></div>
+        <div className={styles.sectionTitle}><h2>1. Work areas</h2><button className={styles.add} onClick={add}>+ Add area</button></div>
         {areas.map(a=>{
           const line=figures.lines.find(l=>l.id===a.id)!;
           return <article className={styles.area} key={a.id}>
             <div className={styles.areaTop}><label className={styles.grow}>Area / description<input aria-label="Area description" value={a.description} onChange={e=>edit(a.id,{description:e.target.value})}/></label><button className={styles.remove} disabled={areas.length===1} onClick={()=>setAreas(v=>v.filter(x=>x.id!==a.id))}>Remove</button></div>
             <div className={styles.fields}>
               <label>Quantity (m²)<EditableNumber min={0} step="any" value={a.sqm} onValueChange={value=>edit(a.id,{sqm:num(Number(value))})}/></label>
-              <label>TileSPEC sell (£/m²)<EditableNumber min={0} step="any" value={a.sell} onValueChange={value=>edit(a.id,{sell:num(Number(value))})}/></label>
+
               <label>Other fixing materials (£/m², excluding adhesive/grout)<EditableNumber min={0} step="any" value={a.materials} onValueChange={value=>edit(a.id,{materials:num(Number(value))})}/></label>
               <label>Back-butter large format <input type="checkbox" checked={!!a.backButter} onChange={e=>edit(a.id,{backButter:e.target.checked})}/></label>
               {(["lengthMm","widthMm","depthMm","jointMm"] as const).map(k=><label key={k}>{({lengthMm:"Tile length mm",widthMm:"Tile width mm",depthMm:"Joint depth mm",jointMm:"Joint width mm"} as const)[k]}<EditableNumber min={0} value={a[k]??0} onValueChange={value=>edit(a.id,{[k]:num(Number(value))})}/></label>)}
@@ -97,7 +112,7 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
               {a.mode==="metre"?<label>Subcontract gang (£/m²)<EditableNumber min={0} step="any" value={a.sub} onValueChange={value=>edit(a.id,{sub:num(Number(value))})}/></label>:<label>Whole gang (£/day)<EditableNumber min={0} step="any" value={a.gangDay} onValueChange={value=>edit(a.id,{gangDay:num(Number(value))})}/></label>}
               <label>Extra finishing days<EditableNumber min={0} step="1" value={a.daysExtra} onValueChange={value=>edit(a.id,{daysExtra:Math.floor(num(Number(value)))})}/></label>
             </div>
-            <div className={styles.areaTotals}><span>Estimated gang days <b>{line.days}</b></span><span>Subcontract labour <b>{gbp(line.labour)}</b></span><span>Adhesive <b>{line.adhesiveBags} bags</b></span><span>Grout <b>{line.groutPacks} packs</b></span><span>Area revenue <b>{gbp(line.revenue)}</b></span></div>
+            <div className={styles.areaTotals}><span>Estimated gang days <b>{line.days}</b></span><span>Subcontract labour <b>{gbp(line.labour)}</b></span><span>Adhesive <b>{line.adhesiveBags} bags</b></span><span>Grout <b>{line.groutPacks} packs</b></span></div>
           </article>;
         })}
       </section>
@@ -165,7 +180,21 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
       </section>
       <section className={styles.section}>
         <h2>6. Final tender pricing and viability</h2>
-        <p className={styles.note}>Review after entering the measured work, labour, materials and site costs above. The current selling rates are editable in each work area; the target margin below shows the revenue required to meet your chosen gross project margin. This is not company operating profit.</p>
+        <p className={styles.note}>Review after entering the measured work, labour, materials and site costs above. The recommended selling rates below are derived from entered costs and your chosen gross project margin. You can accept or override them before copying the estimate. This is not company operating profit.</p>
+        <h3>Recommended selling price from costs</h3>
+        <p className={styles.note}>Calculated automatically from subcontract labour, materials, supervisor and other project costs, plus the selected contingency and gross margin target. Shared costs are allocated by measured area. Suggested rates are rounded up to the next penny. Review the allocation for complex or high-risk work before tendering.</p>
+        <div className={styles.breakdown}>
+          <div><span>Total direct project costs (before contingency)</span><b>{gbp(figures.labour+figures.materials+figures.supervisorCost+other)}</b></div>
+          <div><span>Gross margin target</span><b>{target}%</b></div>
+          <div><span>Contingency allowance on revenue</span><b>{contingency}%</b></div>
+          <div className={styles.total}><span>Recommended contract value</span><b>{pricingDenominator>0&&totalSqm>0?gbp(figures.required):"Check margin / quantity inputs"}</b></div>
+        </div>
+        {recommendedRates.map(r=><div className={styles.fields} key={r.id} style={{marginTop:12}}>
+          <label>{r.description} — suggested £/m² <input readOnly value={Number.isFinite(r.rate)?r.rate.toFixed(2):"Unavailable"} /></label>
+          <label>Final TileSPEC sell (£/m²)<EditableNumber min={0} step="any" value={areas.find(a=>a.id===r.id)?.sell??0} onValueChange={value=>edit(r.id,{sell:num(value)})}/></label>
+        </div>)}
+        <button className={styles.copy} disabled={pricingDenominator<=0||totalSqm<=0} onClick={applyRecommendedRates}>Use recommended selling rates</button>
+        <p className={styles.note}>This only updates the editable tender selling rates above; it does not issue a quote or change saved contracts. Company management salary and central overheads are not automatically included. Add any project-specific cost here, and check company-wide operating profit separately.</p>
         <div className={styles.metrics}>
           <div><span>Calculated contract value</span><strong>{gbp(figures.revenue)}</strong></div>
           <div><span>Estimated project contribution</span><strong>{gbp(figures.profit)}</strong></div>
