@@ -487,14 +487,14 @@ begin
       'applied_on',a.applied_on,'due_on',a.due_on,'final_on',a.final_on,'final_on_effective',final_eff,'payment_notice_by',a.payment_notice_by,'pay_less_by',a.pay_less_by,
       'construction_act',act,'gross',(v->>'gross')::numeric,'retention_percent',(v->>'retention_percent')::numeric,'retention_held',(v->>'retention_held')::numeric,
       'net',(v->>'net')::numeric,'net_this_period',(v->>'net')::numeric-coalesce(prev_net,0),'previous_notified',prev_notified,
-      'applied_this_period',(v->>'net')::numeric-prev_notified,
+      'applied_this_period',(v->>'net')::numeric-prev_notified)||jsonb_build_object(
       'certified_gross',a.certified_gross,'certified_retention',cert_ret,'certified_net',cert_net,'certified_on',a.certified_on,
       'certified_this_period',case when cert_net is null then null else cert_net-coalesce(prev_cert,0) end,
       'certificate_in_time',case when a.certified_on is null then null else a.certified_on<=a.payment_notice_by end,
       'pay_less_sum',pl.sum_stated,'pay_less_on',pl.given_on,'pay_less_in_time',pl.in_time,'pay_less_effective',pay_less_effective,
       'default_notice_on',dn.given_on,'default_notice_sum',dn.sum_stated,
       'notified_cumulative',notified,'due_this_period',due,'vat_treatment',t->>'vat_treatment','vat_rate',(t->>'vat_rate')::numeric,'vat',vat,'vat_reverse_charge',vat_reverse,
-      'cis_rate',(t->>'cis_rate')::numeric,'cis_materials',a.cis_materials,'cis_expected',cis,'payable',due+vat-cis,'invoiced',invoiced,
+      'cis_rate',(t->>'cis_rate')::numeric,'cis_materials',a.cis_materials,'cis_expected',cis,'total_due',due+vat,'payable',due+vat-cis,'invoiced',invoiced,
       'received',cash+cis_received,'received_cash',cash,'received_cis',cis_received,'outstanding',due+vat-cash-cis_received,'disputed',open_dispute,
       'overdue_days',case when display='overdue' then today-final_eff else 0 end,'valuation',v);
     if a.status<>'draft' then prev_notified:=notified; end if;
