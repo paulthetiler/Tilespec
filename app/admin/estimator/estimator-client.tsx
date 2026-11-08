@@ -32,6 +32,13 @@ function EditableNumber({value,onValueChange,min=0,max,step="any"}:{value:number
 export default function CommercialEstimator({contracts}:{contracts:{id:string;name:string;reference:string}[]}){
   const [areas,setAreas] = useState<Area[]>([initial]);
   const [other,setOther] = useState(0);
+  const [bonusDays,setBonusDays] = useState(0);
+  const [bonusNights,setBonusNights] = useState(0);
+  const [bonusNightRate,setBonusNightRate] = useState(120);
+  const [bonusExtraCosts,setBonusExtraCosts] = useState(0);
+  const [bonusPercent,setBonusPercent] = useState(25);
+  const [qualityBonus,setQualityBonus] = useState(200);
+  const [qualityApproved,setQualityApproved] = useState(false);
   const [contingency,setContingency] = useState(5);
   const [target,setTarget] = useState(30);
   const [copied,setCopied] = useState(false);
@@ -49,6 +56,10 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
   function edit(id:number,changes:Partial<Area>){setAreas(prev=>prev.map(a=>a.id===id?{...a,...changes}:a));}
   function add(){setAreas(prev=>[...prev,{...initial,id:Math.max(0,...prev.map(a=>a.id))+1,description:"New work area",sqm:50,sell:45,sub:22,output:30,materials:0,workType:"custom"}]);}
   const figures=useMemo(()=>calculateEstimate(areas,other,contingency,target,materialSettings,supervisor,programme),[areas,other,contingency,target,materialSettings,supervisor,programme]);
+  const bonusSavings = Math.max(0, Math.min(bonusDays,figures.supervisorAttendance)*supervisor.dayRate + bonusNights*bonusNightRate - bonusExtraCosts);
+  const earlyBonus = bonusSavings*bonusPercent/100;
+  const payableBonus = earlyBonus+(qualityApproved?qualityBonus:0);
+  const retainedSavings = bonusSavings-payableBonus;
   const programmeLines = figures.lines.reduce<{description:string;days:number;start:number;end:number;output:number;sqm:number;extra:number}[]>((acc,line)=>{const start=acc.length?acc[acc.length-1].end:0;return [...acc,{description:line.description,days:line.days,start,end:start+line.days,output:line.output,sqm:line.sqm,extra:line.daysExtra}];},[]);
   const siteProgramme = ["TileSPEC — SITE WORK PROGRAMME",projectName||"Project: to be confirmed",programme.startDate?"Planned start: "+workday(programme.startDate,0):"Start date: to be confirmed",...programmeLines.map((a,i)=>`${i+1}. ${a.description}: ${a.sqm} m² | ${a.output} m²/day planning output | ${a.days} working days${programme.startDate?` | ${workday(programme.startDate,a.start)} – ${workday(programme.startDate,a.end-1)}`:""}${a.extra?` | includes ${a.extra} finishing days`:""}`),`Planned work: ${figures.installationDays} working days`,`Programme allowance: ${figures.contingencyDays} working days`,`Total programme: ${figures.projectDays} working days`,programme.startDate&&figures.projectDays?`Target completion (including allowance): ${workday(programme.startDate,figures.projectDays-1)}`:"","Targets are planning allowances, not guaranteed daily output. Sequence and access to be confirmed on site. Record delays, quality concerns and changes promptly; do not sacrifice workmanship to meet targets."].filter(Boolean).join("\n");
   const summary = [
@@ -134,6 +145,27 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
         {saveState&&<p role="status" className={styles.note}>{saveState} {contractId&&<Link href={"/admin/contracts/"+contractId+"/programme"}>View saved programme history</Link>}</p>}
         <button className={styles.copy} onClick={async()=>{try{await navigator.clipboard.writeText(siteProgramme);setProgrammeCopied(true)}catch{setProgrammeCopied(false)}}}>{programmeCopied?"Programme copied":"Copy supervisor programme"}</button>
         <p className={styles.note}>The copied programme contains no prices, wages, margin or financial information. It is a draft for review before issue.</p>
+      </section>
+      <section className={styles.section}>
+        <h2>Supervisor performance bonus — internal forecast</h2>
+        <p className={styles.note}>Reward 25% of actual avoided supervisor and accommodation costs, less additional acceleration costs. Pricework subcontract labour does not reduce just because work finishes sooner. No bonus is approved or payable through this calculator.</p>
+        <div className={styles.fields}>
+          <label>Supervisor days actually avoided<EditableNumber min={0} max={figures.supervisorAttendance} step="1" value={bonusDays} onValueChange={setBonusDays}/></label>
+          <label>Accommodation nights actually avoided<EditableNumber min={0} step="1" value={bonusNights} onValueChange={setBonusNights}/></label>
+          <label>Accommodation £/night<EditableNumber min={0} value={bonusNightRate} onValueChange={setBonusNightRate}/></label>
+          <label>Extra acceleration costs (£)<EditableNumber min={0} value={bonusExtraCosts} onValueChange={setBonusExtraCosts}/></label>
+          <label>Share of net savings (%)<EditableNumber min={0} max={100} value={bonusPercent} onValueChange={setBonusPercent}/></label>
+          <label>Quality award (£)<EditableNumber min={0} value={qualityBonus} onValueChange={setQualityBonus}/></label>
+          <label>Quality and handover approved <input type="checkbox" checked={qualityApproved} onChange={e=>setQualityApproved(e.target.checked)}/></label>
+        </div>
+        <div className={styles.breakdown}>
+          <div><span>Net verified savings (scenario)</span><b>{gbp(bonusSavings)}</b></div>
+          <div><span>Early completion bonus</span><b>{gbp(earlyBonus)}</b></div>
+          <div><span>Quality award</span><b>{gbp(qualityApproved?qualityBonus:0)}</b></div>
+          <div className={styles.total}><span>Supervisor total bonus</span><b>{gbp(payableBonus)}</b></div>
+          <div><span>TileSPEC retained savings</span><b>{gbp(retainedSavings)}</b></div>
+        </div>
+        <p className={styles.note}>Verify released paid days, cancelled accommodation, satisfactory QA, completed records, safe working, snag-free handover and no attributable remedials before authorising payment. Quality awards without savings are an extra cost. The bonus forecast does not change tender pricing, issue a payment or appear in supervisor views.</p>
       </section>
       <section className={styles.section}>
         <h2>Commercial viability</h2>
