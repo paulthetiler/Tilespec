@@ -298,3 +298,14 @@
   .hero h1 { font-size:clamp(44px,10vw,62px); }
   .hero .hero-mobile-experience { margin-top:20px; }
 }
+
+
+/* Trust strip between hero and experience */
+.trust-strip{background:#fff;border-bottom:1px solid #e3eceb}
+.trust-strip-inner{display:flex;align-items:center;justify-content:space-between;gap:30px;padding-top:25px;padding-bottom:25px}
+.trust-membership,.trust-experience{display:flex;align-items:center;gap:13px;min-width:0}
+.trust-mark{display:flex;align-items:center;justify-content:center;min-width:68px;height:55px;padding:0 10px;border:2px solid #78b6ac;color:#173744;font-family:'Barlow Condensed',sans-serif;font-size:29px;font-weight:800;letter-spacing:-.02em}
+.trust-constructionline{font-family:Arial,sans-serif;font-size:15px;letter-spacing:-.05em;border-color:#d4e2e0}
+.trust-membership span,.trust-experience span{font-size:12px;color:#52656d;line-height:1.45}
+.trust-experience strong{font-family:'Barlow Condensed',sans-serif;font-size:31px;color:#173744;white-space:nowrap}
+@media(max-width:760px){.trust-strip-inner{display:grid;grid-template-columns:1fr 1fr;gap:15px 12px;padding-top:18px;padding-bottom:18px}.trust-membership{gap:8px}.trust-mark{min-width:44px;height:42px;padding:0 6px;font-size:23px}.trust-constructionline{font-size:10px}.trust-membership span{font-size:10px}.trust-experience{grid-column:1/-1;justify-content:center;gap:12px;border-top:1px solid #e4eeee;padding-top:12px}.trust-experience strong{font-size:25px}.trust-experience span{font-size:11px}}
