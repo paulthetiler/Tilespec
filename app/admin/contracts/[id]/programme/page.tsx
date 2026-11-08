@@ -1,0 +1,14 @@
+import { requireActor } from "@/lib/auth";
+import Link from "next/link";
+export const dynamic="force-dynamic";
+function workday(start:string,offset:number){const d=new Date(start+"T12:00:00Z");if(Number.isNaN(d.getTime()))return "";while([0,6].includes(d.getUTCDay()))d.setUTCDate(d.getUTCDate()+1);for(let n=0;n<offset;){d.setUTCDate(d.getUTCDate()+1);if(![0,6].includes(d.getUTCDay()))n++;}return d.toLocaleDateString("en-GB",{timeZone:"UTC",day:"2-digit",month:"short",year:"numeric"});}
+type Item={description:string;sqm:number;output:number;days:number;extra:number};
+export default async function ProgrammePage({params}:{params:Promise<{id:string}>}){
+ const {id}=await params;
+ const {supabase,member}=await requireActor();
+ const {data:contract}=await supabase.from("contracts").select("id,name,reference").eq("id",id).eq("organisation_id",member.organisation_id).maybeSingle();
+ if(!contract)return <main style={{padding:32}}>Contract not found.</main>;
+ const {data:versions,error}=await supabase.from("site_programme_revisions").select("id,revision,title,start_date,items,contingency_days,status,notes,created_at").eq("contract_id",id).eq("organisation_id",member.organisation_id).order("revision",{ascending:false});
+ if(error)return <main style={{padding:32}}>Unable to load programme.</main>;
+ return <main style={{maxWidth:900,margin:"auto",padding:"28px 18px",fontFamily:"Arial,sans-serif",color:"#153744"}}><p><Link href="/admin">TileSPEC Admin</Link></p><h1>Site programmes</h1><p>{contract.reference} — {contract.name}</p>{!versions?.length&&<p>No issued programme is available for this contract.</p>}{versions?.map(v=>{const items=Array.isArray(v.items)?v.items as Item[]:[];let offset=0;return <section key={v.id} style={{border:"1px solid #d5e1e2",padding:22,marginBottom:20}}><h2>{v.title} — Rev {v.revision}</h2><p>{v.status==="issued"?"Issued":"Draft"} · {new Date(v.created_at).toLocaleDateString("en-GB")} · Start {v.start_date||"TBC"}</p><table style={{width:"100%",borderCollapse:"collapse",fontSize:14}}><thead><tr><th style={{textAlign:"left"}}>Work area</th><th>Target</th><th>Days</th><th>Dates</th></tr></thead><tbody>{items.map((item,i)=>{const start=offset;offset+=item.days;return <tr key={i} style={{borderTop:"1px solid #ddd"}}><td style={{padding:"12px 4px"}}>{item.description}</td><td>{item.sqm} m² / {item.output} m² per day</td><td style={{textAlign:"center"}}>{item.days}</td><td>{v.start_date&&item.days?workday(v.start_date,start)+" – "+workday(v.start_date,offset-1):"TBC"}</td></tr>})}</tbody></table><p>Contingency: {v.contingency_days} working days. Total programme: {offset+v.contingency_days} working days.</p>{v.notes&&<p>{v.notes}</p>}<p>Quality comes first. Record access issues, delays and variations promptly.</p></section>})}</main>;
+}
