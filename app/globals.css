@@ -258,3 +258,25 @@
   .statement p,.full-package-copy p,.sectors p,.tender p,.approach p,.service-card p,.brand-experience p { line-height:1.6; }
   .statement p,.brand-experience-heading p { color:#455a63; }
 }
+
+
+/* How We Work: compact, text-only pale teal cards */
+.approach .process-grid { align-items:stretch;gap:16px; }
+.approach .process-grid > div {
+  box-sizing:border-box;
+  background:#eaf4f2;
+  border:1px solid #d2e6e2;
+  padding:28px 26px;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+}
+.approach .process-grid > div h3 { margin:0 0 12px;line-height:1.1; }
+.approach .process-grid > div p { margin:0;color:#40565e;line-height:1.6; }
+@media(max-width:760px) {
+  .approach .process-grid { grid-template-columns:minmax(0,1fr);gap:12px; }
+  .approach .process-grid > div { padding:23px 22px; }
+  .approach .process-grid > div h3 { font-size:clamp(25px,7vw,32px); }
+  .approach .process-grid > div p { font-size:15px; }
+}
