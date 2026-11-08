@@ -165,3 +165,13 @@
     margin-bottom:28px;
   }
 }
+
+/* Preview: restrained 3% hero photograph zoom over 12 seconds. */
+@keyframes tilespecHeroSlowZoom {
+  from { transform: scale(1.02); }
+  to { transform: scale(1.05); }
+}
+.hero-image { animation: tilespecHeroSlowZoom 12s ease-in-out both; transform-origin: center center; will-change: transform; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-image { animation: none; transform: scale(1.02); will-change: auto; }
+}
