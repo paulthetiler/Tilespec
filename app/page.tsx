@@ -17,32 +17,12 @@ const projects = [
 ];
 
 function TilingProcessIcon({ kind }: { kind: "layout" | "levelling" | "trowel" }) {
-  const line = { fill: "none", stroke: "#153849", strokeWidth: 2.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  return <svg className="tiling-process-icon" viewBox="0 0 120 96" role="img" aria-label={kind === "layout" ? "Construction drawing, tile samples and measuring tape" : kind === "levelling" ? "Laser level projecting across floor tiles" : "Notched adhesive trowel beside a porcelain tile"} {...line}>
-    {kind === "layout" && <>
-      {/* Folded construction drawing with clear tile grid and dimension arrows. */}
-      <path d="M11 15h60v65H11z" fill="#F5F9F9"/><path d="M20 28h42v38H20z M20 47h42 M41 28v38" stroke="#6BAAA2" strokeWidth="2.5"/>
-      <path d="M20 22h42 M20 19v6 M62 19v6 M77 25h13 M77 25v13" stroke="#153849" strokeWidth="2"/>
-      {/* Distinctive tape-measure body and extending steel tape. */}
-      <rect x="74" y="53" width="28" height="26" rx="7" fill="#DDEEEB"/><circle cx="88" cy="66" r="7" fill="#fff"/><path d="M81 66h14 M88 59v14" stroke="#6BAAA2" strokeWidth="1.6"/><path d="M74 63L62 58 M67 60l-2 5" stroke="#153849" strokeWidth="3"/>
-    </>}
-    {kind === "levelling" && <>
-      {/* Floor tiles receding in perspective. */}
-      <path d="M9 80l31-32h66L76 80z" fill="#F5F9F9"/><path d="M40 48l13 32 M73 48l-3 32 M24 64h67" stroke="#6BAAA2" strokeWidth="2.5"/>
-      {/* Tripod-mounted compact rotary laser level. */}
-      <rect x="25" y="14" width="33" height="23" rx="4" fill="#DDEEEB"/><path d="M30 14v-5h23v5 M41 37v8 M41 45L24 75 M41 45l17 30" /><circle cx="42" cy="25" r="6" fill="#6BAAA2"/><circle cx="42" cy="25" r="2" fill="#153849" stroke="none"/>
-      <path d="M42 25h62 M42 25L14 73" stroke="#6BAAA2" strokeWidth="2" strokeDasharray="5 4"/>
-    </>}
-    {kind === "trowel" && <>
-      {/* Large square porcelain tile, separated from the unmistakable notched steel blade. */}
-      <path d="M9 58h47v29H9z" fill="#E5F1EF"/><path d="M9 72h47 M32 58v29" stroke="#6BAAA2" strokeWidth="2"/>
-      {/* Trowel handle, neck, flat blade and repeated square notches. */}
-      <path d="M72 16l9-9 20 20-9 9z" fill="#6BAAA2"/><path d="M80 34l-8 9" strokeWidth="4"/>
-      <path d="M57 45l17-17 31 31-17 17z" fill="#F5F9F9"/>
-      <path d="M57 45l-7 7 5 5-5 5 5 5-5 5 5 5-5 5 6 6 7-7" strokeWidth="3.4"/>
-      <path d="M64 50l23 23" stroke="#6BAAA2" strokeWidth="2"/>
-    </>}
-  </svg>;
+  const art = {
+    layout: { src: "/process-brief.svg", alt: "Tile drawings, samples and tape measure" },
+    levelling: { src: "/process-planning.svg", alt: "Laser level setting out a tiled floor" },
+    trowel: { src: "/process-installation.svg", alt: "Notched tiling trowel spreading adhesive beside porcelain tile" },
+  }[kind];
+  return <img className="tiling-process-art" src={art.src} alt={art.alt} loading="lazy" width="190" height="118"/>;
 }
 
 function Logo({ light = false }: { light?: boolean }) {
