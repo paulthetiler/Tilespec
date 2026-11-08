@@ -4,13 +4,14 @@ import { useState } from "react";
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, FileUp, HardHat, Layers3, Mail, MapPin, Menu, MoveUpRight, Phone, Ruler, ShieldCheck, X } from "lucide-react";
 
 const services = [
-  { title: "Commercial floor tiling", detail: "Large-format porcelain, high-traffic floors and expansive commercial installations.", icon: Ruler, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000c0c881f4a960c247e09c631a.png" },
+  { title: "Commercial floor tiling", detail: "Large-format porcelain, high-traffic floors and expansive commercial installations.", icon: Ruler, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/bf52c74c-59fe-4cdd-9a44-4bfcad5063c4/73281.webp" },
   { title: "Wall tiling & finishes", detail: "Precisely detailed wall finishes for washrooms, circulation areas and public spaces.", icon: Layers3, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000864c81f48bb8e9fdca1728c9.png" },
   { title: "Complete tiling packages", detail: "Tile and stone supply, full preparation, installation and handover managed as one package.", icon: HardHat, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000a4ec82468ee6377d39b40b05.png" },
   { title: "Specialist preparation", detail: "Substrate repairs, screeding, levelling, boarding and waterproofing as required.", icon: ShieldCheck, image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000ad5081f4817988f4d69fb73f.png" },
 ];
 const sectors = ["Retail & showrooms", "Commercial developments", "Hospitality & leisure", "Public & communal spaces"];
 const projects = [
+  { label: "COMMERCIAL FLOOR TILING", title: "Large-scale commercial floor installation", image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/bf52c74c-59fe-4cdd-9a44-4bfcad5063c4/73281.webp", position: "center" },
   { label: "RETAIL & SHOWROOMS", title: "Floors that make an entrance", image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000003b8c82108173987758914799.png", position: "center" },
   { label: "COMMERCIAL INTERIORS", title: "Detail at every scale", image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_00000000864c81f48bb8e9fdca1728c9.png", position: "center" },
   { label: "HOSPITALITY & LEISURE", title: "Built for heavy use", image: "https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000006d2481f4aad27dd9a1e60776.png", position: "center" },
