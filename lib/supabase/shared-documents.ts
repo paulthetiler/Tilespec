@@ -11,8 +11,8 @@ export async function readSharedDocument(token: string): Promise<DocumentRecord 
   const configuration = getSupabaseConfiguration();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!configuration || !key) throw new Error("Shared documents are not configured.");
-  const client = createClient(configuration.url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-  const { data, error } = await client.rpc("shared_commercial_document", { p_token: token });
+  const serviceClient = createClient(configuration.url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  const { data, error } = await serviceClient.rpc("shared_commercial_document", { p_token: token });
   if (error) throw new Error("Shared documents are unavailable.");
   return (data ?? null) as DocumentRecord | null;
 }

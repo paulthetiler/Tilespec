@@ -134,7 +134,9 @@ linked from the job page for money users.
 
 ## Not included (open items)
 
-- Construction Act payment and pay-less notice dates.
+Construction Act payment and pay less notice dates, payment terms per contract, invoices, credit notes, statements and final
+accounts are now covered by stage C6: see [commercial-accounts.md](commercial-accounts.md). Still open:
+
 - Office overrides of cost to complete. The forecast assumes unspent budget is still to be spent.
 - Owner sign-off of a margin below target is not built. The below-target warning is information only.
 - Office Today shows no money figures, by existing design. The margin reminder (R14) therefore stays dormant.

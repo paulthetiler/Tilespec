@@ -101,8 +101,8 @@ export async function updateApplicationAction(_: ActionState, form: FormData): P
     const contract = uuid(form, "contract_id"), kind = (text(form, "kind", 10) || "interim") as ApplicationKind;
     const { supabase, options } = await claimOptions(contract);
     const data = valuationInput(form, options, kind);
-    checkRpc((await supabase.rpc("update_payment_application", { p_application: uuid(form, "application_id"), p_request_key: uuid(form, "request_key"),
-      p_version: integer(form, "version", 1), p_data: data })).error);
+    const application = uuid(form, "application_id"), key = uuid(form, "request_key"), version = integer(form, "version", 1);
+    checkRpc((await supabase.rpc("update_payment_application", { p_application: application, p_request_key: key, p_version: version, p_data: data })).error);
     refresh(contract);
     return { success: "Draft corrected. The earlier figures stay on record." };
   } catch (error) { return failure(error); }
@@ -141,8 +141,8 @@ export async function certifyAction(_: ActionState, form: FormData): Promise<Act
   try {
     const { supabase } = await moneyActor();
     const contract = uuid(form, "contract_id");
-    checkRpc((await supabase.rpc("certify_payment_application", { p_application: uuid(form, "application_id"), p_request_key: uuid(form, "request_key"),
-      p_version: integer(form, "version", 1), p_data: certificateInput(form) })).error);
+    const application = uuid(form, "application_id"), key = uuid(form, "request_key"), version = integer(form, "version", 1), data = certificateInput(form);
+    checkRpc((await supabase.rpc("certify_payment_application", { p_application: application, p_request_key: key, p_version: version, p_data: data })).error);
     refresh(contract);
     return { success: "Certificate (payment notice) recorded." };
   } catch (error) { return failure(error); }
@@ -205,8 +205,8 @@ export async function includeDayworkAction(_: ActionState, form: FormData): Prom
   try {
     const { supabase } = await moneyActor();
     const contract = uuid(form, "contract_id"), note = text(form, "note", 500);
-    checkRpc((await supabase.rpc("include_daywork_in_variation", { p_request_key: uuid(form, "request_key"),
-      p_data: { daywork_id: uuid(form, "daywork_id"), variation_id: uuid(form, "variation_id"), ...(note ? { note } : {}) } })).error);
+    const data = { daywork_id: uuid(form, "daywork_id"), variation_id: uuid(form, "variation_id"), ...(note ? { note } : {}) };
+    checkRpc((await supabase.rpc("include_daywork_in_variation", { p_request_key: uuid(form, "request_key"), p_data: data })).error);
     refresh(contract);
     return { success: "The daywork is now valued within the variation and will not be charged separately." };
   } catch (error) { return failure(error); }

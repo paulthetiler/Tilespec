@@ -38,6 +38,25 @@ test("anonymous visitors cannot receive any estimator pricing or contract HTML",
   await expect(page).toHaveURL(/\/login/);
   await expect(page.getByRole("heading", { name: "Commercial tender estimator" })).toHaveCount(0);
 });
+test("commercial accounts and their documents are behind sign-in, and a shared link needs a real one", async ({ request }) => {
+  const job = "11111111-1111-4111-8111-111111111111";
+  for (const path of [`/admin/contracts/${job}/accounts`, "/admin/accounts/settings", `/admin/contracts/${job}/accounts/documents/${job}`,
+    `/admin/contracts/${job}/accounts/preview?kind=statement`]) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect([303, 307, 308]).toContain(response.status());
+    expect(response.headers().location).toContain("/login");
+    expect(response.headers()["cache-control"]).toContain("no-store");
+  }
+  // The development server compiles the route on first use; both projects may ask at once.
+  await request.get("/shared/documents/warm-up").catch(() => undefined);
+  for (const token of ["not-a-token", "0".repeat(63)]) {
+    const shared = await request.get(`/shared/documents/${token}`);
+    expect(shared.status()).toBe(404);
+    expect(shared.headers()["content-type"]).not.toContain("pdf");
+    expect(shared.headers()["cache-control"]).toContain("no-store");
+    expect(shared.headers()["x-robots-tag"]).toContain("noindex");
+  }
+});
 test("password setup requires a real authenticated session and malformed invitations fail closed", async ({ request }) => {
   for (const path of ["/auth/set-password", "/auth/confirm?type=signup&token_hash=untrusted"]) {
     const response = await request.get(path, { maxRedirects: 0 });

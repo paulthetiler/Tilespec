@@ -27,6 +27,11 @@ following the [audit](docs/operations/commercial-audit.md). Its migrations must 
 reconciled and approved before they are applied to a hosted project; see
 [migration-reconciliation.md](docs/operations/migration-reconciliation.md).
 
+Commercial accounts and invoicing (each contract's payment terms, numbered applications and invoices, retention and its
+release, Construction Act dates and notices, VAT and CIS, credit notes, statements, final accounts and branded PDFs with an
+audit trail) are described in [commercial-accounts.md](docs/operations/commercial-accounts.md), with
+[sample documents](docs/operations/samples/README.md).
+
 Read the [architecture, permissions and phased plan](docs/operations/architecture.md),
 [staging deployment instructions](docs/operations/deployment.md), and
 [database/bootstrap instructions](supabase/README.md). Copy `.env.example` to a
@@ -34,7 +39,8 @@ local ignored environment file and supply project values through secure settings
 Never use the ResinSpec production backend for staging.
 
 Run `npm test`, `npm run test:db`, `npm run test:browser`, `npm run test:forms`,
-and `npm run build` as described in the deployment instructions. The public
+and `npm run build` as described in the deployment instructions. `npm run samples:documents`
+regenerates the sample commercial documents from the real database functions. The public
 website and estimator calculations are retained; estimator access now requires
 an owner or expressly authorised contracts manager.
 

@@ -17,7 +17,8 @@ import {
   basisLabels, documentKindLabels, frequencyLabels, kindLabels, nextStep, recoveryLabels, vatLabels, type ApplicationKind, type IssuedDocument,
 } from "@/lib/operations/accounts";
 import { formatPercent, formatPounds } from "@/lib/operations/money";
-import { dayLabel, londonDate } from "@/lib/operations/planning";
+import { londonDate } from "@/lib/operations/planning";
+import { longDate } from "@/lib/documents/model";
 import styles from "../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
@@ -77,8 +78,8 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
           pay less notice {t.pay_less_notice_days} days before the final date{t.construction_act ? " (Construction Act applies)" : " (Construction Act does not apply)"}</dd></div>
         <div className={styles.detailItem}><dt>VAT</dt><dd>{vatLabels[t.vat_treatment]}{["standard", "reduced", "reverse_charge"].includes(t.vat_treatment) ? ` at ${formatPercent(t.vat_rate)}` : ""}</dd></div>
         <div className={styles.detailItem}><dt>CIS</dt><dd>{t.cis_applies ? `Deducted by the client at ${formatPercent(t.cis_rate)} of labour` : "Not deducted"}</dd></div>
-        <div className={styles.detailItem}><dt>Completion</dt><dd>{t.practical_completion_on ? `Practical completion ${dayLabel(t.practical_completion_on)}` : "Not complete"}
-          {t.making_good_on ? `; making good ${dayLabel(t.making_good_on)}` : ""}</dd></div>
+        <div className={styles.detailItem}><dt>Completion</dt><dd>{t.practical_completion_on ? `Practical completion ${longDate(t.practical_completion_on)}` : "Not complete"}
+          {t.making_good_on ? `; making good ${longDate(t.making_good_on)}` : ""}</dd></div>
         {terms && <div className={styles.detailItem}><dt>Daywork markups</dt><dd>Labour {formatPercent(terms.daywork_labour_markup)}, plant {formatPercent(terms.daywork_plant_markup)},
           materials {formatPercent(terms.daywork_materials_markup)}</dd></div>}
       </dl>
@@ -97,7 +98,7 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
       {(t.basis === "milestones" || t.basis === "schedule" || stages.length > 0) && <div>
         <h3>Payment stages</h3>
         {stages.filter(s => !s.voided_at).length ? <ol className={styles.plainList}>{stages.filter(s => !s.voided_at).map(stage => <li key={stage.id}>
-          <strong>{stage.label}</strong>: {formatPounds(stage.amount)}{stage.planned_on ? ` · planned ${dayLabel(stage.planned_on)}` : ""}
+          <strong>{stage.label}</strong>: {formatPounds(stage.amount)}{stage.planned_on ? ` · planned ${longDate(stage.planned_on)}` : ""}
           <details className={styles.details}><summary>Remove</summary><OperationsForm action={voidStageAction} submitLabel="Remove this stage" compact>
             {job}<input type="hidden" name="stage_id" value={stage.id} /><label className={styles.field}>Why?<input name="reason" required minLength={3} maxLength={1000} /></label>
           </OperationsForm></details></li>)}</ol> : <p className={styles.small}>No stages yet.</p>}
@@ -116,7 +117,7 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
         <th>Applied this period</th><th>Sum due</th><th>Received</th><th>Outstanding</th><th>Next</th></tr></thead>
         <tbody>{account.applications.map(row => <tr key={row.application_id} data-application-number={row.number}>
           <td><Link href={`/admin/contracts/${id}/accounts/applications/${row.application_id}`}>{row.number} · {kindLabels[row.kind]}</Link></td>
-          <td>{dayLabel(row.period_end)}</td><td><StatusBadge status={row.display_status} /></td>
+          <td>{longDate(row.period_end)}</td><td><StatusBadge status={row.display_status} /></td>
           <td>{row.status === "cancelled" ? "" : formatPounds(row.applied_this_period)}</td><td>{row.status === "cancelled" ? "" : formatPounds(row.due_this_period)}</td>
           <td>{formatPounds(row.received)}</td><td>{row.status === "cancelled" || row.status === "draft" ? "" : formatPounds(row.outstanding)}</td>
           <td className={styles.small}>{nextStep(row, account.as_at)}</td></tr>)}</tbody></table></div>
@@ -158,7 +159,7 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
         <OperationsForm action={removeInclusionAction} submitLabel="Charge it separately again" compact>{job}<input type="hidden" name="inclusion_id" value={i.id} />
           <label className={styles.field}>Why?<input name="reason" required minLength={3} maxLength={1000} /></label></OperationsForm></details>)}
       {disputes.filter(d => d.daywork_id && !d.resolved_on).map(d => <div key={d.id} className={styles.card}>
-        <p><strong>{extraRef(d.daywork_id)} disputed</strong> since {dayLabel(d.raised_on)}: {d.summary}</p>
+        <p><strong>{extraRef(d.daywork_id)} disputed</strong> since {longDate(d.raised_on)}: {d.summary}</p>
         <OperationsForm action={resolveDisputeAction} submitLabel="Record the resolution" compact>{job}<input type="hidden" name="dispute_id" value={d.id} />
           <label className={styles.field}>How it was resolved<input name="resolution" required minLength={3} maxLength={1000} /></label></OperationsForm></div>)}
       {account.extras.some(e => e.state === "approved" || e.state === "submitted") && <details className={styles.details}><summary>Record a dispute about a variation or daywork</summary>
@@ -193,18 +194,19 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
         const links = shares.filter(s => s.document_id === d.id);
         return <li key={d.id} className={styles.documentRow} data-document-reference={d.reference}>
           <div><strong>{d.reference}</strong> · {d.title}{d.superseded_at ? <span className={styles.badge}> Superseded</span> : null}
-            <div className={styles.small}>{documentKindLabels[d.kind]} · issued {dayLabel(d.issued_on)} by {d.issued_by_name}
+            <div className={styles.small}>{documentKindLabels[d.kind]} · issued {longDate(d.issued_on)} by {d.issued_by_name}
               {d.total !== null ? ` · ${formatPounds(d.total)}` : ""}{d.revision_reason ? ` · revised: ${d.revision_reason}` : ""}</div></div>
           <div className={styles.inline}>
             <a className={styles.secondaryButton} href={docLink(d)} target="_blank" rel="noopener">Open PDF</a>
             <a className={styles.secondaryButton} href={docLink(d, true)}>Download</a>
             {d.application_id && <Link className={styles.linkButton} href={`/admin/contracts/${id}/accounts/applications/${d.application_id}`}>Application</Link>}
           </div>
+          <div style={{ flexBasis: "100%" }}>
           {!d.superseded_at && <details className={styles.details}><summary>Share a link</summary>
             <ShareDocument contractId={id} documentId={d.id} reference={d.reference} />
             {links.length > 0 && <ul className={styles.plainList}>{links.map(s => <li key={s.id} className={styles.small}>
-              {s.recipient ?? "Link"} · made {dayLabel(s.created_at.slice(0, 10))} by {s.created_by_name} · opened {s.view_count} time{s.view_count === 1 ? "" : "s"}
-              {s.revoked_at ? " · revoked" : ` · works until ${dayLabel(s.expires_at.slice(0, 10))}`}
+              {s.recipient ?? "Link"} · made {longDate(s.created_at.slice(0, 10))} by {s.created_by_name} · opened {s.view_count} time{s.view_count === 1 ? "" : "s"}
+              {s.revoked_at ? " · revoked" : ` · works until ${longDate(s.expires_at.slice(0, 10))}`}
               {!s.revoked_at && <OperationsForm action={revokeShareAction} submitLabel="Revoke link" compact>{job}<input type="hidden" name="share_id" value={s.id} /></OperationsForm>}
             </li>)}</ul>}
           </details>}
@@ -215,6 +217,7 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
               <label className={styles.field}>Why is it revised?<input name="reason" required minLength={3} maxLength={1000} /></label>
               <label className={styles.checkboxRow}><input type="checkbox" name="confirm" required />Issue it as the next revision; the earlier one stays on record as superseded</label>
             </OperationsForm></details>}
+          </div>
         </li>;
       })}</ul> : <p>No documents issued yet.</p>}
     </section>

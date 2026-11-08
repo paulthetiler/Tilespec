@@ -5,6 +5,7 @@
  * adds up an amount.
  */
 import { formatPounds, optionalPounds, parsePercent, parsePounds } from "./money";
+import { longDate } from "../documents/model";
 import { isCalendarDate, londonDate } from "./planning";
 import { text, uuid, ValidationError } from "./validation";
 
@@ -111,9 +112,9 @@ export function nextStep(row: AccountRow, today = londonDate()): string {
     case "draft": return "Check the figures and preview the document, then approve and issue it.";
     case "submitted":
       if (row.construction_act && row.payment_notice_by && today > row.payment_notice_by && !row.default_notice_on)
-        return `No payment notice by ${row.payment_notice_by}. You can give a default payment notice.`;
-      return row.payment_notice_by ? `Waiting for the client's payment notice, due by ${row.payment_notice_by}.` : "Waiting for the client's certificate.";
-    case "certified": return `Certified. ${formatPounds(row.payable)} expected by ${row.final_on_effective ?? "the final date"}.`;
+        return `No payment notice by ${longDate(row.payment_notice_by)}. You can give a default payment notice.`;
+      return row.payment_notice_by ? `Waiting for the client's payment notice, due by ${longDate(row.payment_notice_by)}.` : "Waiting for the client's certificate.";
+    case "certified": return `Certified. ${formatPounds(row.payable)} expected by ${row.final_on_effective ? longDate(row.final_on_effective) : "the final date"}.`;
     case "part_paid": return `${formatPounds(row.outstanding)} still to be paid.`;
     case "overdue": return `${formatPounds(row.outstanding)} overdue by ${row.overdue_days} day${row.overdue_days === 1 ? "" : "s"}.`;
     case "disputed": return "In dispute. Record the outcome when it is resolved.";
@@ -219,7 +220,7 @@ export function valuationInput(form: FormData, options: ClaimOptions, kind: Appl
   if (kind === "advance") return { ...base, lines: [] as Record<string, unknown>[] };
   const lines: { kind: Line["kind"]; daywork_id?: string; stage_id?: string; description: string; amount: number }[] = [];
   const works = optionalPounds(form, "contract_works", "the value of contract works");
-  if (works !== null) lines.push({ kind: "contract_works", description: text(form, "contract_works_description", 300) || `Contract works to ${period_end}`, amount: works });
+  if (works !== null) lines.push({ kind: "contract_works", description: text(form, "contract_works_description", 300) || `Contract works to ${longDate(period_end)}`, amount: works });
   for (const stage of options.stages.filter(s => !s.voided_at)) {
     if (!checked(form, `stage_${stage.id}`)) continue;
     const amount = optionalPounds(form, `stage_amount_${stage.id}`, `the value of "${stage.label}"`) ?? stage.amount;
