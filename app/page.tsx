@@ -17,11 +17,19 @@ const projects = [
 ];
 
 function TilingProcessIcon({ kind }: { kind: "layout" | "levelling" | "trowel" }) {
-  const shared = { fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  return <svg className="tiling-process-icon" viewBox="0 0 80 80" aria-hidden="true" {...shared}>
-    {kind === "layout" && <><rect x="10" y="20" width="60" height="40"/><path d="M30 20V60 M50 20V60 M10 40H70"/><path d="M18 12L62 68" strokeDasharray="3 5" opacity=".55"/></>}
-    {kind === "levelling" && <><rect x="10" y="16" width="60" height="48"/><path d="M10 40H70 M40 16V64 M35 35L45 45 M45 35L35 45 M10 9H70 M10 6V12 M70 6V12"/></>}
-    {kind === "trowel" && <><path d="M12 58L32 38L43 49L23 69Z M32 38L48 22L58 32L43 49Z M48 22L60 10L70 20L58 32Z"/><path d="M13 15H37V34H13Z M13 25H37 M25 15V34" opacity=".65"/></>}
+  const common = { fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  return <svg className="tiling-process-icon" viewBox="0 0 120 96" role="img" aria-label={kind === "layout" ? "Tile sample and tape measure" : kind === "levelling" ? "Laser level setting out a tiled floor" : "Notched adhesive trowel and porcelain tile"} {...common}>
+    {kind === "layout" && <>
+      <g stroke="#173849" strokeWidth="2.8"><path d="M12 19h62v56H12z M12 47h62 M43 19v56"/><path d="M17 24h21v18H17z" fill="#DCECE9" stroke="none"/><path d="M77 55l12-18 19 13-12 18z" fill="#E4F1EF"/><path d="M86 38l5 4 M82 44l5 4 M96 46l-4 6 M101 49l-4 6" stroke="#63A89F"/></g>
+      <path d="M14 12h60 M14 9v6 M74 9v6" stroke="#69A9A1" strokeWidth="2.5"/>
+    </>}
+    {kind === "levelling" && <>
+      <g stroke="#173849" strokeWidth="2.8"><path d="M10 76l31-23h67L76 86H10z M41 53l24 33 M76 53l-4 33 M26 65h69"/><path d="M22 18h34l5 23H17z" fill="#E4F1EF"/><path d="M27 18v-6h24v6 M25 42h30 M30 46l-7 7 M49 46l7 7"/><circle cx="39" cy="29" r="5" fill="#69A9A1"/></g>
+      <path d="M39 29l67 25 M39 29l-26 45" stroke="#69A9A1" strokeWidth="2.4" strokeDasharray="5 4"/>
+    </>}
+    {kind === "trowel" && <>
+      <g stroke="#173849" strokeWidth="2.8"><path d="M10 65h49v20H10z M10 75h49 M34 65v20" fill="#E4F1EF"/><path d="M62 49l26-27 12 12-27 26z" fill="#DCECE9"/><path d="M88 22l8-8 11 11-7 9" fill="#69A9A1"/><path d="M62 49l-9 10 5 5 7-5 5 5 6-6 5 5 6-6 5 4 6-7" stroke="#173849"/><path d="M13 58l7-6 7 6 7-6 7 6 7-6" stroke="#69A9A1"/></g>
+    </>}
   </svg>;
 }
 
