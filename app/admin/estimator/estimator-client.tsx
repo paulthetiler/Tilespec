@@ -7,7 +7,7 @@ import styles from "./page.module.css";
 import { calculateEstimate, type EstimateArea, type CostArea, type MaterialSettings, type SupervisorSettings, type ProgrammeSettings } from "@/lib/estimator";
 
 type Area = CostArea;
-const initial: Area = { id: 1, description: "Open commercial floor", sqm: 500, sell: 35, sub: 17, output: 60, workType:"open-floor", daysExtra: 0, materials: 7, mode: "metre", gangDay: 600, lengthMm:600, widthMm:600, depthMm:10, jointMm:3, backButter:false };
+const initial: Area = { id: 1, description: "Open commercial floor", sqm: 500, sell: 35, sub: 17, output: 60, workType:"open-floor", daysExtra: 0, materials: 0, mode: "metre", gangDay: 600, lengthMm:600, widthMm:600, depthMm:10, jointMm:3, backButter:false };
 const presets = [{value:"open-floor",label:"Open commercial floor — 60 m²/day",output:60},{value:"complex-floor",label:"Floors with cuts / obstructions — 35 m²/day",output:35},{value:"simple-walls",label:"Simple bathroom walls — 22 m²/day",output:22},{value:"detailed-bathroom",label:"IPS / trims / detailed bathrooms — 12 m²/day",output:12},{value:"custom",label:"Custom output",output:0}] as const;
 const workday=(start:string,offset:number)=>{const d=new Date(start+"T12:00:00");if(Number.isNaN(d.getTime()))return "";let count=0;while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()+1);while(count<offset){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d.getDay()!==6)count++;}return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});};
 const gbp = (n:number) => new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",maximumFractionDigits:0}).format(n);
@@ -31,7 +31,7 @@ function EditableNumber({value,onValueChange,min=0,max,step="any"}:{value:number
 
 export default function CommercialEstimator({contracts}:{contracts:{id:string;name:string;reference:string}[]}){
   const [areas,setAreas] = useState<Area[]>([initial]);
-  const [other,setOther] = useState(1800);
+  const [other,setOther] = useState(0);
   const [contingency,setContingency] = useState(5);
   const [target,setTarget] = useState(30);
   const [copied,setCopied] = useState(false);
@@ -47,7 +47,7 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
   const setMaterial=(key:keyof MaterialSettings,value:number)=>setMaterialSettings(v=>({...v,[key]:value}));
   const setSuper=(key:keyof SupervisorSettings,value:string|number)=>setSupervisor(v=>({...v,[key]:value}));
   function edit(id:number,changes:Partial<Area>){setAreas(prev=>prev.map(a=>a.id===id?{...a,...changes}:a));}
-  function add(){setAreas(prev=>[...prev,{...initial,id:Math.max(0,...prev.map(a=>a.id))+1,description:"New work area",sqm:50,sell:45,sub:22,output:30,workType:"custom"}]);}
+  function add(){setAreas(prev=>[...prev,{...initial,id:Math.max(0,...prev.map(a=>a.id))+1,description:"New work area",sqm:50,sell:45,sub:22,output:30,materials:0,workType:"custom"}]);}
   const figures=useMemo(()=>calculateEstimate(areas,other,contingency,target,materialSettings,supervisor,programme),[areas,other,contingency,target,materialSettings,supervisor,programme]);
   const programmeLines = figures.lines.reduce<{description:string;days:number;start:number;end:number;output:number;sqm:number;extra:number}[]>((acc,line)=>{const start=acc.length?acc[acc.length-1].end:0;return [...acc,{description:line.description,days:line.days,start,end:start+line.days,output:line.output,sqm:line.sqm,extra:line.daysExtra}];},[]);
   const siteProgramme = ["TileSPEC — SITE WORK PROGRAMME",projectName||"Project: to be confirmed",programme.startDate?"Planned start: "+workday(programme.startDate,0):"Start date: to be confirmed",...programmeLines.map((a,i)=>`${i+1}. ${a.description}: ${a.sqm} m² | ${a.output} m²/day planning output | ${a.days} working days${programme.startDate?` | ${workday(programme.startDate,a.start)} – ${workday(programme.startDate,a.end-1)}`:""}${a.extra?` | includes ${a.extra} finishing days`:""}`),`Planned work: ${figures.installationDays} working days`,`Programme allowance: ${figures.contingencyDays} working days`,`Total programme: ${figures.projectDays} working days`,programme.startDate&&figures.projectDays?`Target completion (including allowance): ${workday(programme.startDate,figures.projectDays-1)}`:"","Targets are planning allowances, not guaranteed daily output. Sequence and access to be confirmed on site. Record delays, quality concerns and changes promptly; do not sacrifice workmanship to meet targets."].filter(Boolean).join("\n");
@@ -79,7 +79,7 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
             <div className={styles.fields}>
               <label>Quantity (m²)<EditableNumber min={0} step="any" value={a.sqm} onValueChange={value=>edit(a.id,{sqm:num(Number(value))})}/></label>
               <label>TileSPEC sell (£/m²)<EditableNumber min={0} step="any" value={a.sell} onValueChange={value=>edit(a.id,{sell:num(Number(value))})}/></label>
-              <label>Fixing materials (£/m²)<EditableNumber min={0} step="any" value={a.materials} onValueChange={value=>edit(a.id,{materials:num(Number(value))})}/></label>
+              <label>Other fixing materials (£/m², excluding adhesive/grout)<EditableNumber min={0} step="any" value={a.materials} onValueChange={value=>edit(a.id,{materials:num(Number(value))})}/></label>
               <label>Back-butter large format <input type="checkbox" checked={!!a.backButter} onChange={e=>edit(a.id,{backButter:e.target.checked})}/></label>
               {(["lengthMm","widthMm","depthMm","jointMm"] as const).map(k=><label key={k}>{({lengthMm:"Tile length mm",widthMm:"Tile width mm",depthMm:"Joint depth mm",jointMm:"Joint width mm"} as const)[k]}<EditableNumber min={0} value={a[k]??0} onValueChange={value=>edit(a.id,{[k]:num(Number(value))})}/></label>)}
               <label>Work type / planning benchmark<select value={a.workType??"custom"} onChange={e=>{const p=presets.find(p=>p.value===e.target.value);if(p)edit(a.id,{workType:p.value,...(p.output?{output:p.output}:{})});}}>{presets.map(p=><option key={p.value} value={p.value}>{p.label}</option>)}</select></label>
@@ -96,7 +96,7 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
       </section>
       <section className={styles.section}>
         <h2>Direct materials and supervision</h2>
-        <p className={styles.note}>Draft assumptions only. Supplier prices and grout geometry must be verified. Existing fixing materials £/m² must exclude adhesive and grout to avoid double counting. Unsurveyed substrates remain provisional.</p>
+        <p className={styles.note}>Draft assumptions only. Supplier prices and grout geometry must be verified. Other fixing materials default to £0/m² and must exclude adhesive and grout, which are calculated separately. Add primer, trims and other contract-specific materials only when required. Unsurveyed substrates remain provisional.</p>
         <div className={styles.fields}>
           {(["adhesiveBagPrice","adhesiveCoverage","adhesiveBagKg","backButterKgPerSqm","groutPackPrice","groutPackKg","groutDensity","groutWaste"] as const).map(k=><label key={k}>{({adhesiveBagPrice:"Adhesive £/bag",adhesiveCoverage:"Standard m²/bag",adhesiveBagKg:"Adhesive kg/bag",backButterKgPerSqm:"Extra back-butter kg/m²",groutPackPrice:"Grout £/pack",groutPackKg:"Grout kg/pack",groutDensity:"Grout density factor",groutWaste:"Grout wastage %"} as const)[k]}<EditableNumber min={0} step="any" value={materialSettings[k]} onValueChange={value=>setMaterial(k,num(Number(value)))}/></label>)}
           <label>Supervisor mode<select value={supervisor.mode} onChange={e=>setSuper("mode",e.target.value)}><option value="visiting">Visiting</option><option value="full-time">Full-time</option><option value="manual">Manual</option></select></label>
