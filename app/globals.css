@@ -234,3 +234,13 @@
 .project-copy { position:relative; z-index:1; }
 .approach .tiling-process-art { width:180px; height:112px; object-fit:contain; }
 @media (max-width:760px) { .statement-grid > div:first-child {display:none;} }
+
+
+/* Restore project photography: retain full-card absolute image layers. */
+.project-card { position:relative; isolation:isolate; }
+.project-card .project-photo { position:absolute; inset:0; width:100%; height:100%; background-size:cover; background-repeat:no-repeat; }
+.project-card .project-copy { position:absolute; left:28px; right:28px; bottom:30px; z-index:2; }
+@media(max-width:760px) {
+  .projects .project-grid { display:grid; grid-template-columns:minmax(0,1fr); }
+  .projects .project-card { height:350px; }
+}
