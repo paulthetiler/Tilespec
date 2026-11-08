@@ -1,12 +1,13 @@
 // Existing draft estimator calculations, extracted without changing pricing.
 // This is not an approved tender, actual cost ledger or cash-flow forecast.
-export type EstimateArea = { id: number; description: string; sqm: number; sell: number; sub: number; output: number; daysExtra: number; materials: number; mode: "metre" | "day"; gangDay: number };
+export type EstimateArea = { workType?: "open-floor" | "complex-floor" | "simple-walls" | "detailed-bathroom" | "custom"; } & { id: number; description: string; sqm: number; sell: number; sub: number; output: number; daysExtra: number; materials: number; mode: "metre" | "day"; gangDay: number };
 export type MaterialSettings = {
   adhesiveBagPrice: number; adhesiveCoverage: number;
   backButterKgPerSqm: number; adhesiveBagKg: number;
   groutPackPrice: number; groutPackKg: number; groutDensity: number; groutWaste: number;
 };
 export type CostArea = EstimateArea & { lengthMm?: number; widthMm?: number; depthMm?: number; jointMm?: number; backButter?: boolean };
+export type ProgrammeSettings = { contingencyDays: number; startDate?: string };
 export type SupervisorSettings = { mode: "visiting" | "full-time" | "manual"; days?: number; dayRate: number; expenses: number };
 export function groutKgPerSqm(length: number, width: number, depth: number, joint: number, density: number) {
   if ([length,width,depth,joint,density].some(n => !Number.isFinite(n) || n <= 0)) return 0;
@@ -21,7 +22,7 @@ export function supervisorDays(projectDays: number) {
   if (projectDays <= 20) return 4;
   return Math.ceil(projectDays / 5);
 }
-export function calculateEstimate(areas: CostArea[], other: number, contingency: number, target: number, settings?: MaterialSettings, supervisor?: SupervisorSettings) {
+export function calculateEstimate(areas: CostArea[], other: number, contingency: number, target: number, settings?: MaterialSettings, supervisor?: SupervisorSettings, programme?: ProgrammeSettings) {
   const lines = areas.map(a => {
     const days = a.sqm > 0 ? Math.ceil(a.sqm / Math.max(1, a.output)) + a.daysExtra : 0;
     const revenue = a.sqm * a.sell;
@@ -37,7 +38,9 @@ export function calculateEstimate(areas: CostArea[], other: number, contingency:
   const revenue = lines.reduce((v, a) => v + a.revenue, 0);
   const labour = lines.reduce((v, a) => v + a.labour, 0);
   const materials = lines.reduce((v, a) => v + a.material, 0);
-  const projectDays = lines.reduce((sum, a) => sum + a.days, 0);
+  const installationDays = lines.reduce((sum, a) => sum + a.days, 0);
+  const contingencyDays = Math.max(0, Math.ceil(programme?.contingencyDays ?? 0));
+  const projectDays = installationDays > 0 ? installationDays + contingencyDays : 0;
   const supervisorAttendance = supervisor ? supervisor.mode === "full-time" ? projectDays : supervisor.mode === "manual" ? Math.max(0, supervisor.days ?? 0) : supervisorDays(projectDays) : 0;
   const supervisorCost = supervisor ? supervisorAttendance * supervisor.dayRate + supervisor.expenses : 0;
   const reserve = revenue * contingency / 100;
@@ -46,5 +49,5 @@ export function calculateEstimate(areas: CostArea[], other: number, contingency:
   const margin = revenue > 0 ? 100 * profit / revenue : 0;
   const breakEven = contingency < 100 ? (labour + materials + other + supervisorCost) / (1 - contingency / 100) : Infinity;
   const required = target + contingency < 100 ? (labour + materials + other + supervisorCost) / (1 - (target + contingency) / 100) : Infinity;
-  return { lines, revenue, labour, materials, reserve, costs, profit, margin, breakEven, required, projectDays, supervisorAttendance, supervisorCost };
+  return { lines, revenue, labour, materials, reserve, costs, profit, margin, breakEven, required, projectDays, installationDays, contingencyDays, supervisorAttendance, supervisorCost };
 }
