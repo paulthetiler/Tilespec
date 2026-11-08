@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The commercial migrations (20261104*) over a database shaped exactly like the hosted project on
+# The commercial migrations (20261104* and later, including commercial accounts) over a database shaped exactly like the hosted project on
 # 3 November 2026: every earlier migration EXCEPT tender enquiries and office reviews, holding a
 # fully processed daywork. Proves that they:
 #   - install without tender enquiries or office reviews, and keep every existing value
@@ -78,9 +78,11 @@ select schema_name||'.'||table_name||':'||(xpath('/row/hash/text()',query_to_xml
  'select md5(coalesce(string_agg((to_jsonb(x)-%L::text[])::text,''|'' order by (to_jsonb(x)-%L::text[])::text),'''')) hash from %I.%I x',
  case when table_name='contracts' then '{daywork_client_authorisation,variation_client_authorisation}'
       when table_name='dayworks' then '{kind}' when table_name='daywork_pricings' then '{method,note}'
+      when table_name='daywork_pricing_lines' then '{markup_percent,markup}'
       when table_name='audit_events' then '{commercial}' else '{}' end,
  case when table_name='contracts' then '{daywork_client_authorisation,variation_client_authorisation}'
       when table_name='dayworks' then '{kind}' when table_name='daywork_pricings' then '{method,note}'
+      when table_name='daywork_pricing_lines' then '{markup_percent,markup}'
       when table_name='audit_events' then '{commercial}' else '{}' end,
  schema_name,table_name),false,true,'')))[1]::text from test.commercial_original_tables order by schema_name,table_name;
 SQL
@@ -117,6 +119,12 @@ select test.assert((select count(*)=0 from public.audit_events where commercial 
    ('contract_commercials','daywork_client_authorisations','contract_daywork_rates','daywork_pricings','daywork_pricing_lines','daywork_commercial_approvals')
    or (entity_type='dayworks' and action='update'))),'no other audit row is reclassified');
 select test.assert((select daywork_client_authorisation from public.contracts),'existing contracts require the client''s authorisation for dayworks');
+-- Commercial accounts (C6): existing priced lines carry no markup and keep their price; no business
+-- details or payment terms are invented.
+select test.assert((select bool_and(markup=0 and markup_percent=0) from public.daywork_pricing_lines)
+ and (select total=84 from public.daywork_pricings) and (select count(*)=0 from public.organisation_billing_profiles)
+ and (select count(*)=0 from public.contract_payment_terms) and (select count(*)=0 from public.commercial_documents),
+ 'commercial accounts keep every existing price and invent no business details, terms or documents');
 -- The existing supervisor now sees the go-ahead, and no commercial approval.
 begin;
 set local role authenticated;
