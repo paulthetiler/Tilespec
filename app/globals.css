@@ -331,3 +331,11 @@
 /* Subtle white separation between photographic hero and navy package panel */
 .package-transition{border-top:30px solid #fff}
 @media(max-width:760px){.package-transition{border-top-width:20px}}
+
+
+/* Slim three-stage strip directly below the hero */
+.package-transition.package-transition-slim{border-top:0;background:#102b38}
+.package-transition-slim .package-transition-steps{display:flex;align-items:center;justify-content:center;gap:0;border:0;padding-top:18px;padding-bottom:18px}
+.package-transition-slim .package-transition-steps span{flex:1;text-align:center;font-size:12px;letter-spacing:.14em;font-weight:800;color:#fff}
+.package-transition-slim .package-transition-steps span+span{border-left:1px solid #78b6ac}
+@media(max-width:760px){.package-transition-slim .package-transition-steps{padding-top:15px;padding-bottom:15px}.package-transition-slim .package-transition-steps span{font-size:10px;letter-spacing:.05em}}
