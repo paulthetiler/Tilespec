@@ -187,3 +187,7 @@
 /* Approved realistic tiling illustrations. */
 .tiling-process-art{display:block;width:190px;height:118px;object-fit:contain;object-position:left center;margin:0 0 16px}
 @media(max-width:760px){.tiling-process-art{width:178px;height:110px}}
+
+/* Four-stage How We Work layout; keep generous readable widths on tablet. */
+@media(min-width:1101px){.approach .process-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:25px}.approach .process-grid h3{font-size:clamp(26px,2.3vw,33px)}}
+@media(min-width:761px) and (max-width:1100px){.approach .process-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:42px 32px}}
