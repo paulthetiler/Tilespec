@@ -205,3 +205,8 @@
 .service-photo img,
 .project-photo,
 .tiling-process-art { transition: filter .35s ease, transform .5s ease; }
+
+/* Commercial enquiry CTA: restrained TileSpec pill instead of underline. */
+.tender-enquiry-pill{display:inline-flex;align-items:center;justify-content:space-between;gap:30px;background:#153744;color:#fff;border:1px solid #153744;border-radius:999px;padding:17px 24px;font-size:11px;line-height:1.2;letter-spacing:.13em;font-weight:800;margin-top:28px;text-decoration:none;transition:background .2s,transform .2s}
+.tender-enquiry-pill:hover{background:#285661;transform:translateY(-2px)}
+.tender-enquiry-pill:focus-visible{outline:3px solid #75b2a9;outline-offset:3px}
