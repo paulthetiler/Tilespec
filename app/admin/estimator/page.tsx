@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function EstimatorPage() {
-  await requireFinancialActor();
-  return <CommercialEstimator/>;
+  const {supabase,member}=await requireFinancialActor();
+  const {data:contracts}=await supabase.from("contracts").select("id,name,reference").eq("organisation_id",member.organisation_id).order("name");
+  return <CommercialEstimator contracts={contracts??[]}/>;
 }
