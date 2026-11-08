@@ -210,3 +210,27 @@
 .tender-enquiry-pill{display:inline-flex;align-items:center;justify-content:space-between;gap:30px;background:#153744;color:#fff;border:1px solid #153744;border-radius:999px;padding:17px 24px;font-size:11px;line-height:1.2;letter-spacing:.13em;font-weight:800;margin-top:28px;text-decoration:none;transition:background .2s,transform .2s}
 .tender-enquiry-pill:hover{background:#285661;transform:translateY(-2px)}
 .tender-enquiry-pill:focus-visible{outline:3px solid #75b2a9;outline-offset:3px}
+
+
+/* TileSpec responsive and presentation refinements */
+@media (min-width: 761px) {
+  .projects .project-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  html, body { max-width:100%; overflow-x:clip; }
+  .site-header .nav-links:not(.open) { display:none; }
+  .site-header .menu-button { display:flex; }
+  .service-grid { grid-template-columns:1fr; }
+  .projects .project-grid { grid-template-columns:1fr; }
+  .statement-grid, .sectors-grid, .tender-grid { grid-template-columns:1fr; }
+  .hero h1 { overflow-wrap:normal; }
+}
+.statement-grid > div:first-child { display:flex; align-items:center; }
+.statement-grid > div:first-child .vertical-rule { min-height:130px; }
+.statement h2 span { color:var(--teal); }
+.tender-enquiry-pill { border-radius:0; }
+.project-photo { position:relative; }
+.project-card .project-photo:after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,transparent 45%,rgba(5,18,25,.8) 100%); pointer-events:none; }
+.project-copy { position:relative; z-index:1; }
+.approach .tiling-process-art { width:180px; height:112px; object-fit:contain; }
+@media (max-width:760px) { .statement-grid > div:first-child {display:none;} }
