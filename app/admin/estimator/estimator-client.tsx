@@ -38,7 +38,7 @@ export default function CommercialEstimator(){
   const [programme,setProgramme] = useState<ProgrammeSettings>({contingencyDays:2,startDate:""});
   const [projectName,setProjectName] = useState("");
   const [materialSettings,setMaterialSettings] = useState<MaterialSettings>({adhesiveBagPrice:25,adhesiveCoverage:4,adhesiveBagKg:20,backButterKgPerSqm:1.5,groutPackPrice:18,groutPackKg:5,groutDensity:1.6,groutWaste:10});
-  const [supervisor,setSupervisor] = useState<SupervisorSettings>({mode:"visiting",dayRate:230,days:2,expenses:0});
+  const [supervisor,setSupervisor] = useState<SupervisorSettings>({mode:"full-time",dayRate:230,days:2,expenses:0});
   const setMaterial=(key:keyof MaterialSettings,value:number)=>setMaterialSettings(v=>({...v,[key]:value}));
   const setSuper=(key:keyof SupervisorSettings,value:string|number)=>setSupervisor(v=>({...v,[key]:value}));
   function edit(id:number,changes:Partial<Area>){setAreas(prev=>prev.map(a=>a.id===id?{...a,...changes}:a));}
