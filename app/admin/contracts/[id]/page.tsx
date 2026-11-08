@@ -100,6 +100,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       <Link href={`/admin/supervisor/sites/${id}/commercial?kind=dayworks`}>{dayworks ? "Dayworks" : "Dayworks (not built yet)"}</Link>
       <Link href={`/admin/supervisor/sites/${id}/materials`}>Materials used</Link>
       {financial && <Link href={`/admin/contracts/${id}/money`}>Job money</Link>}
+      {financial && <Link href={`/admin/contracts/${id}/accounts`}>Accounts and invoicing</Link>}
     </nav>}
     <section className={styles.warning} aria-label="Contract release status"><span className={styles.warningBadge}>Draft · unreleased</span><h2>Installation is not authorised</h2><ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><p className={styles.small}>No inspection, approval or signature has been recorded by this setup workflow. Quality gates must be implemented and completed before release.</p></section>
 

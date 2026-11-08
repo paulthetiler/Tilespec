@@ -108,7 +108,7 @@ export async function dayworkMoneyFor(supabase: SupabaseClient, contractId: stri
   return {
     rates: numbers<DayworkRate>(rates.data, ["rate"]),
     pricings: numbers<DayworkPricing>(pricings.data, ["total", "lines_version"]).map(row => ({ ...row, method: row.method ?? "day_rates", note: row.note ?? null })),
-    pricingLines: numbers<DayworkPricingLine>(pricingLines.data, ["rate", "quantity", "amount"]), approvals: (approvals.data ?? []) as DayworkApproval[],
+    pricingLines: numbers<DayworkPricingLine>(pricingLines.data, ["rate", "quantity", "amount", "markup_percent", "markup"]), approvals: (approvals.data ?? []) as DayworkApproval[],
   };
 }
 

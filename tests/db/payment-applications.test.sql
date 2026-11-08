@@ -38,6 +38,10 @@ select public.price_daywork(:'vo',gen_random_uuid(),3,'{"method":"quoted","total
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'owner'),true);
 select public.approve_daywork_charge(:'dw',gen_random_uuid(),4,'{}');
 select public.approve_daywork_charge(:'vo',gen_random_uuid(),4,'{}');
+-- The contract requires the client's authorisation before an extra is agreed (C6: only agreed extras are claimed).
+select set_config('request.jwt.claims',format('{"sub":"%s"}',:'mia'),true);
+select public.record_daywork_client_authorisation(:'dw',gen_random_uuid(),'{"outcome":"authorised","client_name":"Sam Site","reference":"CI-11"}');
+select public.record_daywork_client_authorisation(:'vo',gen_random_uuid(),'{"outcome":"authorised","client_name":"Sam Site","reference":"CI-12"}');
 
 -- Only money access can raise an application.
 select format('{"contract_id":"%s","period_end":"2026-10-31","lines":[{"kind":"contract_works","description":"Work to date","amount":10000}]}',:'c1') as simple \gset
@@ -50,7 +54,7 @@ select test.expect_error(format('select public.create_payment_application(gen_ra
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'faye'),true);
 select test.expect_error(format('select public.create_payment_application(gen_random_uuid(),jsonb_build_object(''contract_id'',%L,''period_end'',''2026-10-31'',''lines'',jsonb_build_array(
  jsonb_build_object(''kind'',''extra_work'',''daywork_id'',%L,''description'',''Not charge approved'',''amount'',40))))',:'c1',:'dw_pending'),
- array['22023'],'extra work is claimed only once the office approved it and its charge is approved');
+ array['22023'],'extra work is claimed only once it is agreed: office approved, its charge approved and authorised by the client where required');
 select test.expect_error(format('select public.create_payment_application(gen_random_uuid(),jsonb_build_object(''contract_id'',%L,''period_end'',''2026-10-31'',''lines'',jsonb_build_array(
  jsonb_build_object(''kind'',''extra_work'',''daywork_id'',%L,''description'',''Once'',''amount'',320),jsonb_build_object(''kind'',''extra_work'',''daywork_id'',%L,''description'',''Twice'',''amount'',320))))',:'c1',:'dw',:'dw'),
  array['23505'],'the same extra cannot be claimed twice in one application');

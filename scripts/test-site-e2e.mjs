@@ -1,4 +1,4 @@
-// End-to-end workforce, inspection, snag, formal hold and simple daily journeys: real Next.js pages and
+// End-to-end workforce, inspection, snag, formal hold, simple daily and commercial accounts journeys: real Next.js pages and
 // actions talk through PostgREST to disposable PostgreSQL with every migration
 // and RLS policy applied. Local stand-ins supply Auth and the Storage HTTP/byte
 // transport; Storage metadata and permissions still use the real migrated
@@ -292,6 +292,13 @@ async function main() {
       gatewayOrigin: `http://127.0.0.1:${gateway.port}`, tokenFor: email => session(users[email], email).access_token });
     return;
   }
+  const accounts = async () => {
+    const { runAccounts } = await import('./accounts-e2e-flows.mjs');
+    await runAccounts({ browser, origin: next.origin, sql, signIn, pass, screenshots, gatewayOrigin: `http://127.0.0.1:${gateway.port}`,
+      tokenFor: email => session(users[email], email).access_token });
+  };
+  // Optional developer focus on the commercial accounts journey.
+  if (process.env.E2E_ACCOUNTS_ONLY === '1') return accounts();
   const { checkLegacyAdmin } = await import('./admin-today-e2e-flows.mjs');
   await checkLegacyAdmin({ browser, origin: next.origin, signIn, pass });
   // Optional developer focus while diagnosing a snag, hold or simple journey. The normal npm
@@ -320,6 +327,7 @@ async function main() {
       storage: gateway.storage, rpcFaults: gateway.rpcFaults, gatewayOrigin: `http://127.0.0.1:${gateway.port}`,
       tokenFor: email => session(users[email], email).access_token, log: next.log });
   }
+  if (process.env.E2E_SNAGS_ONLY !== '1' && process.env.E2E_HOLDS_ONLY !== '1' && process.env.E2E_SIMPLE_ONLY !== '1') await accounts();
 }
 
 try {

@@ -1,9 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { checkDatabase } from "./data";
-import { dayworkMoneyFor, dayworksFor } from "./daywork-data";
-import { dayworkReference } from "./dayworks";
-import type { ClaimableExtra, PaymentApplication, PaymentLine, PaymentReceipt, PaymentSummary } from "./payments";
+import type { PaymentApplication, PaymentLine, PaymentReceipt, PaymentSummary } from "./payments";
 
 type Result = { data: unknown; error: { code?: string; message?: string } | null };
 // Payment applications arrive with their own reviewed migration (C4); before it is applied they are absent.
@@ -31,17 +29,4 @@ export async function paymentsFor(supabase: SupabaseClient, contractId: string):
     lines: allLines.filter(line => apps.some(app => app.id === line.application_id && app.lines_version === line.lines_version)),
     receipts: numbers<PaymentReceipt>(receipts.data, ["amount"]),
   };
-}
-
-/**
- * Dayworks and variations that can be claimed: approved by the office, with their charge approved
- * internally. The suggested value is the latest price. Money access only.
- */
-export async function claimableExtrasFor(supabase: SupabaseClient, contractId: string): Promise<ClaimableExtra[]> {
-  const [records, money] = await Promise.all([dayworksFor(supabase, contractId, undefined, { office: true }), dayworkMoneyFor(supabase, contractId)]);
-  if (!records || !money) return [];
-  return records.dayworks.filter(d => d.office_status === "approved" && records.office?.get(d.id)?.commercial_status === "commercially_approved").map(d => {
-    const pricing = money.pricings.filter(p => p.daywork_id === d.id).sort((a, b) => b.priced_at.localeCompare(a.priced_at))[0];
-    return { id: d.id, reference: dayworkReference(d), description: d.description, priced: pricing?.total ?? 0 };
-  });
 }

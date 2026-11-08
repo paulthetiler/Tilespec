@@ -1,0 +1,263 @@
+{
+ "kind": "daywork_summary",
+ "title": "Daywork summary",
+ "snapshot": {
+  "as_at": "2026-10-27",
+  "terms": {
+   "basis": "interim",
+   "cis_rate": 20,
+   "due_days": 7,
+   "vat_rate": 20,
+   "has_terms": true,
+   "cis_applies": true,
+   "valuation_day": 25,
+   "vat_treatment": "reverse_charge",
+   "making_good_on": null,
+   "original_value": 486250,
+   "advance_payment": 0,
+   "order_reference": "SUB-0417",
+   "advance_recovery": "pro_rata",
+   "construction_act": true,
+   "materials_on_site": true,
+   "retention_percent": 5,
+   "final_payment_days": 21,
+   "payment_notice_days": 5,
+   "valuation_frequency": "monthly",
+   "pay_less_notice_days": 7,
+   "retention_cap_amount": null,
+   "defects_period_months": 12,
+   "retention_cap_percent": 3,
+   "retention_on_materials": true,
+   "practical_completion_on": null,
+   "retention_pc_release_percent": 50
+  },
+  "issuer": {
+   "email": null,
+   "phone": null,
+   "footer": null,
+   "website": null,
+   "cis_status": "not_registered",
+   "legal_name": null,
+   "vat_number": "GB000000000",
+   "trading_name": "TileSPEC",
+   "bank_sort_code": null,
+   "company_number": null,
+   "vat_registered": true,
+   "bank_account_name": null,
+   "registered_address": null,
+   "bank_account_number": null,
+   "payment_instructions": null
+  },
+  "bill_to": {
+   "name": "Example Construction Ltd",
+   "email": null,
+   "address": "Commercial Department, 10 Example Road, Exampleton EX2 3BC"
+  },
+  "contract": {
+   "id": "aa530000-0000-4000-8000-000000000001",
+   "name": "Example Wharf — Blocks C and D, wall and floor tiling",
+   "client": "Example Developments Ltd",
+   "address": "Plot 4, Example Wharf, Exampleton EX1 2AB",
+   "end_date": "2026-12-18",
+   "reference": "TS-2417",
+   "start_date": "2026-06-29",
+   "payment_terms": "Monthly interim applications to the 25th. Retention 5% to a limit of 3% of the subcontract sum; half released at practical completion and the balance on making good defects.",
+   "order_reference": "SUB-0417",
+   "principal_contractor": "Example Construction Ltd"
+  },
+  "dayworks": [
+   {
+    "lines": [
+     {
+      "kind": "labour",
+      "rate": 38.5,
+      "role": "operative",
+      "unit": "hour",
+      "label": "Tiler (2 operatives)",
+      "amount": 462,
+      "markup": 0,
+      "quantity": 12,
+      "work_date": "2026-07-01",
+      "markup_percent": 0
+     },
+     {
+      "kind": "plant",
+      "rate": 65,
+      "role": null,
+      "unit": "day",
+      "label": "Floor grinder",
+      "amount": 65,
+      "markup": 6.5,
+      "quantity": 1,
+      "work_date": null,
+      "markup_percent": 10
+     },
+     {
+      "kind": "material",
+      "rate": 18.4,
+      "role": null,
+      "unit": "bag",
+      "label": "Levelling compound",
+      "amount": 110.4,
+      "markup": 16.56,
+      "quantity": 6,
+      "work_date": null,
+      "markup_percent": 15
+     }
+    ],
+    "state": "approved",
+    "value": 660.46,
+    "photos": 0,
+    "location": "",
+    "claimable": true,
+    "reference": "DW-1",
+    "claimed_in": 4,
+    "description": "Grind out and level uneven screed in Block C level 2 corridor",
+    "included_in": null,
+    "client_status": "authorised",
+    "instructed_by": "A. Example",
+    "instructed_on": "2026-07-01",
+    "office_status": "approved",
+    "signed_sheets": 0,
+    "client_required": true,
+    "commercial_status": "commercially_approved",
+    "client_authorisation": {
+     "reference": "DWS-1",
+     "decided_on": "2026-07-03",
+     "client_name": "Example Construction Ltd"
+    },
+    "site_acknowledgement": {
+     "reason": null,
+     "outcome": "signed",
+     "signed_at": "2026-11-08T09:43:53.917916+00:00",
+     "signer_name": "A. Example",
+     "signer_position": "Site manager"
+    },
+    "instructed_by_company": "Example Construction Ltd"
+   },
+   {
+    "lines": [
+     {
+      "kind": "labour",
+      "rate": 38.5,
+      "role": "operative",
+      "unit": "hour",
+      "label": "Tiler",
+      "amount": 288.75,
+      "markup": 0,
+      "quantity": 7.5,
+      "work_date": "2026-07-01",
+      "markup_percent": 0
+     },
+     {
+      "kind": "labour",
+      "rate": 46,
+      "role": "supervisor",
+      "unit": "hour",
+      "label": "Supervisor",
+      "amount": 69,
+      "markup": 0,
+      "quantity": 1.5,
+      "work_date": "2026-07-01",
+      "markup_percent": 0
+     },
+     {
+      "kind": "material",
+      "rate": 14.2,
+      "role": null,
+      "unit": "bag",
+      "label": "Tile adhesive",
+      "amount": 56.8,
+      "markup": 8.52,
+      "quantity": 4,
+      "work_date": null,
+      "markup_percent": 15
+     }
+    ],
+    "state": "approved",
+    "value": 423.07,
+    "photos": 0,
+    "location": "",
+    "claimable": true,
+    "reference": "DW-2",
+    "claimed_in": 4,
+    "description": "Remove and refix wall tiles damaged by follow-on trades, apartment D4.06",
+    "included_in": null,
+    "client_status": "authorised",
+    "instructed_by": "A. Example",
+    "instructed_on": "2026-07-01",
+    "office_status": "approved",
+    "signed_sheets": 0,
+    "client_required": true,
+    "commercial_status": "commercially_approved",
+    "client_authorisation": {
+     "reference": "DWS-2",
+     "decided_on": "2026-07-03",
+     "client_name": "Example Construction Ltd"
+    },
+    "site_acknowledgement": {
+     "reason": null,
+     "outcome": "signed",
+     "signed_at": "2026-11-08T09:43:53.917916+00:00",
+     "signer_name": "A. Example",
+     "signer_position": "Site manager"
+    },
+    "instructed_by_company": "Example Construction Ltd"
+   },
+   {
+    "lines": [
+     {
+      "kind": "labour",
+      "rate": 38.5,
+      "role": "operative",
+      "unit": "hour",
+      "label": "Tiler",
+      "amount": 231,
+      "markup": 0,
+      "quantity": 6,
+      "work_date": "2026-07-01",
+      "markup_percent": 0
+     }
+    ],
+    "state": "approved",
+    "value": 231,
+    "photos": 0,
+    "location": "",
+    "claimable": false,
+    "reference": "DW-3",
+    "claimed_in": null,
+    "description": "Prepare and prime lobby feature wall",
+    "included_in": "VO-1",
+    "client_status": "authorised",
+    "instructed_by": "A. Example",
+    "instructed_on": "2026-07-01",
+    "office_status": "approved",
+    "signed_sheets": 0,
+    "client_required": true,
+    "commercial_status": "commercially_approved",
+    "client_authorisation": {
+     "reference": "DWS-3",
+     "decided_on": "2026-07-03",
+     "client_name": "Example Construction Ltd"
+    },
+    "site_acknowledgement": null,
+    "instructed_by_company": null
+   }
+  ],
+  "revision": 0,
+  "issued_by": "Commercial Manager",
+  "issued_on": "2026-10-27",
+  "reference": "TS-2417/DS-01",
+  "supersedes": null,
+  "contract_sum": {
+   "pending": 5235,
+   "revised": 496523.53,
+   "original": 486250,
+   "dayworks_agreed": 1083.53,
+   "variations_agreed": 9190
+  },
+  "revision_reason": null
+ },
+ "issued_on": "2026-10-27",
+ "reference": "TS-2417/DS-01"
+}

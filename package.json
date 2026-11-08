@@ -21,9 +21,11 @@
     "preview:check": "node scripts/build-preview-engine.mjs --check",
     "preview:smoke": "node docs/redesign/prototype/smoke.mjs",
     "preview:e2e": "node docs/redesign/prototype/e2e.mjs",
-    "preview:mobile": "node scripts/preview-mobile-journeys.mjs"
+    "preview:mobile": "node scripts/preview-mobile-journeys.mjs",
+    "samples:documents": "bash scripts/generate-sample-documents.sh"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "lucide-react": "^0.468.0",
@@ -33,6 +35,8 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "@fontsource/dm-sans": "^5.3.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",

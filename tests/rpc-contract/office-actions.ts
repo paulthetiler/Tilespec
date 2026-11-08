@@ -62,7 +62,7 @@ for (const file of ["app", "lib", "components"].flatMap(directory => sources(joi
   for (const line of text.split("\n")) {
     for (const match of line.matchAll(/(\w+)\.rpc\("(\w+)",\s*\{(.*)/g)) {
       rpcCalls.push({ file: relative(repository, file), name: match[2], keys: [...match[3].matchAll(/\b(p_\w+)\s*:/g)].map(key => key[1]),
-        role: match[1] === "verifier" ? "service_role" : "authenticated" });
+        role: ["verifier", "serviceClient"].includes(match[1]) ? "service_role" : "authenticated" });
     }
   }
   for (const match of text.matchAll(/(\w+)\.from\("(\w+)"\)\s*\.select\((?:"([^"]*)"|(\w+))\)/g)) {

@@ -1,0 +1,197 @@
+{
+ "kind": "statement",
+ "title": "Statement of account",
+ "snapshot": {
+  "as_at": "2026-11-06",
+  "terms": {
+   "basis": "interim",
+   "cis_rate": 20,
+   "due_days": 7,
+   "vat_rate": 20,
+   "has_terms": true,
+   "cis_applies": true,
+   "valuation_day": 25,
+   "vat_treatment": "reverse_charge",
+   "making_good_on": null,
+   "original_value": 486250,
+   "advance_payment": 0,
+   "order_reference": "SUB-0417",
+   "advance_recovery": "pro_rata",
+   "construction_act": true,
+   "materials_on_site": true,
+   "retention_percent": 5,
+   "final_payment_days": 21,
+   "payment_notice_days": 5,
+   "valuation_frequency": "monthly",
+   "pay_less_notice_days": 7,
+   "retention_cap_amount": null,
+   "defects_period_months": 12,
+   "retention_cap_percent": 3,
+   "retention_on_materials": true,
+   "practical_completion_on": null,
+   "retention_pc_release_percent": 50
+  },
+  "ageing": {
+   "current": 58245.85,
+   "days_1_30": 0,
+   "days_31_60": 0,
+   "days_61_90": 0,
+   "days_over_90": 0
+  },
+  "issuer": {
+   "email": null,
+   "phone": null,
+   "footer": null,
+   "website": null,
+   "cis_status": "not_registered",
+   "legal_name": null,
+   "vat_number": "GB000000000",
+   "trading_name": "TileSPEC",
+   "bank_sort_code": null,
+   "company_number": null,
+   "vat_registered": true,
+   "bank_account_name": null,
+   "registered_address": null,
+   "bank_account_number": null,
+   "payment_instructions": null
+  },
+  "balance": 57745.85,
+  "bill_to": {
+   "name": "Example Construction Ltd",
+   "email": null,
+   "address": "Commercial Department, 10 Example Road, Exampleton EX2 3BC"
+  },
+  "entries": [
+   {
+    "on": "2026-07-27",
+    "type": "application",
+    "debit": 45505,
+    "credit": 0,
+    "balance": 45505,
+    "description": "Application 1 — sum due"
+   },
+   {
+    "on": "2026-08-24",
+    "type": "receipt",
+    "debit": 0,
+    "credit": 45505,
+    "balance": 0,
+    "description": "Payment received (BACS 240826), with CIS deducted"
+   },
+   {
+    "on": "2026-08-26",
+    "type": "application",
+    "debit": 66405,
+    "credit": 0,
+    "balance": 66405,
+    "description": "Application 2 — sum due"
+   },
+   {
+    "on": "2026-09-22",
+    "type": "receipt",
+    "debit": 0,
+    "credit": 66405,
+    "balance": 0,
+    "description": "Payment received (BACS 220926), with CIS deducted"
+   },
+   {
+    "on": "2026-10-05",
+    "type": "invoice",
+    "debit": 60515,
+    "credit": 0,
+    "balance": 60515,
+    "description": "Invoice INV-00001 (application 3)"
+   },
+   {
+    "on": "2026-10-26",
+    "type": "receipt",
+    "debit": 0,
+    "credit": 60515,
+    "balance": 0,
+    "description": "Payment received (BACS 261026), with CIS deducted"
+   },
+   {
+    "on": "2026-10-27",
+    "type": "application",
+    "debit": 58245.85,
+    "credit": 0,
+    "balance": 58245.85,
+    "description": "Application 4 — sum due"
+   },
+   {
+    "on": "2026-11-06",
+    "type": "credit_note",
+    "debit": 0,
+    "credit": 500,
+    "balance": 57745.85,
+    "description": "Credit note CN-00001 against INV-00001"
+   }
+  ],
+  "contract": {
+   "id": "aa530000-0000-4000-8000-000000000001",
+   "name": "Example Wharf — Blocks C and D, wall and floor tiling",
+   "client": "Example Developments Ltd",
+   "address": "Plot 4, Example Wharf, Exampleton EX1 2AB",
+   "end_date": "2026-12-18",
+   "reference": "TS-2417",
+   "start_date": "2026-06-29",
+   "payment_terms": "Monthly interim applications to the 25th. Retention 5% to a limit of 3% of the subcontract sum; half released at practical completion and the balance on making good defects.",
+   "order_reference": "SUB-0417",
+   "principal_contractor": "Example Construction Ltd"
+  },
+  "revision": 0,
+  "issued_by": "Commercial Manager",
+  "issued_on": "2026-11-06",
+  "reference": "TS-2417/ST-01",
+  "supersedes": null,
+  "applications": [
+   {
+    "due": 45505,
+    "number": 1,
+    "status": "paid",
+    "final_on": "2026-08-24",
+    "received": 45505,
+    "period_end": "2026-07-25",
+    "outstanding": 0
+   },
+   {
+    "due": 66405,
+    "number": 2,
+    "status": "paid",
+    "final_on": "2026-09-23",
+    "received": 66405,
+    "period_end": "2026-08-25",
+    "outstanding": 0
+   },
+   {
+    "due": 60515,
+    "number": 3,
+    "status": "paid",
+    "final_on": "2026-10-26",
+    "received": 60515,
+    "period_end": "2026-09-25",
+    "outstanding": 0
+   },
+   {
+    "due": 58245.85,
+    "number": 4,
+    "status": "submitted",
+    "final_on": "2026-11-24",
+    "received": 0,
+    "period_end": "2026-10-25",
+    "outstanding": 58245.85
+   }
+  ],
+  "contract_sum": {
+   "pending": 5235,
+   "revised": 496523.53,
+   "original": 486250,
+   "dayworks_agreed": 1083.53,
+   "variations_agreed": 9190
+  },
+  "retention_held": 12162.68,
+  "revision_reason": null
+ },
+ "issued_on": "2026-11-06",
+ "reference": "TS-2417/ST-01"
+}

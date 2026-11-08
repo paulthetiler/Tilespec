@@ -85,7 +85,8 @@ export default async function DayworkRecord({ params }: { params: Promise<{ id: 
       {lines.length ? <ul className={styles.plainList}>{lines.map(line => {
         const priced = pricedLines.find(row => row.line_id === line.id);
         return <li key={line.id} data-line-id={line.id}>{lineSummary(line)}
-          {priced && <span className={styles.small}> · {pounds(priced.rate)} per {priced.unit === "m2" ? "m²" : priced.unit} = <strong>{pounds(priced.amount)}</strong></span>}</li>;
+          {priced && <span className={styles.small}> · {pounds(priced.rate)} per {priced.unit === "m2" ? "m²" : priced.unit} = <strong>{pounds(priced.amount)}</strong>
+            {priced.markup ? <> + agreed markup {priced.markup_percent}% <strong>{pounds(priced.markup)}</strong></> : null}</span>}</li>;
       })}</ul> : <p>No lines yet. Add the people, plant and materials before sending it.</p>}
       {pricing?.method === "quoted" && pricing.lines_version === daywork.lines_version && <p data-daywork-total="">
         <strong>Quoted price {pounds(pricing.total)}</strong>{pricing.note ? ` · ${pricing.note}` : ""} · priced by {pricing.priced_by_name} at {when(pricing.priced_at)}</p>}

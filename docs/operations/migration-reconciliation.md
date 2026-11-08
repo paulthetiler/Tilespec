@@ -81,7 +81,8 @@ prerequisites). They do not depend on tender enquiries or office reviews.
    `supabase db push --include-all`. Run `supabase db push --include-all --dry-run` first and check it lists only the
    expected files.
 6. **Apply the commercial migrations in order**, each after its read-only preflight in `supabase/inspection/`:
-   `20261104090000` → `20261104100000` → `20261104110000` → `20261104120000` → `20261104130000`.
+   `20261104090000` → `20261104100000` → `20261104110000` → `20261104120000` → `20261104130000` →
+   `20261108090000` (commercial accounts; see [commercial-accounts.md](commercial-accounts.md)).
 7. **Verify roles** with real test accounts (owner, contracts manager with and without money access, supervisor):
    sign in as the supervisor and query every money table and function directly through the REST API. Each must return
    no rows or a permission error.
