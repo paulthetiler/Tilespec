@@ -316,3 +316,14 @@
 .trust-strip-logos a{display:flex;align-items:center;justify-content:center;width:230px;height:95px;max-width:45%;background:#fff}
 .trust-strip-logos img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
 @media(max-width:760px){.trust-strip-logos{gap:18px;padding-top:14px;padding-bottom:14px}.trust-strip-logos a{width:calc(50% - 9px);height:80px}}
+
+
+/* Compact full-width bridge from hero to commercial expertise */
+.package-transition{background:#102b38;color:#fff}
+.package-transition-inner{padding-top:38px;padding-bottom:34px;text-align:center}
+.package-transition-kicker{color:#85bdb4;font-size:10px;letter-spacing:.2em;font-weight:800;margin-bottom:13px}
+.package-transition h2{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(38px,5vw,66px);line-height:.96;letter-spacing:-.02em;margin:0 0 24px}
+.package-transition h2 span{color:#85bdb4}
+.package-transition-steps{display:flex;justify-content:center;gap:clamp(20px,5vw,75px);border-top:1px solid #45606a;padding-top:17px}
+.package-transition-steps span{font-size:11px;letter-spacing:.13em;font-weight:800}
+@media(max-width:760px){.package-transition-inner{padding-top:27px;padding-bottom:25px}.package-transition-kicker{font-size:9px;margin-bottom:11px}.package-transition h2{font-size:clamp(36px,9vw,54px);margin-bottom:20px}.package-transition-steps{gap:10px;justify-content:space-between;padding-top:15px}.package-transition-steps span{font-size:9px;letter-spacing:.06em}}
