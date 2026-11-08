@@ -80,7 +80,9 @@ export type DayworkRate = {
   supersedes_id: string | null; created_by_name: string; created_at: string;
 };
 export type DayworkPricing = { id: string; daywork_id: string; lines_version: number; total: number; method?: "day_rates" | "quoted"; note?: string | null; priced_by_name: string; priced_at: string };
-export type DayworkPricingLine = { id: string; pricing_id: string; line_id: string; rate_id: string; category: string; item: string; unit: string; rate: number; quantity: number; amount: number };
+export type DayworkPricingLine = { id: string; pricing_id: string; line_id: string; rate_id: string; category: string; item: string; unit: string; rate: number; quantity: number; amount: number;
+  // Agreed markups (commercial accounts, C6); absent until that update is applied.
+  markup_percent?: number; markup?: number };
 export type DayworkApproval = { id: string; daywork_id: string; pricing_id: string; note: string | null; owner_override: boolean; override_reason: string | null; approved_by_name: string; approved_at: string };
 /** A rate item without its money: what a supervisor may pick from. */
 export type RateItem = { category: RateCategory; item: string; unit: DayworkUnit };

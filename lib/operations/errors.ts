@@ -9,6 +9,10 @@ const knownConstraints: [RegExp, string][] = [
   [/subcontractor_companies_name/, "A company with that name is already on record. Check the list, including inactive companies."],
   [/operatives_organisation_id_user_id_key/, "That login is already linked to another operative."],
   [/allocation_absences_once/, "That absence has already been recorded."],
+  [/variation_daywork_inclusions_once/, "That daywork is already included in a variation."],
+  [/payment_application_lines_(extra|stage)_once/, "The same daywork, variation or stage cannot be claimed twice in one application."],
+  [/payment_notices_live_kind/, "A notice of that kind is already recorded for this application. Void it first if it was recorded in error."],
+  [/contract_payment_stages_live_position/, "The payment schedule changed. Refresh and try again."],
 ];
 const technical = /violates|constraint|duplicate key|relation |column |syntax|function .*does not exist|permission denied/i;
 

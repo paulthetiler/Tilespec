@@ -33,6 +33,13 @@ const nextConfig: NextConfig = {
   // production or public-browser suite's compiled modules and runtime cache.
   distDir: process.env.TILESPEC_E2E_OUTPUT === '1' ? '.next/e2e' : '.next',
   experimental: { serverActions: { bodySizeLimit: '4.4mb' } },
+  // Commercial documents are rendered on the server with the PDF renderer loaded natively, and the
+  // embedded brand fonts travel with the routes that print them.
+  serverExternalPackages: ['@react-pdf/renderer'],
+  outputFileTracingIncludes: {
+    '/admin/contracts/[id]/accounts/**': ['./lib/documents/fonts/**'],
+    '/shared/documents/[token]': ['./lib/documents/fonts/**'],
+  },
   async rewrites() {
     return [
       { source: '/preview/workflow', destination: '/preview/workflow/index.html' },
@@ -48,6 +55,7 @@ const nextConfig: NextConfig = {
     ];
     return [
       ...['/admin/:path*', '/login', '/auth/:path*'].map(source => ({ source, headers })),
+      { source: '/shared/:path*', headers: [...headers, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
       { source: '/preview/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'private, no-store' }] },
     ];
   },
