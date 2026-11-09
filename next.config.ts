@@ -40,6 +40,7 @@ const nextConfig: NextConfig = {
     '/admin/contracts/[id]/accounts/**': ['./lib/documents/fonts/**'],
     '/shared/documents/[token]': ['./lib/documents/fonts/**'],
     '/admin/documents/terms/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/commercial-terms-and-conditions-draft.md'],
+    '/admin/documents/health-safety/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/health-and-safety-policy-draft.md'],
   },
   async rewrites() {
     return [
