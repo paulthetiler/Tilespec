@@ -14,7 +14,7 @@ export default async function InvoicesPage({ searchParams }: {searchParams: Prom
   const [contracts, billing, params] = await Promise.all([contractsFor(supabase), billingProfileFor(supabase), searchParams]);
   const q = typeof params.q === "string" ? params.q.trim().toLowerCase().slice(0,120) : "";
   const names = new Map(contracts.map(c => [c.id, {name:c.name, client:c.client, reference:c.reference}]));
-  if (!billing.available) return <><div className={styles.pageHeader}><div><p className={styles.eyebrow}>Commercial accounts</p><h1 className={styles.title}>Invoices</h1></div></div><section className={styles.warning}>The commercial invoicing database update is not active yet. No invoices can be issued until it is applied and verified.</section><p><Link href="/admin/contracts">View contracts</Link></p></>;
+  if (!billing.available) return <><div className={styles.pageHeader}><div><p className={styles.eyebrow}>Commercial accounts</p><h1 className={styles.title}>Invoices</h1></div></div><section className={styles.warning}>The commercial invoicing database update is not active yet. No invoices can be issued until it is applied and verified.</section><p><Link href="/admin/contracts?invoice=1">Choose contract to invoice</Link></p></>;
   const result = await supabase.from("commercial_documents").select("id,contract_id,reference,issued_on,due_on,total,kind,superseded_at").in("kind",["invoice","credit_note"]).order("issued_on",{ascending:false}).limit(500);
   if (result.error) throw new Error(result.error.message);
   const rows = ((result.data ?? []) as InvoiceRow[]).filter(x => names.has(x.contract_id)).filter(x => {
@@ -22,7 +22,7 @@ export default async function InvoicesPage({ searchParams }: {searchParams: Prom
     return !q || [x.reference,c.name,c.client,c.reference].some(v => v.toLowerCase().includes(q));
   });
   return <>
-    <div className={styles.pageHeader}><div><p className={styles.eyebrow}>Commercial accounts</p><h1 className={styles.title}>Invoices</h1><p className={styles.description}>Issued invoices and credit notes across your contracts. Open a job to create an application, issue an invoice or record a payment.</p></div><Link className={styles.button} href="/admin/contracts">Choose contract to invoice</Link></div>
+    <div className={styles.pageHeader}><div><p className={styles.eyebrow}>Commercial accounts</p><h1 className={styles.title}>Invoices</h1><p className={styles.description}>Issued invoices and credit notes across your contracts. Open a job to create an application, issue an invoice or record a payment.</p></div><Link className={styles.button} href="/admin/contracts?invoice=1">Choose contract to invoice</Link></div>
     {!billing.profile?.legal_name && !billing.profile?.trading_name && <section className={styles.warning}>Business details must be entered before issuing invoices. <Link href="/admin/accounts/settings">Set up business details</Link>.</section>}
     <form method="get" className={styles.search}><label className={styles.field}>Find an invoice<input type="search" name="q" defaultValue={params.q ?? ""} placeholder="Invoice number, client or contract" /></label><button type="submit" className={styles.secondaryButton}>Search</button></form>
     <p className={styles.small}>{rows.length} matching issued documents{rows.length===500?" (showing latest 500)":""}</p>
