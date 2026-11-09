@@ -86,7 +86,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
     <div className={styles.pageHeader}>
       <div><p className={styles.eyebrow}>{contract.reference}</p><h1 className={styles.title}>{contract.name}</h1><p className={styles.description}>{contract.client} · {contract.address}</p></div>
       <div className={styles.inline}>
-        <Link href="/admin/contracts" className={styles.secondaryButton}>Contract register</Link>
+        <Link href="/admin/contracts" className={styles.secondaryButton}>Contract register</Link>\n        <a href="#documents" className={styles.button}>Documents</a>
         {!installer && <Link href={`/admin/contracts/${id}/locations`} className={styles.secondaryButton}>Locations</Link>}
         {!installer && <Link href={`/admin/contracts/${id}/actual`} className={styles.secondaryButton}>Planned vs actual</Link>}
         {!installer && <Link href={`/admin/contracts/${id}/plan`} className={styles.button}>{manage ? "Plan work" : "Work plan"}</Link>}
@@ -94,7 +94,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
     </div>
     {manage && <SiteSetup contractId={id} locationCount={activeLocations.length} activeTeamCount={teamCount?.count ?? 0} plannedThisWeek={planCount?.count ?? 0} />}
     {!installer && <nav className={styles.inline} aria-label="This job">
-      <span className={styles.small}>This job:</span>
+      <span className={styles.small}>This job:</span>\n      <a href="#documents">Documents</a>
       {(flagEnabled("nextActions", member.role) || flagEnabled("roleShell", member.role)) && <Link href={`/admin/supervisor/sites/${id}/activity`}>Job activity</Link>}
       <Link href={`/admin/supervisor/sites/${id}/commercial?kind=variations`}>{variations ? "Variations" : "Variations (not available yet)"}</Link>
       <Link href={`/admin/supervisor/sites/${id}/commercial?kind=dayworks`}>{dayworks ? "Dayworks" : "Dayworks (not built yet)"}</Link>
@@ -187,7 +187,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       </>}
     </section>
 
-    <section className={styles.panel} id="documents"><h2>Private documents and evidence</h2><p className={styles.muted}>Revisions are immutable. Files remain private and are opened through an authenticated download. Evidence uploads do not create an approval.</p>
+    <section className={styles.panel} id="documents"><h2>Documents — drawings, specifications, RAMS, COSHH &amp; safety paperwork</h2><p className={styles.muted}>Revisions are immutable. Files remain private and are opened through an authenticated download. Evidence uploads do not create an approval.</p>
       <div className={styles.documentList}>{documents.map(document => <article className={styles.documentRow} key={document.id}>
         <div><strong>{document.title}</strong><p>{document.document_reference} · revision {document.revision} · {areaLabel(document.work_area_id)}</p><p className={styles.small}>{document.classification === "commercial" ? "Commercial" : "Operational"} · {(document.bytes / 1024 / 1024).toFixed(2)} MB · {eventDate(document.created_at)}</p>
           {!document.uploaded_at && (document.created_by === member.user_id ? <details className={styles.details}><summary>Retry this pending upload</summary>
@@ -202,7 +202,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
         {document.uploaded_at ? <a className={styles.secondaryButton} href={`/admin/documents/${document.id}`} target="_blank" rel="noopener noreferrer" aria-label={`Open ${document.title}, revision ${document.revision} in a new tab`}>Open file</a> : <span className={styles.warningBadge}>Upload pending</span>}
       </article>)}</div>
       {documents.length === 0 && <p className={styles.empty}>No accessible document revisions have been recorded.</p>}
-      {installer && areas.length === 0 ? <p className={styles.warning}>Evidence upload requires an allocated work area. Ask your manager to allocate a work package first.</p> : <details className={styles.details}><summary>Upload a document revision or photo</summary><OperationsForm action={uploadDocumentAction} submitLabel="Upload private revision">
+      {installer && areas.length === 0 ? <p className={styles.warning}>Evidence upload requires an allocated work area. Ask your manager to allocate a work package first.</p> : <details className={styles.details}><summary>Add a document or new revision</summary><OperationsForm action={uploadDocumentAction} submitLabel="Upload private revision">
         <input type="hidden" name="contract_id" value={id} /><input type="hidden" name="request_key" value={randomUUID()} />
         <div className={styles.formGrid}>
           <label className={styles.field}>Document reference *<input name="document_reference" maxLength={80} required /></label>
