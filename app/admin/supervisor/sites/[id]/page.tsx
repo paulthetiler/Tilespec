@@ -85,6 +85,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     ["Tile specification", "tile_specification"], ["Installation system", "installation_system"], ["Access", "access_restrictions"], ["Working hours", "working_hours"]]
     .map(([label, key]) => [label, String((details.data as Record<string, unknown> | null)?.[key] ?? "")]);
   const actions = [
+    { label: "Drawings & RAMS", href: `${base}/documents`, detail: "Current site drawings, RAMS and specifications" },
     { label: "Who's on site?", href: `${base}/workforce`, detail: `${site.summary.presentNow} ${site.summary.presentNow === 1 ? "person" : "people"} recorded here` },
     { label: "Check workmanship", href: `${base}/inspections`, detail: "Choose an area and check work" },
     { label: "Verify gang progress", href: `${base}/progress`, detail: "Record measured metres and quality checks" },
