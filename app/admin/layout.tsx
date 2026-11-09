@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const { member } = await requireActor();
   const supervisor = member.role === "supervisor";
+  const gang = member.role === "lead_installer" || member.role === "subcontract_installer";
   // Behind FEATURE_ROLE_SHELL: at most four destinations for this role. Off by default.
   const roleShell = flagEnabled("roleShell", member.role);
 
@@ -44,9 +45,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       {!supervisor && !roleShell && (
         <>
           <nav className={`${styles.shell} ${styles.nav} ${styles.desktopNav}`} aria-label="Admin navigation">
+            {gang && <Link href="/admin/gang">Your invoices</Link>}
             <Link href="/admin">Overview</Link>
             <Link href="/admin/contracts">Contracts</Link>
             {canReadFinancial(member) && <Link href="/admin/invoices">Invoices</Link>}
+            {canReadFinancial(member) && <Link href="/admin/gang-invoices">Gang invoices</Link>}
             {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
             <Link href="/admin/supervisor">Site dashboards</Link>
             <Link href="/admin/snags">Snag register</Link>
@@ -59,12 +62,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             {canReadFinancial(member) && <Link href="/admin/documents">Documents</Link>}
           </nav>
           <nav className={`${styles.shell} ${styles.mobileNav}`} aria-label="Mobile admin navigation">
-            <Link href="/admin/supervisor" className={styles.mobileSiteLink}>My sites</Link>
+            {gang ? <Link href="/admin/gang" className={styles.mobileSiteLink}>Your invoices</Link>
+              : <Link href="/admin/supervisor" className={styles.mobileSiteLink}>My sites</Link>}
             <details className={styles.mobileMenu}>
               <summary>Office menu <span aria-hidden="true">☰</span></summary>
               <div className={styles.mobileMenuLinks}>
                 <Link href="/admin">Overview</Link>
                 <Link href="/admin/contracts">Contracts</Link>
+                {canReadFinancial(member) && <Link href="/admin/gang-invoices">Gang invoices</Link>}
                 {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
                 <Link href="/admin/supervisor">Site dashboards</Link>
                 <Link href="/admin/snags">Snag register</Link>

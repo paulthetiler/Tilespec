@@ -576,7 +576,10 @@ test("feature flags work separately, together and off, and a typo stays off", ()
   const page = source("app/admin/supervisor/sites/[id]/page.tsx");
   assert.match(layout, /flagEnabled\("roleShell"/);
   assert.match(page, /flagEnabled\("nextActions"/);
-  assert.match(page, /STOP WORK/);
+  // The large STOP WORK button was deliberately removed from the supervisor dashboard; issues are
+  // reported the ordinary way and active work restrictions are still shown.
+  assert.doesNotMatch(page, /STOP WORK/);
+  assert.match(page, /Record a work restriction/);
   assert.match(layout, /Office menu/);
 });
 

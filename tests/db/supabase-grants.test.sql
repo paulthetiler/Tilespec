@@ -31,7 +31,8 @@ select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.
       'can_read_document', 'can_upload_path', 'can_read_path', 'can_view_location_hierarchy', 'site_today', 'is_office',
       'is_site_staff', 'my_team_ids', 'is_current_teammate', 'can_supervise_contract', 'installation_stages', 'is_snag_party', 'can_read_snag', 'can_upload_snag_photo', 'can_insert_issue_object', 'can_read_issue_object',
       'can_read_work_hold', 'is_hold_corrector', 'can_upload_hold_photo', 'can_insert_hold_object', 'can_read_hold_object',
-      'can_read_daywork', 'can_upload_daywork_photo', 'can_insert_daywork_object', 'can_read_daywork_object', 'has_money_access')),
+      'can_read_daywork', 'can_upload_daywork_photo', 'can_insert_daywork_object', 'can_read_daywork_object', 'has_money_access',
+      'is_gang_member', 'can_see_gang_invoice', 'can_read_gang_file', 'can_upload_gang_file')),
   'signed-in users can execute only the read-only permission helpers that row-level security policies call');
 select test.assert((select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity),

@@ -14,6 +14,8 @@ import { qualityOverviewFor } from "@/lib/operations/quality-data";
 import { requireSite } from "../../site-access";
 import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import { NextActionsToday } from "@/components/site/next-actions-today";
+import { pendingGangChecks } from "@/lib/operations/gang-data";
+import gangStyles from "@/components/gang/gang.module.css";
 import styles from "../../../admin.module.css";
 import dailyStyles from "@/components/site/daily.module.css";
 
@@ -34,12 +36,13 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   const issuesHref = `${base}/snags`;
   const fullRegisterHref = `/admin/snags?contract_id=${id}`;
   const holdsHref = `/admin/holds?contract_id=${id}`;
-  const [{ records, stale }, status, cover, details, documents, snagResult, quality, daily, dayworks, variations] = await Promise.all([
+  const [{ records, stale }, status, cover, details, documents, snagResult, quality, daily, dayworks, variations, gangChecks] = await Promise.all([
     siteDayFor(supabase, id, day), siteStatusFor(supabase, id, day), companyRecordsFor(supabase),
     supabase.from("contracts").select("client,site_contact,scope,exclusions,tile_specification,installation_system,access_restrictions,working_hours").eq("id", id).maybeSingle(),
     supabase.from("document_revisions").select("id,title,document_reference,revision").eq("contract_id", id).eq("classification", "operational").not("uploaded_at", "is", null),
     supabase.rpc("snag_register", { p_filters: { contract_id: id }, p_page: 0 }),
     qualityOverviewFor(supabase, { contract_id: id }), supervisorDailyFor(supabase, id), dayworksAvailable(supabase), variationsAvailable(supabase),
+    pendingGangChecks(supabase, id),
   ]);
   checkDatabase(details.error);
   checkDatabase(documents.error);
@@ -87,7 +90,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   const actions = [
     { label: "Who's on site?", href: `${base}/workforce`, detail: `${site.summary.presentNow} ${site.summary.presentNow === 1 ? "person" : "people"} recorded here` },
     { label: "Check workmanship", href: `${base}/inspections`, detail: "Choose an area and check work" },
-    { label: "Verify gang progress", href: `${base}/progress`, detail: "Record measured metres and quality checks" },
+    { label: "Verify gang progress", href: `${base}/progress`, count: gangChecks ?? 0, detail: gangChecks ? `${gangChecks} gang ${gangChecks === 1 ? "invoice" : "invoices"} awaiting check` : "Record measured metres and quality checks" },
     { label: "Report a site issue", href: `/admin/snags/new?contract=${id}`, detail: "Workmanship issue, photo and what needs correcting" },
     { label: "Record a work restriction", href: `/admin/holds/new?contract=${id}`, detail: "For serious safety or quality concerns affecting work" },
     { label: "Office messages", href: `${base}/messages`, detail: [unread ? `${unread} to acknowledge` : "", replies ? `${replies} ${replies === 1 ? "reply" : "replies"} from the office` : ""]
@@ -136,7 +139,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
       </div>
       <div className={dailyStyles.tiles} aria-label="Everyday tasks">
         {actions.map(action => <Link className={dailyStyles.tile} key={action.label} href={action.href} aria-label={action.label}>
-          <span>{action.label}</span><small>{action.detail}</small>
+          <span>{action.label}{"count" in action && !!action.count && <span className={gangStyles.count}>{action.count}</span>}</span><small>{action.detail}</small>
         </Link>)}
       </div>
     </section>

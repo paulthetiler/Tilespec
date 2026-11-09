@@ -95,3 +95,8 @@ begin
   end if;
   raise notice 'ok - %', description;
 end $$;
+
+-- Storage buckets the hosted project provisions before the migrations that require them
+-- (see supabase/README.md). Migrations check them in their preflights.
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+  values ('gang-claims','gang-claims',false,4194304,array['application/pdf','image/jpeg','image/png']);
