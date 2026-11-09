@@ -57,7 +57,6 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
     !commercial ? "The contract value is not recorded. Record the original budget on the job page first." : null,
     !terms ? "This contract's payment terms are not set. Until they are, applications use the original budget's retention only." : null,
   ].filter((x): x is string => !!x);
-  const canEditTerms = !!commercial;
   const docLink = (d: IssuedDocument, download = false) => `/admin/contracts/${id}/accounts/documents/${d.id}${download ? "?download=1" : ""}`;
 
   return <>
@@ -71,7 +70,7 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
       <div className={styles.inline}>
         <a className={styles.secondaryButton} href="#terms">1. Set payment terms</a>
         <a className={styles.secondaryButton} href="#applications">2. Prepare the claim</a>
-        <a className={styles.secondaryButton} href="#issued-documents">3. Issue and track</a>
+        <a className={styles.secondaryButton} href="#documents">3. Issue and track</a>
       </div>
       {!commercial && <p className={styles.warning}>First record the original contract value on <Link href={`/admin/contracts/${id}#commercial-budget`}>this job's commercial budget</Link>. Until that is done, the payment terms form is unavailable. The figures shown below are system defaults, not agreed terms.</p>}
       {commercial && !terms && <p className={styles.warning}>These are starting defaults, not approved contract terms. Open “Set the payment terms” below and save the terms actually agreed with the client before creating a payment application.</p>}
