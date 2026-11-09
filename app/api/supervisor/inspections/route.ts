@@ -34,3 +34,16 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ id: saved.id, contractId, requestKey, createdAt: saved.created_at, issuesCount: saved.issues_count, confirmed: true }, { status: result.error ? 200 : 201 });
 }
+
+export async function GET(request: Request) {
+  const { supabase, member } = await requireActor();
+  if (!["owner", "contracts_manager", "supervisor"].includes(member.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const url = new URL(request.url);
+  const inspectionId = url.searchParams.get("inspection");
+  if (!inspectionId || !morningUuid.test(inspectionId)) return NextResponse.json({ error: "Invalid inspection" }, { status: 400 });
+  const inspection = await supabase.from("supervisor_inspections").select("id,contract_id").eq("id", inspectionId).maybeSingle();
+  if (inspection.error || !inspection.data) return NextResponse.json({ error: "Inspection unavailable" }, { status: 403 });
+  const issues = await supabase.from("supervisor_issues").select("id,check_label").eq("inspection_id", inspectionId);
+  if (issues.error) return NextResponse.json({ error: "Issues unavailable" }, { status: 503 });
+  return NextResponse.json({ issues: issues.data });
+}
