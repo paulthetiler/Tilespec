@@ -150,7 +150,6 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
               })}
               <p style={{ marginBottom: 0, fontSize: 13 }}>This records the morning-check exception. Confirm actual attendance separately in <Link href={workforceHref}>Who's on site?</Link>.</p>
             </div>}
-            </>}
             {photoChecks.includes(check.item) && problem && <div style={{ marginTop: 12, padding: 12, background: "#f5f8f9", borderRadius: 8 }}>
               <strong>Add a photo?</strong>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
