@@ -91,9 +91,18 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
           const problem = response === check.issueAnswer;
           return <fieldset key={check.item} disabled={frozen} style={{ minWidth: 0, border: 0, padding: "12px 0 16px", margin: 0, borderBottom: "1px solid #edf1f2" }}>
             <legend style={{ padding: 0, fontWeight: 700, lineHeight: 1.5, maxWidth: "100%", overflowWrap: "anywhere" }}>{check.item}</legend>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+            {stockItems.includes(check.item) ? <div style={{ marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {([["plenty", "Plenty in stock"], ["low", "Running low"], ["out", "Out of stock"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={stockLevels[check.item] === value} style={{ ...button, flex: "1 1 120px", background: stockLevels[check.item] === value ? "#d5eee5" : "#fff" }} onClick={() => { setStockLevels(current => ({ ...current, [check.item]: value })); setResponses(current => ({ ...current, [check.item]: value === "plenty" ? "yes" : "no" })); if (value === "out") setStockCounts(current => ({ ...current, [check.item]: "0" })); }}>{label}</button>)}
+              </div>
+              {(stockLevels[check.item] === "low" || stockLevels[check.item] === "out") && <label style={{ display: "block", marginTop: 10 }}>How many {check.item === "Tiles and other required materials available?" ? "units" : "bags"} left?
+                <input type="number" min="0" max="100000" step="1" disabled={stockLevels[check.item] === "out"} value={stockCounts[check.item] ?? ""} onChange={event => setStockCounts(current => ({ ...current, [check.item]: event.target.value }))} style={{ display: "block", width: 100, padding: 10, marginTop: 6, border: "1px solid #aabdc5", borderRadius: 6 }}/>
+              </label>}
+              {stockLevels[check.item] === "low" && <p style={{ fontSize: 14 }}>Restock warning for the office — no order placed automatically.</p>}
+              {stockLevels[check.item] === "out" && <p style={{ fontSize: 14 }}>Out of stock — office to review urgently.</p>}
+            </div> : <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               {([["yes", "YES"], ["no", "NO"], ["na", "NOT APPLICABLE"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={response === value} style={{ ...button, flex: value === "na" ? "1 1 130px" : "1 1 55px", background: response === value ? "#d5eee5" : "#fff", outline: response === value ? "2px solid #326e67" : undefined }} onClick={() => setResponses(current => ({ ...current, [check.item]: value }))}>{label}</button>)}
-            </div>
+            </div>}
             {check.item === attendanceItem && response === "no" && <div style={{ marginTop: 12, padding: 12, background: "#f5f8f9", borderRadius: 8 }}>
               <p style={{ marginTop: 0, fontWeight: 700 }}>Who is missing from today's planned gangs?</p>
               {plannedGangs.length === 0 ? <p>No gangs are scheduled here today. Check the office plan in <Link href={workforceHref}>Who's on site?</Link> and add a note below.</p> : plannedGangs.map(gang => {
