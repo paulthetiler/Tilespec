@@ -39,6 +39,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/admin/contracts/[id]/accounts/**': ['./lib/documents/fonts/**'],
     '/shared/documents/[token]': ['./lib/documents/fonts/**'],
+    '/admin/documents/terms/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/commercial-terms-and-conditions-draft.md'],
   },
   async rewrites() {
     return [
