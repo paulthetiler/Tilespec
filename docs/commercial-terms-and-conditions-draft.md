@@ -37,6 +37,30 @@ Insurance levels, RAMS, inductions, site rules, CDM responsibilities and any spe
 ## 12. Contract precedence and acceptance
 These are proposed commercial terms only. They do not automatically override a main contractor's subcontract. Conflicting terms must be identified and agreed before signing. No work or material commitments should proceed without appropriate authorisation and an agreed contractual basis.
 
+## 13. Protection of completed works
+Where protection of completed tiling is expressly included in TileSpec's agreed scope, TileSpec will supply and install the specified protection and fulfil any agreed maintenance or removal obligations. Where excluded, the main contractor or other designated party must arrange suitable protection and its maintenance. The tender/order should explicitly identify who supplies, installs, maintains, inspects and removes protection, and when responsibility transfers. Following documented handover, ongoing protection and prevention of damage by subsequent trades rests with the contractually responsible party. Third-party damage or interference with protection is not automatically a TileSpec workmanship defect; rectification may be chargeable subject to contract and evidence.
+
+## 14. Coordination with other trades
+The parties will coordinate access and working areas to allow safe, reasonably continuous installation. TileSpec will promptly notify interference, congestion or unavailability of areas and keep records of any resulting delay or additional costs. Any entitlement to time or money follows the agreed subcontract and notice requirements.
+
+## 15. Authorised instructions and records
+Before starting, the parties should identify the individuals authorised to instruct changes and approve commercial consequences. Site instructions, variations and dayworks should be confirmed in writing as soon as practicable. A signature verifying attendance or hours does not necessarily constitute agreement to valuation. Urgent safety-related instructions must be followed appropriately.
+
+## 16. Substrate checks and concealed conditions
+TileSpec will carry out the checks expressly included in its scope and notify apparent unsuitable substrates, moisture, movement, levels or hidden defects discovered during the works. Additional investigation, preparation, corrective work and associated programme effects are to be agreed and valued under the contract before proceeding where reasonably practicable. TileSpec must not knowingly proceed with unsafe or unsuitable work.
+
+## 17. Design and specification responsibility
+Design responsibility is limited to design expressly allocated to TileSpec in the accepted subcontract. Responsibility for designs and specifications prepared by others remains as allocated by contract and law; TileSpec will promptly raise apparent discrepancies or unsuitable specifications. No clause removes any statutory duty or expressly accepted design obligation.
+
+## 18. Snagging and return visits
+TileSpec will attend to genuine defects attributable to its works as required by the agreed contract. Return visits for third-party damage, changed instructions, unavailable access or issues outside TileSpec's responsibility may be separately valued where contractually permitted. Snag lists should identify location, nature and responsible trade, with reasonable access arranged.
+
+## 19. Cooperation, communication and dispute escalation
+TileSpec will work professionally with site personnel, communicate issues promptly and seek to deliver agreed quality and programmes. In return, the contractor is expected to provide timely instructions, coordination, reasonable access and payment in accordance with agreed terms. Concerns should first be raised with the nominated site and commercial contacts, then escalated to management promptly, without restricting statutory adjudication, payment or other legal rights.
+
+## 20. Liability and subcontract review
+Before acceptance, the parties should expressly review liability caps, indemnities, consequential-loss provisions, design obligations, warranties, delay damages and any flow-down obligations. TileSpec does not agree to unlimited or uninsurable liabilities merely by issuing this draft; the signed subcontract determines obligations subject to applicable law.
+
 ## Internal review checklist (not customer-facing)
 - Confirm proposed daywork rate schedule (tiler £275/£300? working supervisor £375? labourer £200? specialist £325?) and hourly/overtime rules.
 - Decide thresholds for materials advances, procurement vesting and storage.
