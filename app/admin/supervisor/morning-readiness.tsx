@@ -31,7 +31,8 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
   const pendingPayload = useRef<string | null>(null);
   const savingNow = useRef(false);
   const answered = Object.keys(responses).length;
-  const photoReady = photoChecks.every(item => responses[item] !== (item === "Any other trades obstructing progress?" ? "yes" : "no") || (photoChoice[item] && (photoChoice[item] === "no" || !!issueFiles[item])));
+  // Photos are optional evidence, never a blocker to completing a safety check.
+  const photoReady = true;
   const ready = photoReady && answered === morningChecks.length && attendanceReady && stockItems.every(item => !stockLevels[item] || stockLevels[item] === "plenty" || (stockLevels[item] === "out" ? stockCounts[item] === "0" : !!stockCounts[item] && Number(stockCounts[item]) > 0));
   const frozen = saving || uncertain;
   const issuePrompts: Record<string, string> = {
@@ -167,6 +168,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
       </section>)}
       <p aria-live="polite">{answered} of {morningChecks.length} answered</p>
       {saveError && <p role="alert" style={{ color: "#a12626" }}>{saveError} Your answers are kept here. {uncertain ? "Retry to confirm the same checks before making changes." : "Check the answers and try again."}</p>}
+      {!ready && answered === morningChecks.length && <p role="status" style={{ color: "#8d3423" }}>{!attendanceReady ? "Please mark which planned gangs or operatives are missing under People." : stockItems.some(item => stockLevels[item] === "low" && (!stockCounts[item] || Number(stockCounts[item]) <= 0)) ? "Please enter the remaining stock count for materials marked Running low." : "Please complete any outstanding details above."}</p>}
       <button type="submit" disabled={!ready || saving} style={{ ...primary, opacity: !ready || saving ? 0.6 : 1 }}>{saving ? "Saving…" : uncertain ? "Retry saving morning checks" : "COMPLETE MORNING CHECKS"}</button>
     </form>
   </section>;
