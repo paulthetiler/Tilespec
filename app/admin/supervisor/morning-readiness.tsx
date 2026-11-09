@@ -10,6 +10,9 @@ type PlannedGang = { id: string; name: string; people: { id: string; name: strin
 export default function MorningReadiness({ contractReference, contractId, dashboardHref, workforceHref, plannedGangs }: { contractReference: string; contractId: string; dashboardHref: string; workforceHref: string; plannedGangs: PlannedGang[] }) {
   const [responses, setResponses] = useState<Record<string, MorningResponse>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [stockLevels, setStockLevels] = useState<Record<string, "plenty" | "low" | "out">>({});
+  const [stockCounts, setStockCounts] = useState<Record<string, string>>({});
+  const stockItems = ["Adhesive available?", "Grout available?", "Tiles and other required materials available?"];
   const [gangAbsences, setGangAbsences] = useState<Record<string, { status: "all" | "some" | "none"; missing: string[]; count: number }>>({});
   const attendanceItem = "Are the expected lads on site?";
   const attendanceNote = () => plannedGangs.map(gang => { const record = gangAbsences[gang.id]; if (!record || record.status === "all") return null; if (record.status === "none") return `${gang.name}: whole gang absent`; return gang.people.length ? `${gang.name}: missing ${gang.people.filter(p => record.missing.includes(p.id)).map(p => p.name).join(", ")}` : `${gang.name}: ${record.count} missing`; }).filter(Boolean).join("; ");
@@ -22,7 +25,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
   const pendingPayload = useRef<string | null>(null);
   const savingNow = useRef(false);
   const answered = Object.keys(responses).length;
-  const ready = answered === morningChecks.length && attendanceReady;
+  const ready = answered === morningChecks.length && attendanceReady && stockItems.every(item => !stockLevels[item] || stockLevels[item] === "plenty" || (stockLevels[item] === "out" ? stockCounts[item] === "0" : !!stockCounts[item] && Number(stockCounts[item]) > 0));
   const frozen = saving || uncertain;
   const issuePrompts: Record<string, string> = {
     "Are the expected lads on site?": "Who is missing? Which gang?",
@@ -43,7 +46,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
     savingNow.current = true;
     setSaving(true);
     setSaveError("");
-    const answers = normalizeMorningAnswers(morningChecks.map(check => ({ item: check.item, response: responses[check.item], note: check.item === attendanceItem && responses[attendanceItem] === "no" && plannedGangs.length ? [attendanceNote(), notes[check.item] || ""].filter(Boolean).join(". ") : notes[check.item] || "" })))!;
+    const answers = normalizeMorningAnswers(morningChecks.map(check => ({ item: check.item, response: responses[check.item], note: check.item === attendanceItem && responses[attendanceItem] === "no" && plannedGangs.length ? [attendanceNote(), notes[check.item] || ""].filter(Boolean).join(". ") : stockLevels[check.item] ? [stockLevels[check.item] === "plenty" ? "Stock sufficient" : stockLevels[check.item] === "low" ? "RESTOCK WARNING: Running low" : "OUT OF STOCK: Work may be delayed", stockLevels[check.item] !== "plenty" ? `${stockCounts[check.item]} ${check.item === "Tiles and other required materials available?" ? "units" : "bags"} remaining` : "", notes[check.item] || ""].filter(Boolean).join(". ") : notes[check.item] || "" })))!;
     if (!pendingPayload.current) pendingPayload.current = JSON.stringify({ contractId, requestKey, answers });
     try {
       const response = await fetch("/api/supervisor/inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: pendingPayload.current });
@@ -105,6 +108,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
               })}
               <p style={{ marginBottom: 0, fontSize: 13 }}>This records the morning-check exception. Confirm actual attendance separately in <Link href={workforceHref}>Who's on site?</Link>.</p>
             </div>}
+            </>}
             {(response === "no" || problem) && <label style={{ display: "block", marginTop: 10 }}>Short note (optional)<textarea maxLength={2000} rows={2} value={notes[check.item] || ""} onChange={event => setNotes(current => ({ ...current, [check.item]: event.target.value }))} style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", minHeight: 64, marginTop: 6, padding: 10, font: "inherit", border: "1px solid #aabdc5", borderRadius: 6 }} placeholder={problem ? issuePrompts[check.item] || "What needs sorting?" : "Anything the office needs to know?"} /></label>}
             {problem && <p style={{ fontSize: 14, marginBottom: 0, color: "#8d3423" }}>This will be recorded for the office to review.</p>}
           </fieldset>;
