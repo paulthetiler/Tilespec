@@ -19,6 +19,19 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
   const answered = Object.keys(responses).length;
   const ready = answered === morningChecks.length;
   const frozen = saving || uncertain;
+  const issuePrompts: Record<string, string> = {
+    "Are the expected lads on site?": "Who is missing? Which gang?",
+    "Has everyone received the relevant site safety briefing?": "Who still needs a briefing, and for which work?",
+    "Have office instructions been passed on?": "Which instructions have not been passed on, and to whom?",
+    "Adhesive available?": "Which adhesive is missing, and where is it needed?",
+    "Grout available?": "Which grout is missing, and where is it needed?",
+    "Tiles and other required materials available?": "What materials are missing, and for which area?",
+    "Water available?": "Where is water unavailable?",
+    "Safe, suitable access?": "Which area cannot be accessed safely, and why?",
+    "Work areas available and clear?": "Which area is blocked, and by what?",
+    "Any other trades obstructing progress?": "Which trade is in the way, and where?",
+    "Any outstanding issues with the site manager?": "What needs sorting with the site manager?",
+  };
 
   async function save() {
     if (savingNow.current || !ready) return;
@@ -55,7 +68,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
     <h3>Next: who’s on site?</h3><p>Confirm the lads who are here. Anyone already recorded stays recorded.</p>
     <Link href={workforceHref} style={primary}>Who’s on site?</Link>
     <p><Link href={`${dashboardHref}/inspections`} style={{ ...button, display: "inline-flex", alignItems: "center" }}>Check workmanship</Link></p>
-    {saved.issuesCount > 0 && <><p><Link href={`/admin/snags/new?contract=${contractId}`} style={{ ...button, display: "inline-flex", alignItems: "center" }}>Add a photographed snag</Link></p><p><Link href={`/admin/holds/new?contract=${contractId}&morning=${saved.id}`} style={{ ...button, display: "inline-flex", alignItems: "center", background: "#8a3228", color: "#fff" }}>STOP WORK</Link></p></>}
+    {saved.issuesCount > 0 && <p>For a serious safety or quality concern, make the affected activity safe, contact the office and <Link href={`/admin/holds/new?contract=${contractId}&morning=${saved.id}`}>record a work restriction</Link> if required.</p>}
     <p><Link href={`${dashboardHref}/checks?inspection=${saved.id}#morning-${saved.id}`}>View saved answers</Link> · <Link href={dashboardHref}>Back to today</Link></p>
   </section>;
 
@@ -64,7 +77,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
     <form onSubmit={event => { event.preventDefault(); void save(); }}>
       {morningCheckGroups.map(group => <section key={group.title} aria-labelledby={`morning-${group.title.replaceAll(" ", "-")}`} style={{ marginBottom: 22 }}>
         <h2 id={`morning-${group.title.replaceAll(" ", "-")}`}>{group.title}</h2>
-        {group.title === "People" && <p style={{ fontSize: 14, color: "#425d6a" }}>Attendance is confirmed separately in Who’s on site. Follow the actual site briefing and induction requirements; these answers do not replace safety records.</p>}
+        {group.title === "People" && <p style={{ fontSize: 14, color: "#425d6a" }}>Record who actually arrived under <Link href={workforceHref}>Who’s on site?</Link>. Check that everyone has had the required site briefing before starting work.</p>}
         {group.checks.map(check => {
           const response = responses[check.item];
           const problem = response === check.issueAnswer;
@@ -73,8 +86,8 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               {([["yes", "YES"], ["no", "NO"], ["na", "NOT APPLICABLE"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={response === value} style={{ ...button, flex: value === "na" ? "1 1 130px" : "1 1 55px", background: response === value ? "#d5eee5" : "#fff", outline: response === value ? "2px solid #326e67" : undefined }} onClick={() => setResponses(current => ({ ...current, [check.item]: value }))}>{label}</button>)}
             </div>
-            {(response === "no" || problem) && <label style={{ display: "block", marginTop: 10 }}>Short note (optional)<textarea maxLength={2000} rows={2} value={notes[check.item] || ""} onChange={event => setNotes(current => ({ ...current, [check.item]: event.target.value }))} style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", minHeight: 64, marginTop: 6, padding: 10, font: "inherit", border: "1px solid #aabdc5", borderRadius: 6 }} placeholder={problem ? "What’s needed, and where?" : "Anything the office needs to know?"} /></label>}
-            {problem && <p style={{ fontSize: 14, marginBottom: 0, color: "#8d3423" }}>This problem will be sent to the office. You can add a photographed snag after saving.</p>}
+            {(response === "no" || problem) && <label style={{ display: "block", marginTop: 10 }}>Short note (optional)<textarea maxLength={2000} rows={2} value={notes[check.item] || ""} onChange={event => setNotes(current => ({ ...current, [check.item]: event.target.value }))} style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", minHeight: 64, marginTop: 6, padding: 10, font: "inherit", border: "1px solid #aabdc5", borderRadius: 6 }} placeholder={problem ? issuePrompts[check.item] || "What needs sorting?" : "Anything the office needs to know?"} /></label>}
+            {problem && <p style={{ fontSize: 14, marginBottom: 0, color: "#8d3423" }}>This will be recorded for the office to review.</p>}
           </fieldset>;
         })}
       </section>)}
