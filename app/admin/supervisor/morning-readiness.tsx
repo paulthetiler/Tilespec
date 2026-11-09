@@ -14,6 +14,8 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
   const [photoChoice, setPhotoChoice] = useState<Record<string, "yes" | "no">>({});
   const [issueFiles, setIssueFiles] = useState<Record<string, File | null>>({});
   const [photoError, setPhotoError] = useState("");
+  const [attendanceError, setAttendanceError] = useState("");
+  const [attendanceSynced, setAttendanceSynced] = useState(false);
   const [photosPending, setPhotosPending] = useState(false);
   const photoChecks = ["Safe, suitable access?", "Work areas available and clear?", "Any other trades obstructing progress?"];
   const [stockLevels, setStockLevels] = useState<Record<string, "plenty" | "low" | "out">>({});
@@ -71,6 +73,21 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
     finally { setPhotosPending(false); }
   }
 
+  async function syncAttendance(inspectionId: string) {
+    setAttendanceError("");
+    try {
+      const choices = plannedGangs.map(gang => {
+        const row = responses[attendanceItem] === "yes" ? { status: "all" as const, missing: [] as string[] } : gangAbsences[gang.id];
+        return row ? { planId: gang.id, status: row.status, missing: row.status === "none" ? gang.people.map(p => p.id) : row.status === "some" ? row.missing : [] } : null;
+      }).filter((row): row is { planId: string; status: "all" | "some" | "none"; missing: string[] } => !!row);
+      const response = await fetch("/api/supervisor/inspections/attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contractId, inspectionId, choices }) });
+      const result = await response.json() as { error?: string; remaining?: number };
+      if (!response.ok) throw new Error(result.error || "Attendance not confirmed");
+      setAttendanceSynced(true);
+      return true;
+    } catch (e) { setAttendanceError(e instanceof Error ? e.message : "Attendance not confirmed"); return false; }
+  }
+
   async function save() {
     if (savingNow.current || !ready) return;
     savingNow.current = true;
@@ -95,6 +112,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
       setSaved(result);
       setUncertain(false);
       await uploadIssuePhotos(result.id);
+      await syncAttendance(result.id);
     } catch (error) {
       if (pendingPayload.current) setUncertain(true);
       setSaveError(error instanceof Error ? error.message : "We could not confirm the save.");
@@ -105,6 +123,8 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
     <div role="status"><h2 id="morning-saved-heading">Morning checks complete</h2><p>{contractReference} · Saved at {new Date(saved.createdAt).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}.</p>
       <p>{saved.issuesCount ? `${saved.issuesCount} problem${saved.issuesCount === 1 ? " has" : "s have"} been sent to the office. Keep affected work safe while the problem is reviewed.` : "No problems recorded. Morning checks are saved."}</p></div>
     {photosPending && <p role="status">Uploading site photos…</p>}
+    {attendanceSynced && <p role="status">Planned gang attendance updated in the workforce register.</p>}
+    {attendanceError && <p role="alert">Morning checks saved, but the workforce register needs attention: {attendanceError} <button type="button" onClick={() => void syncAttendance(saved.id)}>Retry attendance update</button></p>}
     {photoError && <p role="alert">Morning checks saved, but a photo was not uploaded: {photoError} <button type="button" disabled={photosPending} onClick={() => void uploadIssuePhotos(saved.id)}>Retry photos</button></p>}
     {!photosPending && !photoError && photoChecks.some(item => photoChoice[item] === "yes") && <p>Selected site photos uploaded.</p>}
     <h3>Morning checks finished</h3><p>Return to the site dashboard to carry on with your day. No need to repeat the people check.</p>
