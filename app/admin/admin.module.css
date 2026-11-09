@@ -336,3 +336,32 @@ details[open] > summary .treeToggle::before { content: "▾"; }
   .identity .secondaryButton { min-height: 44px; padding: 8px 12px; }
   .main { padding-top: 20px; }
 }
+
+/* Choice controls must never inherit the full-width text-field layout. */
+.admin input[type="radio"] {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  flex: 0 0 20px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  accent-color: var(--admin-teal);
+  vertical-align: middle;
+}
+.admin input[type="checkbox"] {
+  margin: 0;
+  padding: 0;
+}
+.checkboxRow {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+  gap: 12px;
+  line-height: 1.45;
+}
+.checkboxRow > input[type="radio"],
+.checkboxRow > input[type="checkbox"] {
+  align-self: center;
+}
