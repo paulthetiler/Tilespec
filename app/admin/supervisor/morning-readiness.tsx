@@ -103,13 +103,12 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
 
   if (saved) return <section style={{ background: "#eff8f1", border: "1px solid #a9ceb3", borderRadius: 12, padding: 20, margin: "20px 0" }} aria-labelledby="morning-saved-heading">
     <div role="status"><h2 id="morning-saved-heading">Morning checks complete</h2><p>{contractReference} · Saved at {new Date(saved.createdAt).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}.</p>
-      <p>{saved.issuesCount ? `${saved.issuesCount} problem${saved.issuesCount === 1 ? " has" : "s have"} been sent to the office. Keep affected work safe while the problem is reviewed.` : "No problems recorded. You’re ready for the next task."}</p></div>
+      <p>{saved.issuesCount ? `${saved.issuesCount} problem${saved.issuesCount === 1 ? " has" : "s have"} been sent to the office. Keep affected work safe while the problem is reviewed.` : "No problems recorded. Morning checks are saved."}</p></div>
     {photosPending && <p role="status">Uploading site photos…</p>}
     {photoError && <p role="alert">Morning checks saved, but a photo was not uploaded: {photoError} <button type="button" disabled={photosPending} onClick={() => void uploadIssuePhotos(saved.id)}>Retry photos</button></p>}
     {!photosPending && !photoError && photoChecks.some(item => photoChoice[item] === "yes") && <p>Selected site photos uploaded.</p>}
-    <h3>Next: who’s on site?</h3><p>Confirm the lads who are here. Anyone already recorded stays recorded.</p>
-    <Link href={workforceHref} style={primary}>Who’s on site?</Link>
-    <p><Link href={`${dashboardHref}/inspections`} style={{ ...button, display: "inline-flex", alignItems: "center" }}>Check workmanship</Link></p>
+    <h3>Morning checks finished</h3><p>Return to the site dashboard to carry on with your day. No need to repeat the people check.</p>
+    <Link href={dashboardHref} style={primary}>Back to site dashboard</Link>
     {saved.issuesCount > 0 && <p>For a serious safety or quality concern, make the affected activity safe, contact the office and <Link href={`/admin/holds/new?contract=${contractId}&morning=${saved.id}`}>record a work restriction</Link> if required.</p>}
     <p><Link href={`${dashboardHref}/checks?inspection=${saved.id}#morning-${saved.id}`}>View saved answers</Link> · <Link href={dashboardHref}>Back to today</Link></p>
   </section>;
