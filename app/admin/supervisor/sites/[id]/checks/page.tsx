@@ -3,6 +3,7 @@ import { checkDatabase, siteStatusFor, siteDayFor } from "@/lib/operations/data"
 import { buildSiteDay } from "@/lib/operations/site-day";
 import { londonClock, londonDate } from "@/lib/operations/planning";
 import MorningReadiness from "../../../morning-readiness";
+import MorningIssuePhotos from "../../../morning-issue-photos";
 import { requireSite } from "../../../site-access";
 import styles from "../../../../admin.module.css";
 
@@ -30,7 +31,7 @@ export default async function MorningChecks({ params, searchParams }: { params: 
       <h1>Morning checks complete</h1>
       <p>Morning checks were recorded at {londonClock(status.lastCheck.created_at)} today{status.lastCheck.issues_count ? ` with ${status.lastCheck.issues_count} issue${status.lastCheck.issues_count === 1 ? "" : "s"}` : ""}.</p>
       <Link className={styles.button} href={`${base}/workforce`}>Who’s on site?</Link>
-      {!!status.lastCheck.issues_count && <p><Link className={styles.secondaryButton} href={`/admin/holds/new?contract=${id}&morning=${status.lastCheck.id}`}>STOP WORK — today’s finding</Link></p>}
+      {!!status.lastCheck.issues_count && <MorningIssuePhotos inspectionId={status.lastCheck.id} />}
     </div>}
     {status.lastCheck ? <details className={styles.details}><summary>Record another morning check</summary><MorningReadiness contractId={id} contractReference={contract.reference} dashboardHref={base} workforceHref={`${base}/workforce`} plannedGangs={plannedGangs} /></details> : <MorningReadiness contractId={id} contractReference={contract.reference} dashboardHref={base} workforceHref={`${base}/workforce`} plannedGangs={plannedGangs} />}
     <details open={Boolean(selectedId || page)} className={styles.details}><summary>Saved morning checks</summary><section aria-labelledby="checks-history-heading"><h2 id="checks-history-heading">Morning check history</h2>
@@ -38,7 +39,7 @@ export default async function MorningChecks({ params, searchParams }: { params: 
       {savedChecks.map(record => <details key={record.id} id={`morning-${record.id}`} open={record.id === selectedId} className={styles.details}><summary>{new Date(record.created_at).toLocaleString("en-GB", { timeZone: "Europe/London" })} · {record.issues_count} issue{record.issues_count === 1 ? "" : "s"}</summary>
         <p className={styles.small}>Recorded by {record.actor_id === member.user_id ? member.display_name : record.actor_id} · Reference {record.id}</p>
         <ul>{record.answers.map((answer, index) => <li key={index}><strong>{answer.item}: {answer.response ? answer.response === "na" ? "NOT APPLICABLE" : answer.response.toUpperCase() : answer.status === "issue" ? "Problem" : answer.status === "na" ? "Not applicable" : "Pass"}</strong>{answer.note && <p>{answer.note}</p>}</li>)}</ul>
-        {record.issues_count > 0 && <Link className={styles.secondaryButton} href={`/admin/holds/new?contract=${id}&morning=${record.id}`}>STOP WORK — this finding</Link>}
+        {record.issues_count > 0 && <MorningIssuePhotos inspectionId={record.id} />}
       </details>)}
       {!savedChecks.length && <p>No saved morning checks in this history page.</p>}
       <nav className={`${styles.rowActions} ${styles.cardActions}`} aria-label="Morning check history pages">{page > 0 && <Link className={styles.secondaryButton} href={`${base}/checks?page=${page - 1}`}>Previous page</Link>}{hasMore && <Link className={styles.secondaryButton} href={`${base}/checks?page=${page + 1}`}>Next page</Link>}</nav>
