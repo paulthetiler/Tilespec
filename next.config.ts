@@ -43,6 +43,8 @@ const nextConfig: NextConfig = {
     '/admin/documents/health-safety/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/health-and-safety-policy-draft.md'],
     '/admin/documents/risk-assessment/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/rams-risk-assessment-template.md'],
     '/admin/documents/method-statement/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/rams-method-statement-template.md'],
+    '/admin/documents/coshh-register/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/coshh-register-template.md'],
+    '/admin/documents/coshh-assessment/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/coshh-assessment-template.md'],
   },
   async rewrites() {
     return [
