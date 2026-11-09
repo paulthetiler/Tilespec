@@ -10,8 +10,8 @@ export default async function DocumentsPage(){
  <section style={{border:"1px solid #dce6e6",padding:24,marginTop:26,background:"#f7faf9"}}>
  <div style={{fontSize:12,fontWeight:800,color:"#8b5b31",letterSpacing:1}}>INTERNAL DRAFT — NOT FOR ISSUE YET</div>
  <h2 style={{fontSize:23,margin:"12px 0"}}>Commercial Terms &amp; Conditions</h2>
- <p>20-section working draft dated 9 November 2026. Includes payment, retention, materials, variations, dayworks, site delays, protection of completed work and liability. The PDF includes the internal review checklist.</p>
+ <p>23-section working draft dated 9 November 2026. Includes payment, retention, materials, variations, dayworks, site delays, protection of completed work and liability. The PDF includes the internal review checklist.</p>
  <a href="/admin/documents/terms/pdf" target="_blank" rel="noopener noreferrer" style={{display:"inline-block",padding:"13px 20px",background:"#0f2a3a",color:"#fff",fontWeight:700,marginTop:12}}>Open / save PDF</a>
  <p style={{fontSize:12,color:"#637880",marginTop:14}}>Requires legal review and approval before sending as contractual terms.</p>
- </section></main>;
+ </section><section style={{border:"1px solid #dce6e6",padding:24,marginTop:18,background:"#f7faf9"}}><div style={{fontSize:12,fontWeight:800,color:"#8b5b31",letterSpacing:1}}>INTERNAL DRAFT — NOT YET APPROVED</div><h2 style={{fontSize:23,margin:"12px 0"}}>Health &amp; Safety Policy</h2><p>TileSpec company policy covering responsibilities, RAMS, COSHH, silica dust, manual handling, site safety, incidents, CDM and subcontractor competence. Prepared using the historic CTS policy as reference; responsible persons and operational arrangements need confirmation.</p><a href="/admin/documents/health-safety/pdf" target="_blank" rel="noopener noreferrer" style={{display:"inline-block",padding:"13px 20px",background:"#0f2a3a",color:"#fff",fontWeight:700,marginTop:12}}>Open / save H&amp;S PDF</a><p style={{fontSize:12,color:"#637880",marginTop:14}}>Draft only. Requires competent safety review and director approval before external issue.</p></section></main>;
 }
