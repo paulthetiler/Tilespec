@@ -86,7 +86,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     .map(([label, key]) => [label, String((details.data as Record<string, unknown> | null)?.[key] ?? "")]);
   const actions = [
     { label: "Who's on site?", href: `${base}/workforce`, detail: `${site.summary.presentNow} ${site.summary.presentNow === 1 ? "person" : "people"} recorded here` },
-    { label: "Check workmanship", href: `${base}/inspections`, detail: "Choose an area and check work" },
+    { label: "Check workmanship", href: `${base}/inspections`, detail: "Choose an area and check work" },\n    { label: "Verify gang progress", href: `${base}/progress`, detail: "Record measured metres and quality checks" },
     { label: "Raise a snag", href: `/admin/snags/new?contract=${id}`, detail: "Photo, location and a short note" },
     { label: "Office messages", href: `${base}/messages`, detail: [unread ? `${unread} to acknowledge` : "", replies ? `${replies} ${replies === 1 ? "reply" : "replies"} from the office` : ""]
       .filter(Boolean).join(" · ") || (daily?.conversations ? "Instructions, questions and replies" : "Instructions for this site") },
