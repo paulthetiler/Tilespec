@@ -138,7 +138,7 @@ export default async function JobAccounts({ params }: { params: Promise<{ id: st
         : commercial ? <details className={styles.details} open={!account.applications.length}><summary>New application</summary>
           <OperationsForm action={createApplicationAction} submitLabel="Save as draft">
             {job}{key()}
-            <fieldset className={styles.plainFieldset}><legend>Kind</legend>{kinds.map((kind, i) => <label key={kind} className={styles.checkboxRow}>
+            <fieldset className={styles.plainFieldset}><legend>Payment application type</legend>{kinds.map((kind, i) => <label key={kind} className={styles.checkboxRow}>
               <input type="radio" name="kind" value={kind} defaultChecked={i === 0} />{kindLabels[kind]}{kind === "final" && !t.practical_completion_on ? " (record practical completion first)" : ""}</label>)}</fieldset>
             <ValuationFields kind={kinds[0] === "advance" ? "interim" : kinds[0]} terms={t} extras={account.extras} stages={stages}
               lines={(() => { const last = [...live].reverse().find(a => a.kind !== "advance"); return last ? accounts.lines.filter(l => l.application_id === last.application_id) : undefined; })()} />
