@@ -88,7 +88,8 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     { label: "Who's on site?", href: `${base}/workforce`, detail: `${site.summary.presentNow} ${site.summary.presentNow === 1 ? "person" : "people"} recorded here` },
     { label: "Check workmanship", href: `${base}/inspections`, detail: "Choose an area and check work" },
     { label: "Verify gang progress", href: `${base}/progress`, detail: "Record measured metres and quality checks" },
-    { label: "Raise a snag", href: `/admin/snags/new?contract=${id}`, detail: "Photo, location and a short note" },
+    { label: "Report a site issue", href: `/admin/snags/new?contract=${id}`, detail: "Workmanship issue, photo and what needs correcting" },
+    { label: "Record a work restriction", href: `/admin/holds/new?contract=${id}`, detail: "For serious safety or quality concerns affecting work" },
     { label: "Office messages", href: `${base}/messages`, detail: [unread ? `${unread} to acknowledge` : "", replies ? `${replies} ${replies === 1 ? "reply" : "replies"} from the office` : ""]
       .filter(Boolean).join(" · ") || (daily?.conversations ? "Instructions, questions and replies" : "Instructions for this site") },
   ];
@@ -102,10 +103,6 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
     </header>
 
     <section className={dailyStyles.actions} aria-label="Site actions">
-      <div className={dailyStyles.urgent}>
-        <p>Serious safety or quality concern? Stop affected work and tell the office.</p>
-        <Link className={dailyStyles.stop} href={`/admin/holds/new?contract=${id}`}>STOP WORK</Link>
-      </div>
       {!quality && <p className={styles.warning}>Work restrictions could not be checked. This page cannot confirm that affected work may go ahead. Contact the office.</p>}
       {!!quality?.counts.active_safety && <div className={`${dailyStyles.restriction} ${dailyStyles.safety}`} role="status">
         <h2>{quality.counts.active_safety} safety stop{quality.counts.active_safety === 1 ? " remains" : "s remain"} active</h2>
@@ -114,7 +111,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
       </div>}
       {!!snagCounts.critical && <div className={`${dailyStyles.restriction} ${dailyStyles.safety}`}>
         <h2>{snagCounts.critical} critical defect{snagCounts.critical === 1 ? " needs" : "s need"} office attention</h2>
-        <p>Stop affected work where necessary and use STOP WORK to record the restriction.</p>
+        <p>Stop unsafe or defective affected work where necessary, contact the office and record any restriction.</p>
         <Link href={`${fullRegisterHref}&severity=critical`}>Review critical defects</Link>
       </div>}
       {!!activeHolds.data?.length && <section className={dailyStyles.restrictions} aria-label="Active work restrictions">
