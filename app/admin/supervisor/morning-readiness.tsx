@@ -6,9 +6,14 @@ import { isConfirmedMorningSave, morningCheckGroups, morningChecks, normalizeMor
 
 const button = { minHeight: 48, padding: "10px 14px", borderRadius: 8, border: "1px solid #aabdc5", background: "#fff", color: "#0f2a3a", fontWeight: 700, cursor: "pointer", textDecoration: "none" } as const;
 const primary = { ...button, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", boxSizing: "border-box", background: "#0f2a3a", color: "#fff" } as const;
-export default function MorningReadiness({ contractReference, contractId, dashboardHref, workforceHref }: { contractReference: string; contractId: string; dashboardHref: string; workforceHref: string }) {
+type PlannedGang = { id: string; name: string; people: { id: string; name: string }[]; expectedCount: number };
+export default function MorningReadiness({ contractReference, contractId, dashboardHref, workforceHref, plannedGangs }: { contractReference: string; contractId: string; dashboardHref: string; workforceHref: string; plannedGangs: PlannedGang[] }) {
   const [responses, setResponses] = useState<Record<string, MorningResponse>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [gangAbsences, setGangAbsences] = useState<Record<string, { status: "all" | "some" | "none"; missing: string[]; count: number }>>({});
+  const attendanceItem = "Are the expected lads on site?";
+  const attendanceNote = () => plannedGangs.map(gang => { const record = gangAbsences[gang.id]; if (!record || record.status === "all") return null; if (record.status === "none") return `${gang.name}: whole gang absent`; return gang.people.length ? `${gang.name}: missing ${gang.people.filter(p => record.missing.includes(p.id)).map(p => p.name).join(", ")}` : `${gang.name}: ${record.count} missing`; }).filter(Boolean).join("; ");
+  const attendanceReady = responses[attendanceItem] !== "no" || (plannedGangs.length === 0 ? true : plannedGangs.every(gang => { const row = gangAbsences[gang.id]; return row && (row.status === "all" || row.status === "none" || (gang.people.length ? row.missing.length > 0 : row.count > 0)); }));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saved, setSaved] = useState<ConfirmedMorningSave | null>(null);
@@ -17,7 +22,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
   const pendingPayload = useRef<string | null>(null);
   const savingNow = useRef(false);
   const answered = Object.keys(responses).length;
-  const ready = answered === morningChecks.length;
+  const ready = answered === morningChecks.length && attendanceReady;
   const frozen = saving || uncertain;
   const issuePrompts: Record<string, string> = {
     "Are the expected lads on site?": "Who is missing? Which gang?",
@@ -38,7 +43,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
     savingNow.current = true;
     setSaving(true);
     setSaveError("");
-    const answers = normalizeMorningAnswers(morningChecks.map(check => ({ item: check.item, response: responses[check.item], note: notes[check.item] || "" })))!;
+    const answers = normalizeMorningAnswers(morningChecks.map(check => ({ item: check.item, response: responses[check.item], note: check.item === attendanceItem && responses[attendanceItem] === "no" && plannedGangs.length ? [attendanceNote(), notes[check.item] || ""].filter(Boolean).join(". ") : notes[check.item] || "" })))!;
     if (!pendingPayload.current) pendingPayload.current = JSON.stringify({ contractId, requestKey, answers });
     try {
       const response = await fetch("/api/supervisor/inspections", { method: "POST", headers: { "Content-Type": "application/json" }, body: pendingPayload.current });
@@ -86,6 +91,20 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               {([["yes", "YES"], ["no", "NO"], ["na", "NOT APPLICABLE"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={response === value} style={{ ...button, flex: value === "na" ? "1 1 130px" : "1 1 55px", background: response === value ? "#d5eee5" : "#fff", outline: response === value ? "2px solid #326e67" : undefined }} onClick={() => setResponses(current => ({ ...current, [check.item]: value }))}>{label}</button>)}
             </div>
+            {check.item === attendanceItem && response === "no" && <div style={{ marginTop: 12, padding: 12, background: "#f5f8f9", borderRadius: 8 }}>
+              <p style={{ marginTop: 0, fontWeight: 700 }}>Who is missing from today's planned gangs?</p>
+              {plannedGangs.length === 0 ? <p>No gangs are scheduled here today. Check the office plan in <Link href={workforceHref}>Who's on site?</Link> and add a note below.</p> : plannedGangs.map(gang => {
+                const row = gangAbsences[gang.id] || { status: "all" as const, missing: [], count: 0 };
+                return <div key={gang.id} style={{ borderTop: "1px solid #d7e2e5", padding: "12px 0" }}>
+                  <strong>{gang.name}</strong><p style={{ margin: "4px 0" }}>{gang.people.length ? gang.people.map(p => p.name).join(", ") : `${gang.expectedCount || "Unknown number of"} expected`}</p>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {([["all", "All here"], ["some", "Someone missing"], ["none", "Whole gang absent"]] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={row.status === value && !!gangAbsences[gang.id]} style={{ ...button, background: row.status === value && gangAbsences[gang.id] ? "#d5eee5" : "#fff" }} onClick={() => setGangAbsences(current => ({ ...current, [gang.id]: { status: value, missing: [], count: 0 } }))}>{label}</button>)}
+                  </div>
+                  {gangAbsences[gang.id]?.status === "some" && (gang.people.length ? <div style={{ marginTop: 8 }}>{gang.people.map(person => <label key={person.id} style={{ display: "block", padding: "6px 0" }}><input type="checkbox" checked={row.missing.includes(person.id)} onChange={event => setGangAbsences(current => ({ ...current, [gang.id]: { ...row, missing: event.target.checked ? [...row.missing, person.id] : row.missing.filter(id => id !== person.id) } }))}/> {person.name} missing</label>)}</div> : <label style={{ display: "block", marginTop: 8 }}>How many missing? <input type="number" min={1} max={99} value={row.count || ""} onChange={event => setGangAbsences(current => ({ ...current, [gang.id]: { ...row, count: Math.max(0, Number(event.target.value) || 0) } }))} style={{ width: 72, padding: 8 }}/></label>)}
+                </div>;
+              })}
+              <p style={{ marginBottom: 0, fontSize: 13 }}>This records the morning-check exception. Confirm actual attendance separately in <Link href={workforceHref}>Who's on site?</Link>.</p>
+            </div>}
             {(response === "no" || problem) && <label style={{ display: "block", marginTop: 10 }}>Short note (optional)<textarea maxLength={2000} rows={2} value={notes[check.item] || ""} onChange={event => setNotes(current => ({ ...current, [check.item]: event.target.value }))} style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", minHeight: 64, marginTop: 6, padding: 10, font: "inherit", border: "1px solid #aabdc5", borderRadius: 6 }} placeholder={problem ? issuePrompts[check.item] || "What needs sorting?" : "Anything the office needs to know?"} /></label>}
             {problem && <p style={{ fontSize: 14, marginBottom: 0, color: "#8d3423" }}>This will be recorded for the office to review.</p>}
           </fieldset>;
