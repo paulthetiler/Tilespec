@@ -28,6 +28,6 @@ function TermsPdf({source}:{source:string}){
 export async function GET(){
  await requireFinancialActor();
  const source=await readFile(path.join(process.cwd(),"docs/commercial-terms-and-conditions-draft.md"),"utf8");
- const buffer=await renderToBuffer(React.createElement(TermsPdf,{source}));
+ const buffer=await renderToBuffer(TermsPdf({source}));
  return new Response(new Uint8Array(buffer),{headers:{"Content-Type":"application/pdf","Content-Disposition":'inline; filename="TileSpec-Commercial-Terms-DRAFT.pdf"',"Cache-Control":"private, no-store"}});
 }
