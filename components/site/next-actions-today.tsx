@@ -78,7 +78,7 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
         <p className={styles.sub}>{dayLabel(londonDate(), "long")}</p>
         {changeSite && <Link className={styles.change} href="/admin/supervisor">Change site</Link>}
       </div>
-      <Link className={styles.report} href={`${base}/report`}>Report an issue</Link>
+      <div><Link className={styles.report} href={`${base}/documents`}>Drawings &amp; RAMS</Link> <Link className={styles.report} href={`${base}/report`}>Report an issue</Link></div>
     </header>
 
     {holds.length > 0 && <section className={styles.section} aria-label="Work that is stopped">
