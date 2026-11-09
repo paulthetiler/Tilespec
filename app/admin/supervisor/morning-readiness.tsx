@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import MorningIssuePhotos from "./morning-issue-photos";
+
 import { useRef, useState } from "react";
 import { isConfirmedMorningSave, morningCheckGroups, morningChecks, normalizeMorningAnswers, type ConfirmedMorningSave, type MorningResponse } from "@/lib/operations/morning-checks";
 
@@ -11,6 +11,11 @@ type PlannedGang = { id: string; name: string; people: { id: string; name: strin
 export default function MorningReadiness({ contractReference, contractId, dashboardHref, workforceHref, plannedGangs }: { contractReference: string; contractId: string; dashboardHref: string; workforceHref: string; plannedGangs: PlannedGang[] }) {
   const [responses, setResponses] = useState<Record<string, MorningResponse>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [photoChoice, setPhotoChoice] = useState<Record<string, "yes" | "no">>({});
+  const [issueFiles, setIssueFiles] = useState<Record<string, File | null>>({});
+  const [photoError, setPhotoError] = useState("");
+  const [photosPending, setPhotosPending] = useState(false);
+  const photoChecks = ["Safe, suitable access?", "Work areas available and clear?", "Any other trades obstructing progress?"];
   const [stockLevels, setStockLevels] = useState<Record<string, "plenty" | "low" | "out">>({});
   const [stockCounts, setStockCounts] = useState<Record<string, string>>({});
   const stockItems = ["Adhesive available?", "Grout available?", "Tiles and other required materials available?"];
@@ -26,7 +31,8 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
   const pendingPayload = useRef<string | null>(null);
   const savingNow = useRef(false);
   const answered = Object.keys(responses).length;
-  const ready = answered === morningChecks.length && attendanceReady && stockItems.every(item => !stockLevels[item] || stockLevels[item] === "plenty" || (stockLevels[item] === "out" ? stockCounts[item] === "0" : !!stockCounts[item] && Number(stockCounts[item]) > 0));
+  const photoReady = photoChecks.every(item => responses[item] !== (item === "Any other trades obstructing progress?" ? "yes" : "no") || (photoChoice[item] && (photoChoice[item] === "no" || !!issueFiles[item])));
+  const ready = photoReady && answered === morningChecks.length && attendanceReady && stockItems.every(item => !stockLevels[item] || stockLevels[item] === "plenty" || (stockLevels[item] === "out" ? stockCounts[item] === "0" : !!stockCounts[item] && Number(stockCounts[item]) > 0));
   const frozen = saving || uncertain;
   const issuePrompts: Record<string, string> = {
     "Are the expected lads on site?": "Who is missing? Which gang?",
@@ -41,6 +47,28 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
     "Any other trades obstructing progress?": "Which trade is in the way, and where?",
     "Any outstanding issues with the site manager?": "What needs sorting with the site manager?",
   };
+
+  async function uploadIssuePhotos(inspectionId: string) {
+    const chosen = photoChecks.filter(item => photoChoice[item] === "yes" && issueFiles[item]);
+    if (!chosen.length) return true;
+    setPhotosPending(true); setPhotoError("");
+    try {
+      const response = await fetch(`/api/supervisor/inspections?inspection=${encodeURIComponent(inspectionId)}`);
+      const body = await response.json() as { issues?: { id: string; check_label: string }[]; error?: string };
+      if (!response.ok || !body.issues) throw new Error(body.error || "Cannot find saved issues");
+      for (const item of chosen) {
+        const issue = body.issues.find(i => i.check_label === item);
+        if (!issue) throw new Error(`Saved issue not found: ${item}`);
+        const form = new FormData(); form.set("issueId", issue.id); form.set("photo", issueFiles[item]!);
+        const uploaded = await fetch("/api/supervisor/issues/photo", { method: "POST", body: form });
+        const result = await uploaded.json() as { error?: string };
+        if (!uploaded.ok) throw new Error(result.error || `Photo failed: ${item}`);
+        setIssueFiles(current => ({ ...current, [item]: null }));
+      }
+      return true;
+    } catch (e) { setPhotoError(e instanceof Error ? e.message : "Photo upload failed"); return false; }
+    finally { setPhotosPending(false); }
+  }
 
   async function save() {
     if (savingNow.current || !ready) return;
@@ -65,6 +93,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
       }
       setSaved(result);
       setUncertain(false);
+      await uploadIssuePhotos(result.id);
     } catch (error) {
       if (pendingPayload.current) setUncertain(true);
       setSaveError(error instanceof Error ? error.message : "We could not confirm the save.");
@@ -74,7 +103,9 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
   if (saved) return <section style={{ background: "#eff8f1", border: "1px solid #a9ceb3", borderRadius: 12, padding: 20, margin: "20px 0" }} aria-labelledby="morning-saved-heading">
     <div role="status"><h2 id="morning-saved-heading">Morning checks complete</h2><p>{contractReference} · Saved at {new Date(saved.createdAt).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}.</p>
       <p>{saved.issuesCount ? `${saved.issuesCount} problem${saved.issuesCount === 1 ? " has" : "s have"} been sent to the office. Keep affected work safe while the problem is reviewed.` : "No problems recorded. You’re ready for the next task."}</p></div>
-    {saved.issuesCount > 0 && <MorningIssuePhotos inspectionId={saved.id} />}
+    {photosPending && <p role="status">Uploading site photos…</p>}
+    {photoError && <p role="alert">Morning checks saved, but a photo was not uploaded: {photoError} <button type="button" disabled={photosPending} onClick={() => void uploadIssuePhotos(saved.id)}>Retry photos</button></p>}
+    {!photosPending && !photoError && photoChecks.some(item => photoChoice[item] === "yes") && <p>Selected site photos uploaded.</p>}
     <h3>Next: who’s on site?</h3><p>Confirm the lads who are here. Anyone already recorded stays recorded.</p>
     <Link href={workforceHref} style={primary}>Who’s on site?</Link>
     <p><Link href={`${dashboardHref}/inspections`} style={{ ...button, display: "inline-flex", alignItems: "center" }}>Check workmanship</Link></p>
@@ -120,6 +151,16 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
               <p style={{ marginBottom: 0, fontSize: 13 }}>This records the morning-check exception. Confirm actual attendance separately in <Link href={workforceHref}>Who's on site?</Link>.</p>
             </div>}
             </>}
+            {photoChecks.includes(check.item) && problem && <div style={{ marginTop: 12, padding: 12, background: "#f5f8f9", borderRadius: 8 }}>
+              <strong>Add a photo?</strong>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                {(["yes", "no"] as const).map(value => <button key={value} type="button" aria-pressed={photoChoice[check.item] === value} style={{ ...button, background: photoChoice[check.item] === value ? "#d5eee5" : "#fff" }} onClick={() => setPhotoChoice(current => ({ ...current, [check.item]: value }))}>{value === "yes" ? "Yes" : "No"}</button>)}
+              </div>
+              {photoChoice[check.item] === "yes" && <label style={{ display: "block", marginTop: 10 }}>Take photo or choose from phone
+                <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={event => setIssueFiles(current => ({ ...current, [check.item]: event.target.files?.[0] || null }))} style={{ display: "block", marginTop: 8 }}/>
+                {issueFiles[check.item] && <span>Selected: {issueFiles[check.item]?.name}</span>}
+              </label>}
+            </div>}
             {(response === "no" || problem) && <label style={{ display: "block", marginTop: 10 }}>Short note (optional)<textarea maxLength={2000} rows={2} value={notes[check.item] || ""} onChange={event => setNotes(current => ({ ...current, [check.item]: event.target.value }))} style={{ display: "block", width: "100%", maxWidth: "100%", boxSizing: "border-box", minHeight: 64, marginTop: 6, padding: 10, font: "inherit", border: "1px solid #aabdc5", borderRadius: 6 }} placeholder={problem ? issuePrompts[check.item] || "What needs sorting?" : "Anything the office needs to know?"} /></label>}
             {problem && <p style={{ fontSize: 14, marginBottom: 0, color: "#8d3423" }}>This will be recorded for the office to review.</p>}
           </fieldset>;
