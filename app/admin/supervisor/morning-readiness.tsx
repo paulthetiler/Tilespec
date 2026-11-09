@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import MorningIssuePhotos from "./morning-issue-photos";
 import { useRef, useState } from "react";
 import { isConfirmedMorningSave, morningCheckGroups, morningChecks, normalizeMorningAnswers, type ConfirmedMorningSave, type MorningResponse } from "@/lib/operations/morning-checks";
 
@@ -73,6 +74,7 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
   if (saved) return <section style={{ background: "#eff8f1", border: "1px solid #a9ceb3", borderRadius: 12, padding: 20, margin: "20px 0" }} aria-labelledby="morning-saved-heading">
     <div role="status"><h2 id="morning-saved-heading">Morning checks complete</h2><p>{contractReference} · Saved at {new Date(saved.createdAt).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}.</p>
       <p>{saved.issuesCount ? `${saved.issuesCount} problem${saved.issuesCount === 1 ? " has" : "s have"} been sent to the office. Keep affected work safe while the problem is reviewed.` : "No problems recorded. You’re ready for the next task."}</p></div>
+    {saved.issuesCount > 0 && <MorningIssuePhotos inspectionId={saved.id} />}
     <h3>Next: who’s on site?</h3><p>Confirm the lads who are here. Anyone already recorded stays recorded.</p>
     <Link href={workforceHref} style={primary}>Who’s on site?</Link>
     <p><Link href={`${dashboardHref}/inspections`} style={{ ...button, display: "inline-flex", alignItems: "center" }}>Check workmanship</Link></p>
