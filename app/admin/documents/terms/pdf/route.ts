@@ -14,16 +14,16 @@ const s=StyleSheet.create({
  word:{fontFamily:"Helvetica-Bold",fontSize:22,color:ink,letterSpacing:-0.7},
  tagline:{fontFamily:"Helvetica-Bold",fontSize:6.1,color:muted,letterSpacing:1.05,marginTop:3},
  headerRight:{fontSize:8,color:teal,textAlign:"right",fontFamily:"Helvetica-Bold"},
- title:{fontFamily:"Helvetica-Bold",fontSize:19,lineHeight:24,color:ink,marginBottom:9},
- meta:{fontSize:8.5,color:muted,lineHeight:13,marginBottom:20},
- heading:{fontFamily:"Helvetica-Bold",fontSize:11.5,lineHeight:16,color:teal,marginBottom:7},
+ title:{fontFamily:"Helvetica-Bold",fontSize:19,lineHeight:1.2,color:ink,marginBottom:9},
+ meta:{fontSize:8.5,color:muted,lineHeight:1.4,marginBottom:20},
+ heading:{fontFamily:"Helvetica-Bold",fontSize:11.5,lineHeight:1.35,color:teal,marginBottom:7},
  section:{marginBottom:15},
- para:{fontSize:9.5,lineHeight:15,color:ink,textAlign:"left"},
- item:{fontSize:9.3,lineHeight:14.5,marginBottom:5,paddingLeft:10},
+ para:{fontSize:9.5,lineHeight:1.5,color:ink,textAlign:"left"},
+ item:{fontSize:9.3,lineHeight:1.5,marginBottom:5,paddingLeft:10},
  footer:{position:"absolute",bottom:25,left:54,right:54,paddingTop:9,borderTopWidth:0.7,borderTopColor:"#D9E1E4",flexDirection:"row",justifyContent:"space-between"},
  footerText:{fontSize:7,color:muted},
  note:{backgroundColor:"#F2F6F6",padding:12,marginTop:10,marginBottom:18,borderLeftWidth:3,borderLeftColor:"#7FB8B0"},
- noteText:{fontSize:8.5,lineHeight:13,color:muted}
+ noteText:{fontSize:8.5,lineHeight:1.4,color:muted}
 });
 function Brand(){
  return React.createElement(View,{style:s.logo},
