@@ -46,6 +46,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <nav className={`${styles.shell} ${styles.nav} ${styles.desktopNav}`} aria-label="Admin navigation">
             <Link href="/admin">Overview</Link>
             <Link href="/admin/contracts">Contracts</Link>
+            {canReadFinancial(member) && <Link href="/admin/invoices">Invoices</Link>}
             {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
             <Link href="/admin/supervisor">Site dashboards</Link>
             <Link href="/admin/snags">Snag register</Link>
