@@ -30,7 +30,7 @@ export default async function MorningChecks({ params, searchParams }: { params: 
     {status.lastCheck && <div className={styles.success} role="status">
       <h1>Morning checks complete</h1>
       <p>Morning checks were recorded at {londonClock(status.lastCheck.created_at)} today{status.lastCheck.issues_count ? ` with ${status.lastCheck.issues_count} issue${status.lastCheck.issues_count === 1 ? "" : "s"}` : ""}.</p>
-      <Link className={styles.button} href={`${base}/workforce`}>Who’s on site?</Link>
+      <Link className={styles.button} href={base}>Back to site dashboard</Link>
       {!!status.lastCheck.issues_count && <MorningIssuePhotos inspectionId={status.lastCheck.id} />}
     </div>}
     {status.lastCheck ? <details className={styles.details}><summary>Record another morning check</summary><MorningReadiness contractId={id} contractReference={contract.reference} dashboardHref={base} workforceHref={`${base}/workforce`} plannedGangs={plannedGangs} /></details> : <MorningReadiness contractId={id} contractReference={contract.reference} dashboardHref={base} workforceHref={`${base}/workforce`} plannedGangs={plannedGangs} />}
