@@ -7,20 +7,20 @@ import { Document, Page, Text, View, Svg, Polygon, StyleSheet, renderToBuffer } 
 export const dynamic = "force-dynamic";
 const ink="#0F2A3A",teal="#2F7773",muted="#596671";
 const s=StyleSheet.create({
- page:{paddingTop:104,paddingBottom:70,paddingHorizontal:54,fontFamily:"Helvetica",fontSize:10,color:ink,backgroundColor:"#FFFFFF"},
- header:{position:"absolute",top:34,left:54,right:54,height:56,flexDirection:"row",alignItems:"center",justifyContent:"space-between",borderBottomWidth:1.5,borderBottomColor:"#7FB8B0",paddingBottom:12},
+ page:{paddingTop:48,paddingBottom:62,paddingLeft:58,paddingRight:58,fontFamily:"Helvetica",fontSize:9.5,color:ink,backgroundColor:"#FFFFFF"},
+ header:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",borderBottomWidth:1.5,borderBottomColor:"#7FB8B0",paddingBottom:14,marginBottom:25},
  logo:{flexDirection:"row",alignItems:"center"},
  wordmark:{marginLeft:10},
  word:{fontFamily:"Helvetica-Bold",fontSize:22,color:ink,letterSpacing:-0.7},
  tagline:{fontFamily:"Helvetica-Bold",fontSize:6.1,color:muted,letterSpacing:1.05,marginTop:3},
  headerRight:{fontSize:8,color:teal,textAlign:"right",fontFamily:"Helvetica-Bold"},
- title:{fontFamily:"Helvetica-Bold",fontSize:19,lineHeight:1.2,color:ink,marginBottom:9},
+ title:{fontFamily:"Helvetica-Bold",fontSize:18,lineHeight:1.2,color:ink,marginBottom:9},
  meta:{fontSize:8.5,color:muted,lineHeight:1.4,marginBottom:20},
  heading:{fontFamily:"Helvetica-Bold",fontSize:11.5,lineHeight:1.35,color:teal,marginBottom:7},
- section:{marginBottom:15},
- para:{fontSize:9.5,lineHeight:1.5,color:ink,textAlign:"left"},
- item:{fontSize:9.3,lineHeight:1.5,marginBottom:5,paddingLeft:10},
- footer:{position:"absolute",bottom:25,left:54,right:54,paddingTop:9,borderTopWidth:0.7,borderTopColor:"#D9E1E4",flexDirection:"row",justifyContent:"space-between"},
+ section:{marginBottom:14,paddingRight:4},
+ para:{fontSize:9.3,lineHeight:1.45,color:ink,textAlign:"left"},
+ item:{fontSize:9.3,lineHeight:1.45,marginBottom:5,paddingLeft:10},
+ footer:{position:"absolute",bottom:24,left:58,right:58,paddingTop:9,borderTopWidth:0.7,borderTopColor:"#D9E1E4",flexDirection:"row",justifyContent:"space-between"},
  footerText:{fontSize:7,color:muted},
  note:{backgroundColor:"#F2F6F6",padding:12,marginTop:10,marginBottom:18,borderLeftWidth:3,borderLeftColor:"#7FB8B0"},
  noteText:{fontSize:8.5,lineHeight:1.4,color:muted}
@@ -39,7 +39,7 @@ function TermsPdf({source}:{source:string}){
  const blocks=source.replace(/\r/g,"").split(/\n\s*\n/).filter(Boolean);
  return React.createElement(Document,{title:"TileSpec Commercial Terms and Conditions — Draft",author:"TileSpec"},
  React.createElement(Page,{size:"A4",style:s,wrap:true},
- React.createElement(View,{style:s.header,fixed:true},React.createElement(Brand),React.createElement(Text,{style:s.headerRight},"COMMERCIAL DOCUMENTS")),
+ React.createElement(View,{style:s.header,wrap:false},React.createElement(Brand),React.createElement(Text,{style:s.headerRight},"COMMERCIAL DOCUMENTS")),
  ...blocks.map((block,i)=>{
  const lines=block.trim().split("\n");
  if(lines[0].startsWith("# "))return React.createElement(View,{key:i,wrap:false},
@@ -48,7 +48,7 @@ function TermsPdf({source}:{source:string}){
  if(lines[0].startsWith("## ")){
  const title=lines[0].slice(3);
  const checklist=title.startsWith("Internal review checklist");
- return React.createElement(View,{key:i,style:s.section},
+ return React.createElement(View,{key:i,style:s.section,wrap:true},
  React.createElement(Text,{style:s.heading},title),
  ...lines.slice(1).filter(Boolean).map((line,j)=>React.createElement(Text,{key:j,style:line.startsWith("- ")?s.item:s.para},line.replace(/^- /,"• "))));
  }
