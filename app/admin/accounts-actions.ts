@@ -88,7 +88,7 @@ async function claimOptions(contract: string) {
 export async function createApplicationAction(_: ActionState, form: FormData): Promise<ActionState> {
   try {
     const contract = uuid(form, "contract_id"), kind = (text(form, "kind", 10) || "interim") as ApplicationKind;
-    if (!["interim", "advance", "final"].includes(kind)) throw new ValidationError("Choose the kind of application.");
+    if (!["interim", "advance", "final"].includes(kind)) throw new ValidationError("Choose the payment application type.");
     const { supabase, options } = await claimOptions(contract);
     const data = { contract_id: contract, kind, ...valuationInput(form, options, kind) };
     checkRpc((await supabase.rpc("create_payment_application", { p_request_key: uuid(form, "request_key"), p_data: data })).error);
