@@ -17,6 +17,9 @@ export async function POST(request: Request) {
  const inspection = await supabase.from("supervisor_inspections").select("id,contract_id,organisation_id,answers").eq("id",body.inspectionId).eq("contract_id",body.contractId).maybeSingle();
  if (inspection.error || !inspection.data || inspection.data.organisation_id !== member.organisation_id)
   return NextResponse.json({error:"Morning check unavailable"},{status:403});
+ const attendanceAnswer = (inspection.data.answers as {item?:string;response?:string}[]).find(answer=>answer.item==="Are the expected lads on site?");
+ if (!attendanceAnswer || !["yes","no"].includes(attendanceAnswer.response || "")) return NextResponse.json({error:"Attendance was not confirmed in this morning check"},{status:400});
+ if (attendanceAnswer.response==="yes" && body.choices.some(choice=>choice.status!=="all")) return NextResponse.json({error:"Attendance does not match the saved morning check"},{status:400});
  const day = londonDate();
  const {records} = await siteDayFor(supabase,body.contractId,day);
  const cards = buildSiteDay(records).cards;
@@ -32,6 +35,7 @@ export async function POST(request: Request) {
   const missing = choice.status==="none" ? card.expected : choice.status==="all" ? [] : choice.missing;
   if (missing.some(id=>!card.expected.includes(id)) || (choice.status==="some" && !missing.length))
    return NextResponse.json({error:"Missing people do not match the office plan"},{status:400});
+  if (choice.status==="some" && !card.expected.length) { skipped++; continue; }
   if (choice.status==="none" || (card.expected.length>0 && missing.length===card.expected.length)) {
    const result=await supabase.rpc("record_allocation_absence",{p_request_key:randomUUID(),p_data:{planned_allocation_id:card.plan.id,work_date:day,reason:"Not on site — morning check"}});
    if (result.error) return NextResponse.json({error:"Could not record gang absence; check the workforce register."},{status:503});
