@@ -39,8 +39,15 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
   const [bonusPercent,setBonusPercent] = useState(25);
   const [qualityBonus,setQualityBonus] = useState(200);
   const [qualityApproved,setQualityApproved] = useState(false);
-  const [contingency,setContingency] = useState(5);
+  const [contingency,setContingency] = useState(7);
   const [target,setTarget] = useState(30);
+  const [retentionRate,setRetentionRate] = useState(5);
+  const [completionRelease,setCompletionRelease] = useState(50);
+  const [paymentDays,setPaymentDays] = useState(30);
+  const [costsBeforeFirstPayment,setCostsBeforeFirstPayment] = useState(50);
+  const [interimPaidPercent,setInterimPaidPercent] = useState(0);
+  const [financeRate,setFinanceRate] = useState(12);
+  const [defectsMonths,setDefectsMonths] = useState(12);
   const [copied,setCopied] = useState(false);
   const [programmeCopied,setProgrammeCopied] = useState(false);
   const [programme,setProgramme] = useState<ProgrammeSettings>({contingencyDays:2,startDate:""});
@@ -56,6 +63,18 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
   function edit(id:number,changes:Partial<Area>){setAreas(prev=>prev.map(a=>a.id===id?{...a,...changes}:a));}
   function add(){setAreas(prev=>[...prev,{...initial,id:Math.max(0,...prev.map(a=>a.id))+1,description:"New work area",sqm:50,sell:45,sub:22,output:30,materials:0,workType:"custom"}]);}
   const figures=useMemo(()=>calculateEstimate(areas,other,contingency,target,materialSettings,supervisor,programme),[areas,other,contingency,target,materialSettings,supervisor,programme]);
+  const retentionHeld = figures.revenue*retentionRate/100;
+  const releasedOnCompletion = retentionHeld*completionRelease/100;
+  const remainingRetention = retentionHeld-releasedOnCompletion;
+  const directSpend = figures.labour+figures.materials+figures.supervisorCost+other;
+  const interimReceipts = figures.revenue*interimPaidPercent/100;
+  const fundingBeforeFirstPayment = Math.max(0,directSpend*costsBeforeFirstPayment/100-interimReceipts);
+  const cashAfterCompletion = figures.revenue-retentionHeld-directSpend;
+  const cashAfterFirstRelease = cashAfterCompletion+releasedOnCompletion;
+  const cashAfterDefects = cashAfterFirstRelease+remainingRetention;
+  const financeCost = fundingBeforeFirstPayment*financeRate/100*paymentDays/365 + remainingRetention*financeRate/100*defectsMonths/12;
+  const marginAfterFinance = figures.revenue>0?(figures.profit-financeCost)/figures.revenue*100:0;
+  const paymentRisk = paymentDays>30||retentionRate>3||fundingBeforeFirstPayment>figures.profit||marginAfterFinance<target;
   const totalSqm = areas.reduce((sum,a)=>sum+Math.max(0,a.sqm),0);
   const pricingDenominator = 1-(target+contingency)/100;
   const recommendedRates = figures.lines.map(line=>{
@@ -83,7 +102,11 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
     "Revenue: "+gbp(figures.revenue),"Subcontract labour: "+gbp(figures.labour),
     "Fixing materials: "+gbp(figures.materials),"Supervisor: "+figures.supervisorAttendance+" days, "+gbp(figures.supervisorCost),"Other costs: "+gbp(other),
     "Contingency reserve: "+gbp(figures.reserve),"Estimated profit: "+gbp(figures.profit),
-    "Estimated margin: "+figures.margin.toFixed(1)+"%","Excludes VAT. Not a customer quotation."
+    "Estimated margin: "+figures.margin.toFixed(1)+"%",
+    "Retention withheld: "+gbp(retentionHeld)+"; after completion release: "+gbp(remainingRetention),
+    "Payment delay assumption: "+paymentDays+" days; funding before first receipt: "+gbp(fundingBeforeFirstPayment),
+    "Indicative finance cost: "+gbp(financeCost)+"; margin after finance: "+marginAfterFinance.toFixed(1)+"%",
+    "Excludes VAT. Not a customer quotation."
   ].join("\n");
   return <div className={styles.page}>
     <header className={styles.header}><Link href="/admin" className={styles.brand}>TileSPEC <span> / COMMERCIAL ADMIN</span></Link><span className={styles.flag}>Authenticated draft · unsaved estimate</span></header>
@@ -209,6 +232,33 @@ export default function CommercialEstimator({contracts}:{contracts:{id:string;na
           <div className={styles.total}><span>Estimated profit</span><b>{gbp(figures.profit)}</b></div>
           <div><span>Break-even contract value</span><b>{Number.isFinite(figures.breakEven)?gbp(figures.breakEven):"Not achievable"}</b></div>
           <div><span>Revenue needed for {target}% margin</span><b>{Number.isFinite(figures.required)?gbp(figures.required):"Not achievable"}</b></div>
+        </div>
+        <div className={styles.riskPanel}>
+          <h3>Retention, payment terms and cash exposure</h3>
+          <p className={styles.note}>Internal tender risk check, not a payment schedule. Retention is withheld cash, not automatically a loss. The contingency reserve is for project risk, not a substitute for financing or collection of retention.</p>
+          <div className={styles.fields}>
+            <label>Retention withheld (%)<EditableNumber min={0} max={20} value={retentionRate} onValueChange={setRetentionRate}/></label>
+            <label>Retention released at completion (%)<EditableNumber min={0} max={100} value={completionRelease} onValueChange={setCompletionRelease}/></label>
+            <label>Remaining defects period (months)<EditableNumber min={0} max={60} value={defectsMonths} onValueChange={setDefectsMonths}/></label>
+            <label>Days to receive payment after application/due event<EditableNumber min={0} max={365} value={paymentDays} onValueChange={setPaymentDays}/></label>
+            <label>Direct costs paid before first receipt (%)<EditableNumber min={0} max={100} value={costsBeforeFirstPayment} onValueChange={setCostsBeforeFirstPayment}/></label>
+            <label>Interim cash received before that spend (£ as % of contract)<EditableNumber min={0} max={100} value={interimPaidPercent} onValueChange={setInterimPaidPercent}/></label>
+            <label>Annual cost of working capital (%)<EditableNumber min={0} max={100} value={financeRate} onValueChange={setFinanceRate}/></label>
+          </div>
+          <div className={styles.breakdown}>
+            <div><span>Retention initially withheld</span><b>{gbp(retentionHeld)}</b></div>
+            <div><span>Released at completion</span><b>{gbp(releasedOnCompletion)}</b></div>
+            <div><span>Still withheld during defects period</span><b>{gbp(remainingRetention)}</b></div>
+            <div><span>Indicative funding required before first receipt</span><b>{gbp(fundingBeforeFirstPayment)}</b></div>
+            <div><span>Cash after main payment, before retention releases</span><b>{gbp(cashAfterCompletion)}</b></div>
+            <div><span>Cash after completion retention release</span><b>{gbp(cashAfterFirstRelease)}</b></div>
+            <div><span>Cash after all retention recovered</span><b>{gbp(cashAfterDefects)}</b></div>
+            <div><span>Illustrative financing allowance</span><b>{gbp(financeCost)}</b></div>
+            <div className={styles.total}><span>Contribution after illustrative finance cost</span><b>{gbp(figures.profit-financeCost)} ({marginAfterFinance.toFixed(1)}%)</b></div>
+          </div>
+          <p className={styles.note}>Cash figures assume all direct costs and non-retained contract sums settle as modelled, excluding VAT, overheads not entered and contingency cash actually spent. The financing allowance is a simple scenario, not a forecast of peak cash demand: it charges the estimated early funding for the selected payment delay and the remaining retention for the defects period. Payment applications, certification delays, staged costs and late payments can materially increase exposure.</p>
+          <p className={paymentRisk?styles.riskWarning:styles.riskGood}>{paymentRisk?"COMMERCIAL REVIEW REQUIRED — payment, retention, funding exposure or margin falls outside the working assumptions. Negotiate terms or revise price before tender submission.":"Scenario within the working assumptions. Verify the subcontract payment schedule and project cash-flow before approval."}</p>
+          <p className={styles.note}>Negotiation starting point: no retention, agreed monthly valuations or milestones, written due dates and final dates for payment, defined release triggers and no open-ended pay-when-paid arrangements. Confirm actual contract terms before accepting. These thresholds are internal prompts, not legal conclusions or automatic tender rejection.</p>
         </div>
         <button className={styles.copy} onClick={async()=>{try{await navigator.clipboard.writeText(summary);setCopied(true)}catch{setCopied(false)}}}>{copied?"Copied estimate":"Copy estimate"}</button>
         <p className={styles.note}>Ex VAT. Estimated profit assumes every entered cost is complete and correctly allocated. Gang days are rounded up for each work area; the estimate does not account for shared mobilisation between areas. Estimate inputs are unsaved and reset when you leave this page. Copy an estimate to retain your draft.</p>
