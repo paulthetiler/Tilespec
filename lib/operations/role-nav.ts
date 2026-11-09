@@ -36,7 +36,7 @@ export function destinationsFor(role: MemberRole, pathname: string, financial = 
         { key: "today", label: "Today", href: base, icon: "home" },
         { key: "people", label: "People", href: `${base}/workforce`, icon: "users" },
         { key: "inspect", label: "Inspect", href: `${base}/inspections`, icon: "clipboard" },
-        { key: "issues", label: "Issues", href: `${base}/snags`, icon: "alert" },
+        { key: "documents", label: "Docs", href: `${base}/documents`, icon: "file" },
       ];
     }
     default:
