@@ -34,7 +34,7 @@ export default function Home() {
       <div className="shell nav"><Logo/><nav className={menu ? "nav-links open" : "nav-links"} aria-label="Main navigation">
         <a href="#expertise" onClick={() => setMenu(false)}>Expertise</a><a href="#approach" onClick={() => setMenu(false)}>Our approach</a><a href="#projects" onClick={() => setMenu(false)}>Projects</a><a href="#about" onClick={() => setMenu(false)}>About</a>
         <a className="mobile-cta" href="/contact" onClick={() => setMenu(false)}>Discuss a project <ArrowUpRight size={16}/></a>
-      </nav><a className="nav-cta" href="/contact">Discuss a project <ArrowUpRight size={17}/></a><button className="menu-button" aria-label={menu ? "Close menu" : "Open menu"} aria-expanded={menu} onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button></div>
+      </nav><a className="nav-cta" href="/contact">DISCUSS A PROJECT <ArrowUpRight size={17}/></a><button className="menu-button" aria-label={menu ? "Close menu" : "Open menu"} aria-expanded={menu} onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button></div>
     </header>
     <link rel="preload" as="image" href="https://wxxxgqi56ekoi5vz.public.blob.vercel-storage.com/file_000000009748824390831e6b533c9672.png" fetchPriority="high" />
     <section className="hero">
@@ -42,7 +42,7 @@ export default function Home() {
       <div className="shell hero-content"><div className="eyebrow light"><span className="eyebrow-line"/> SPECIALIST COMMERCIAL TILING</div>
         <h1>COMMERCIAL<br/>WALL & FLOOR<br/><em>TILING.</em></h1>
         <p>Complete commercial tiling packages for main contractors and developers. One specialist contractor for tile supply, substrate preparation, installation and handover.</p>
-        <div className="hero-actions"><a className="button button-teal" href="/contact">Discuss a project <ArrowUpRight size={19}/></a><a className="text-link light-link" href="#expertise">Explore OUR EXPERTISE <ArrowDown size={17}/></a></div>
+        <div className="hero-actions"><a className="button button-teal" href="/contact">DISCUSS A PROJECT <ArrowUpRight size={19}/></a><a className="text-link light-link" href="#expertise">Explore OUR EXPERTISE <ArrowDown size={17}/></a></div>
         <a href="tel:+443333393445" aria-label="Call TileSPEC on 0333 339 3445" style={{display:"inline-flex",alignItems:"center",gap:"12px",marginTop:"24px",paddingTop:"18px",borderTop:"1px solid rgba(255,255,255,.3)",color:"#fff",textDecoration:"none"}}><Phone size={21} color="#83BDB5"/><span style={{display:"flex",flexDirection:"column",gap:"3px"}}><span style={{fontSize:"11px",letterSpacing:"1.5px",color:"#B9C8CE"}}>PREFER TO SPEAK TO US?</span><strong style={{fontSize:"clamp(18px, 3vw, 23px)",letterSpacing:".5px"}}>0333 339 3445</strong></span></a>
         <p className="hero-mobile-experience">BUILT ON OVER TWO DECADES OF HANDS-ON TILING EXPERIENCE</p>
       </div>
