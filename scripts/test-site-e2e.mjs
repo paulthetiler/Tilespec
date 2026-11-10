@@ -173,9 +173,8 @@ async function startNext(gatewayPort) {
   const child = spawn(process.execPath, [join(repository, 'node_modules/next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], {
     cwd: repository, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, TILESPEC_E2E_OUTPUT: '1', NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${gatewayPort}`, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: anonKey,
-      // The key exists here only for shared document links. Photographs and documents must never
-      // use it (production holds none): the storage fixture counts any service-role request.
-      NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: serviceKey,
+      // Like production, the app holds no service-role key at all.
+      NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: '',
       // The existing regression always proves the default admin. Phase 3 is a
       // separate invocation with an explicit office/owner-only opt-in.
       FEATURE_NEXT_ACTIONS: adminTodayOnly ? 'owner,contracts_manager' : '',

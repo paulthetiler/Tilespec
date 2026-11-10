@@ -18,9 +18,14 @@ trap '"${base[@]}" -d postgres -c "drop database if exists commercial_upgrade" >
 psql=("${base[@]}" -d commercial_upgrade)
 sed '/^create role/d' "$repository_root/tests/db/platform.sql" | "${psql[@]}" >/dev/null
 outstanding=(20261013210000_tender_enquiries.sql 20261023090000_office_reviews_instruction_changes.sql)
+# The public enquiry form deliberately creates the enquiry table and bucket and opens the inbox to
+# the office, so it is applied with the outstanding migrations, after the "existing values are
+# unchanged" comparison.
+intake=20261112090000_public_intake_without_service_key.sql
 commercial=()
 for migration in "$repository_root"/supabase/migrations/*.sql; do
   name="$(basename "$migration")"
+  [[ "$name" != "$intake" ]] || continue
   if [[ "$name" > 20261104 ]]; then commercial+=("$migration")
   elif [[ " ${outstanding[*]} " != *" $name "* ]]; then "${psql[@]}" -f "$migration" >/dev/null; fi
 done
@@ -138,7 +143,11 @@ rollback;
 SQL
 
 # The two migrations not yet applied on the hosted project still install afterwards.
-for name in "${outstanding[@]}"; do "${psql[@]}" -f "$repository_root/supabase/migrations/$name" >/dev/null; done
+for name in "${outstanding[@]}" "$intake"; do "${psql[@]}" -f "$repository_root/supabase/migrations/$name" >/dev/null; done
+if "${psql[@]}" -f "$repository_root/supabase/migrations/$intake" >"$test_socket/intake-reapply.log" 2>&1 || ! grep -q 'Preflight failed' "$test_socket/intake-reapply.log"; then
+  cat "$test_socket/intake-reapply.log" >&2
+  echo "FAIL: $intake did not refuse a second application." >&2; exit 1
+fi
 "${psql[@]}" -c "select test.assert(to_regclass('public.office_reviews') is not null and to_regclass('public.tender_enquiries') is not null,
   'tender enquiries and office reviews still install after the commercial migrations')" >/dev/null
 

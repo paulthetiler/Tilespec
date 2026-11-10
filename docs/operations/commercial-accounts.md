@@ -141,7 +141,7 @@ Samples, made by running a fictitious job through the real functions, are in [sa
 4. The owner records the business details (Accounts → Business details), confirming the legal name, address and VAT and
    company numbers first. Then set each contract's payment terms.
 
-`SUPABASE_SERVICE_ROLE_KEY` (already required for upload verification) is also used by the shared-link route.
+The shared-link route needs no service key: the link's secret token is checked by the database function.
 
 ## Tests
 

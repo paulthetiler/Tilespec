@@ -22,8 +22,10 @@ select test.assert((select count(*) = 0 from information_schema.role_table_grant
       'payment_applications', 'payment_application_lines', 'payment_receipts')),
   'Supervisor V2, company and issue-register tables are read-only to signed-in users; every write goes through a checked function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')),
-  'anonymous visitors cannot execute any application function');
+  where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')
+    and p.oid::regprocedure::text not in ('submit_tender_enquiry(jsonb)', 'complete_tender_enquiry(uuid,text)',
+      'shared_commercial_document(text)', 'private.can_upload_tender_file(text)')),
+  'anonymous visitors can call only the enquiry form and shared-link functions, and no other application function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'private' and has_function_privilege('authenticated', p.oid, 'execute')
     and p.proname not in ('current_org', 'current_role', 'is_owner', 'can_manage_contract', 'can_access_contract',

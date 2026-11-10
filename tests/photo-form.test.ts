@@ -99,3 +99,12 @@ test("every verified photo route handles a failed upload and checks stored bytes
     assert.match(route, new RegExp(`await supabase\\.rpc\\("${completion}",\\{p_photo:metadata\\.data\\.id,p_sha256:metadata\\.data\\.sha256\\}\\)`), `${resource}: confirmed in the uploader's session`);
   }
 });
+
+test("the application never uses a Supabase service-role key", async () => {
+  const { readFileSync, readdirSync, statSync } = await import("node:fs");
+  const files: string[] = [];
+  const walk = (dir: string) => { for (const name of readdirSync(dir)) { const path = `${dir}/${name}`; if (statSync(path).isDirectory()) walk(path); else if (/\.(ts|tsx)$/.test(name)) files.push(path); } };
+  for (const dir of ["app", "lib", "components"]) walk(dir);
+  files.push("middleware.ts", "next.config.ts");
+  for (const file of files) assert.doesNotMatch(readFileSync(file, "utf8"), /SUPABASE_SERVICE_ROLE_KEY|service_role/, `${file}: every request runs as the signed-in person or a signed-out visitor`);
+});

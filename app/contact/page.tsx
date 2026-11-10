@@ -34,7 +34,7 @@ export default function ContactPage(){
    if(!init.ok)throw new Error(result.error||"Could not submit enquiry.");
    for(let i=0;i<files.length;i++){
     const item=result.uploads[i];
-    const response=await fetch(item.url,{method:"PUT",headers:{"Content-Type":item.contentType},body:files[i]});
+    const response=await fetch(item.url,{method:item.method||"PUT",headers:{...(item.headers||{}),"Content-Type":item.contentType},body:files[i]});
     if(!response.ok)throw new Error("File upload failed for "+files[i].name+". Please retry using the reference below.");
    }
    const confirm=await fetch("/api/enquiries/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:result.id,token:result.token})});

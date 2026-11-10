@@ -11,10 +11,15 @@ base=("$psql_binary" -X -q -A -t -w -h "$test_socket" -p "$test_port" -U postgre
 trap '"${base[@]}" -d postgres -c "drop database if exists holds_upgrade" >/dev/null 2>&1 || true; "${base[@]}" -d postgres -c "drop database if exists holds_order" >/dev/null 2>&1 || true' EXIT
 psql=("${base[@]}" -d holds_upgrade)
 grep -Ev '^create role' "$repository_root/tests/db/platform.sql" | "${psql[@]}" >/dev/null
+# The public enquiry form deliberately opens the tender inbox to the office (a new grant on an
+# original table), so it is applied after the unchanged-security comparison.
+intake=20261112090000_public_intake_without_service_key.sql
 phase3c=()
 for migration in "$repository_root"/supabase/migrations/*.sql; do
   if [[ "$(basename "$migration")" < 20261014160001 ]]; then
     "${psql[@]}" -f "$migration" >/dev/null
+  elif [[ "$(basename "$migration")" == "$intake" ]]; then
+    : # Applied after the "original policies and grants are unchanged" comparison, below.
   else
     phase3c+=("$migration")
   fi
@@ -234,6 +239,12 @@ for migration in "${phase3c[@]}"; do
   exit 1
  fi
 done
+"${psql[@]}" -f "$repository_root/supabase/migrations/$intake" >/dev/null
+if "${psql[@]}" -f "$repository_root/supabase/migrations/$intake" >"$test_socket/intake-reapply.log" 2>&1 || ! grep -q 'Preflight failed' "$test_socket/intake-reapply.log"; then
+ cat "$test_socket/intake-reapply.log" >&2
+ echo "FAIL: repeated $intake was not safely refused." >&2
+ exit 1
+fi
 "${psql[@]}" <<'SQL'
 select test.assert(true,'Phase 3C preserves every original column across populated public/private/auth/storage history, including legacy issues, inspected templates, workforce snapshots and verified snag photographs');
 select test.assert(true,'Phase 3C preserves original table policies, grants, column grants, RLS flags and staff historical visibility');

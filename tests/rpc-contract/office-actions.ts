@@ -34,10 +34,11 @@ type Signature = { args: string[]; required: string[]; executableBy: Set<string>
 const signatures = new Map<string, Signature[]>();
 for (const line of query(`select p.proname || '|' || coalesce(array_to_string(p.proargnames[1:p.pronargs], ','), '') || '|' || p.pronargdefaults
     || '|' || has_function_privilege('authenticated', p.oid, 'execute') || '|' || has_function_privilege('service_role', p.oid, 'execute')
+    || '|' || has_function_privilege('anon', p.oid, 'execute')
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'`)) {
-  const [name, argList, defaults, signedIn, service] = line.split("|");
+  const [name, argList, defaults, signedIn, service, signedOut] = line.split("|");
   const args = argList ? argList.split(",") : [];
-  const executableBy = new Set([...(signedIn === "true" ? ["authenticated"] : []), ...(service === "true" ? ["service_role"] : [])]);
+  const executableBy = new Set([...(signedIn === "true" ? ["authenticated"] : []), ...(service === "true" ? ["service_role"] : []), ...(signedOut === "true" ? ["anon"] : [])]);
   signatures.set(name, [...(signatures.get(name) ?? []), { args, required: args.slice(0, args.length - Number(defaults)), executableBy }]);
 }
 const columns = new Map<string, Set<string>>();
@@ -62,7 +63,8 @@ for (const file of ["app", "lib", "components"].flatMap(directory => sources(joi
   for (const line of text.split("\n")) {
     for (const match of line.matchAll(/(\w+)\.rpc\("(\w+)",\s*\{(.*)/g)) {
       rpcCalls.push({ file: relative(repository, file), name: match[2], keys: [...match[3].matchAll(/\b(p_\w+)\s*:/g)].map(key => key[1]),
-        role: ["verifier", "serviceClient"].includes(match[1]) ? "service_role" : "authenticated" });
+        // `publicClient` is the signed-out connection used by the enquiry form and shared links.
+        role: ["verifier", "serviceClient"].includes(match[1]) ? "service_role" : match[1] === "publicClient" ? "anon" : "authenticated" });
     }
   }
   for (const match of text.matchAll(/(\w+)\.from\("(\w+)"\)\s*\.select\((?:"([^"]*)"|(\w+))\)/g)) {
