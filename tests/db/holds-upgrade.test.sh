@@ -13,7 +13,7 @@ psql=("${base[@]}" -d holds_upgrade)
 grep -Ev '^create role' "$repository_root/tests/db/platform.sql" | "${psql[@]}" >/dev/null
 # The public enquiry form deliberately opens the tender inbox to the office (a new grant on an
 # original table), so it is applied after the unchanged-security comparison.
-intake=20261112090000_public_intake_without_service_key.sql
+intake=20261110112916_public_intake_without_service_key.sql
 phase3c=()
 for migration in "$repository_root"/supabase/migrations/*.sql; do
   if [[ "$(basename "$migration")" < 20261014160001 ]]; then
