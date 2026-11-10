@@ -411,3 +411,36 @@ main#top .full-package-tagline {text-transform:none}
 .ts-live-intro{padding-bottom:58px}
 .ts-photo-services.section-pad{padding-top:32px}
 @media(max-width:760px){.ts-live-intro{padding-bottom:42px}.ts-photo-services.section-pad{padding-top:20px}}
+
+/* Unified homepage editorial typography and vertical rhythm (hero excluded). */
+main#top{
+  --ts-section-heading-size:clamp(54px,6.1vw,88px);
+  --ts-section-space:clamp(70px,7vw,108px);
+}
+main#top .ts-live-intro h2,
+main#top .ts-photo-services-heading h2,
+main#top .full-package-copy h2,
+main#top .approach .section-head h2,
+main#top .projects .section-head h2,
+main#top .sectors h2,
+main#top .tender h2{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:var(--ts-section-heading-size);
+  font-weight:800;
+  line-height:.98;
+  letter-spacing:-.025em;
+  text-transform:none;
+}
+main#top .ts-live-intro{padding-top:var(--ts-section-space);padding-bottom:var(--ts-section-space)}
+main#top .ts-photo-services.section-pad{padding-top:0;padding-bottom:var(--ts-section-space)}
+main#top .ts-photo-services .shell{border-top:1px solid #dbe4e6;padding-top:var(--ts-section-space)}
+main#top .ts-photo-services-heading{margin-bottom:32px}
+main#top .approach.section-pad,
+main#top .projects.section-pad,
+main#top .sectors.section-pad,
+main#top .tender.section-pad{padding-top:var(--ts-section-space);padding-bottom:var(--ts-section-space)}
+main#top .full-package{padding-bottom:var(--ts-section-space)}
+@media(max-width:760px){
+  main#top{--ts-section-heading-size:clamp(46px,10.2vw,68px);--ts-section-space:58px}
+  main#top .ts-photo-services .shell{padding-top:58px}
+}
