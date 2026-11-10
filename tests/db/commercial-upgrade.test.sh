@@ -21,7 +21,7 @@ outstanding=(20261013210000_tender_enquiries.sql 20261023090000_office_reviews_i
 # The public enquiry form deliberately creates the enquiry table and bucket and opens the inbox to
 # the office, so it is applied with the outstanding migrations, after the "existing values are
 # unchanged" comparison.
-intake=20261112090000_public_intake_without_service_key.sql
+intake=20261110112916_public_intake_without_service_key.sql
 commercial=()
 for migration in "$repository_root"/supabase/migrations/*.sql; do
   name="$(basename "$migration")"
