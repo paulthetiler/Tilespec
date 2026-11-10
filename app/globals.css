@@ -520,3 +520,17 @@ main#top .ts-live-proof-item{min-width:0}
     padding-bottom:24px;
   }
 }
+
+/* Desktop service showcase: four photographs across, no extra card furniture. */
+@media(min-width:761px){
+  main#top .ts-photo-services-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  main#top .ts-photo-service{min-width:0;min-height:300px;aspect-ratio:0.82}
+  main#top .ts-photo-service-label{padding:20px 16px}
+  main#top .ts-photo-service-label h3{font-size:clamp(23px,2.15vw,34px);overflow-wrap:normal}
+}
+@media(min-width:761px) and (max-width:1100px){
+  main#top .ts-photo-services-grid{gap:9px}
+  main#top .ts-photo-service{min-height:250px}
+  main#top .ts-photo-service-label{padding:15px 12px}
+  main#top .ts-photo-service-label h3{font-size:clamp(20px,2.2vw,27px)}
+}
