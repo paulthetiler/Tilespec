@@ -444,3 +444,55 @@ main#top .full-package{padding-bottom:var(--ts-section-space)}
   main#top{--ts-section-heading-size:clamp(46px,10.2vw,68px);--ts-section-space:58px}
   main#top .ts-photo-services .shell{padding-top:58px}
 }
+
+/* Fluid responsive homepage: small phones, tablets, laptops and ultrawide screens. */
+main#top{width:100%;min-width:0;overflow-x:clip}
+main#top .shell{max-width:1320px}
+main#top img{max-width:100%}
+main#top .nav,main#top .hero-content,main#top .ts-live-proof-inner,main#top .ts-photo-services-grid,main#top .process-grid,main#top .project-grid,main#top .sectors-grid,main#top .tender-grid{min-width:0}
+main#top .ts-photo-services-grid > *,main#top .ts-live-proof-inner > *,main#top .process-grid > *,main#top .project-grid > *{min-width:0}
+main#top .ts-photo-service{min-height:0;aspect-ratio:1.55}
+main#top .ts-photo-service img{max-width:none}
+main#top .ts-live-proof-item strong{white-space:normal;overflow-wrap:break-word}
+main#top .ts-live-proof-item{min-width:0}
+@media(min-width:1600px){
+  main#top .hero{height:min(820px,calc(100svh - 96px))}
+  main#top .hero-content{max-width:1320px}
+}
+@media(min-width:761px) and (max-width:1180px){
+  main#top .shell{width:calc(100% - 64px)}
+  main#top .nav{gap:18px}
+  main#top .nav-links{gap:13px}
+  main#top .nav-cta{padding:15px 12px;gap:8px;font-size:9px}
+  main#top .brand-svg img{width:clamp(180px,20vw,240px);height:auto}
+  main#top .ts-live-proof-item{padding:12px 10px;gap:9px}
+  main#top .ts-live-proof-item svg{width:27px;height:27px}
+  main#top .ts-live-proof-item strong{font-size:12px}
+}
+@media(max-width:760px){
+  main#top .shell{width:calc(100% - 36px)}
+  main#top .nav{width:calc(100% - 36px)}
+  main#top .hero{height:auto}
+  main#top .hero-content{min-width:0}
+  main#top .hero h1{font-size:clamp(43px,10.5vw,72px);overflow-wrap:normal}
+  main#top .hero-actions{flex-wrap:wrap}
+  main#top .ts-live-intro h2,main#top .ts-photo-services-heading h2,main#top .approach .section-head h2,main#top .projects .section-head h2,main#top .sectors h2,main#top .tender h2{font-size:clamp(44px,10.2vw,68px)}
+  main#top .ts-photo-service{aspect-ratio:1.45}
+  main#top .ts-photo-service-label h3{font-size:clamp(25px,6vw,34px)}
+  main#top .ts-live-proof-inner{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:380px){
+  main#top .shell,main#top .nav{width:calc(100% - 28px)}
+  main#top .brand-svg img{width:min(190px,56vw);height:auto}
+  main#top .hero h1{font-size:clamp(38px,10.3vw,46px)}
+  main#top .ts-live-proof-item{padding:14px 5px;gap:7px}
+  main#top .ts-live-proof-item svg{width:23px;height:23px}
+  main#top .ts-live-proof-item strong{font-size:10px}
+  main#top .ts-photo-service{aspect-ratio:1.2}
+  main#top .ts-photo-service-label{padding:18px}
+}
+@media(max-width:320px){
+  main#top .ts-live-proof-inner{grid-template-columns:1fr}
+  main#top .ts-live-proof-item{border-right:0;border-bottom:1px solid #dce5e8}
+  main#top .ts-live-proof-item:last-child{border-bottom:0}
+}
