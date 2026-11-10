@@ -30,16 +30,16 @@ async function readFile(value: FormDataEntryValue | null, allowed: string[], mis
 
 /** Reserves the one path the file may be stored at, stores it there and confirms it. Safe to retry. */
 async function storeFile(token: string, requestKey: string, invoiceId: string, kind: "invoice" | "photo", file: { bytes: Uint8Array; mime: string; sha256: string }) {
-  const client = portalClient();
-  const reserved = await client.rpc("portal_reserve_file", { p_token: token, p_request_key: requestKey, p_invoice: invoiceId, p_kind: kind,
-    p_meta: { mime_type: file.mime, bytes: file.bytes.length, sha256: file.sha256 } });
+  const publicClient = portalClient();
+  const meta = { mime_type: file.mime, bytes: file.bytes.length, sha256: file.sha256 };
+  const reserved = await publicClient.rpc("portal_reserve_file", { p_token: token, p_request_key: requestKey, p_invoice: invoiceId, p_kind: kind, p_meta: meta });
   if (reserved.error) return { error: portalErrorMessage(reserved.error) };
   const slot = reserved.data as { file_id: string; object_path: string; mime_type: string; uploaded: boolean };
   if (!slot.uploaded) {
-    const upload = await client.storage.from(GANG_BUCKET).upload(slot.object_path, file.bytes, { contentType: slot.mime_type, upsert: false });
+    const upload = await publicClient.storage.from(GANG_BUCKET).upload(slot.object_path, file.bytes, { contentType: slot.mime_type, upsert: false });
     if (upload.error && !alreadyStored(upload.error)) return { error: "The file did not upload. Check your signal and try again; it will not be sent twice." };
   }
-  const completed = await client.rpc("portal_complete_file", { p_token: token, p_file: slot.file_id });
+  const completed = await publicClient.rpc("portal_complete_file", { p_token: token, p_file: slot.file_id });
   if (completed.error) return { error: portalErrorMessage(completed.error) };
   return { result: completed.data as { invoice_id: string; reference: string; status: string } };
 }
@@ -50,7 +50,8 @@ export async function previewInvoiceAction(_: PortalState, form: FormData): Prom
   if (!token) return { error: NO_LINK };
   try {
     const payload = parseClaimForm(form, "generated");
-    const { data, error } = await portalClient().rpc("portal_preview_invoice", { p_token: token, p_data: payload });
+    const publicClient = portalClient();
+    const { data, error } = await publicClient.rpc("portal_preview_invoice", { p_token: token, p_data: payload });
     if (error) return { error: portalErrorMessage(error) };
     return { preview: data as ClaimSnapshot };
   } catch (error) { return failure(error, "We could not work out your invoice. Check your signal and try again."); }
@@ -69,7 +70,8 @@ export async function submitInvoiceAction(_: PortalState, form: FormData): Promi
     const payload = parseClaimForm(form, mode);
     const requestKey = uuid(form, "request_key");
     const upload = mode === "upload" ? await readFile(form.get("file"), ["application/pdf", "image/jpeg", "image/png"], "Add your invoice: a PDF or a photo of it.") : null;
-    const prepared = await portalClient().rpc("portal_prepare_invoice", { p_token: token, p_request_key: requestKey, p_data: payload });
+    const publicClient = portalClient();
+    const prepared = await publicClient.rpc("portal_prepare_invoice", { p_token: token, p_request_key: requestKey, p_data: payload });
     if (prepared.error) return { error: portalErrorMessage(prepared.error) };
     const invoice = prepared.data as { invoice_id: string; reference: string; status: string; snapshot: ClaimSnapshot };
     if (invoice.status !== "uploading") { // an earlier attempt already went through
@@ -105,7 +107,8 @@ export async function answerQueryAction(_: PortalState, form: FormData): Promise
   const token = await portalToken();
   if (!token) return { error: NO_LINK };
   try {
-    const { error } = await portalClient().rpc("portal_answer_query", { p_token: token, p_invoice: uuid(form, "invoice_id"), p_note: text(form, "note", 2000, true) });
+    const publicClient = portalClient();
+    const { error } = await publicClient.rpc("portal_answer_query", { p_token: token, p_invoice: uuid(form, "invoice_id"), p_note: text(form, "note", 2000, true) });
     if (error) return { error: portalErrorMessage(error) };
     revalidatePath("/subcontractors");
     return { success: "Your answer has been sent to the office." };
@@ -116,7 +119,8 @@ export async function cancelInvoiceAction(_: PortalState, form: FormData): Promi
   const token = await portalToken();
   if (!token) return { error: NO_LINK };
   try {
-    const { error } = await portalClient().rpc("portal_cancel_invoice", { p_token: token, p_invoice: uuid(form, "invoice_id"), p_reason: text(form, "reason", 500) || null });
+    const publicClient = portalClient();
+    const { error } = await publicClient.rpc("portal_cancel_invoice", { p_token: token, p_invoice: uuid(form, "invoice_id"), p_reason: text(form, "reason", 500) || null });
     if (error) return { error: portalErrorMessage(error) };
     revalidatePath("/subcontractors");
     return { success: "Withdrawn. It will not be checked or paid." };
@@ -131,8 +135,9 @@ export async function signAgreementAction(_: PortalState, form: FormData): Promi
     const signature = parseSignatureForm(form);
     const requestHeaders = await headers();
     const ip = (requestHeaders.get("x-forwarded-for") ?? "").split(",")[0].trim().slice(0, 64);
-    const { error } = await portalClient().rpc("portal_sign_agreement", { p_token: token, p_agreement: uuid(form, "agreement_id"),
-      p_data: { ...signature, ...(ip ? { ip } : {}), user_agent: (requestHeaders.get("user-agent") ?? "").slice(0, 400) } });
+    const publicClient = portalClient();
+    const evidence = { ...signature, ...(ip ? { ip } : {}), user_agent: (requestHeaders.get("user-agent") ?? "").slice(0, 400) };
+    const { error } = await publicClient.rpc("portal_sign_agreement", { p_token: token, p_agreement: uuid(form, "agreement_id"), p_data: evidence });
     if (error) return { error: portalErrorMessage(error) };
     revalidatePath("/subcontractors", "layout");
     return { success: "Signed. Thank you. You can now send invoices." };

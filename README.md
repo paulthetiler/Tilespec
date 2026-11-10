@@ -32,6 +32,10 @@ release, Construction Act dates and notices, VAT and CIS, credit notes, statemen
 audit trail) are described in [commercial-accounts.md](docs/operations/commercial-accounts.md), with
 [sample documents](docs/operations/samples/README.md).
 
+The subcontractor portal (`/subcontractors`: personal links instead of logins, a signed agreement, invoices generated from agreed
+rates or uploaded, CIS and retention at approval, all on the gang invoice workflow) and its audit are described in
+[subcontractor-portal.md](docs/operations/subcontractor-portal.md). `npm run test:portal` runs its journey in a real browser.
+
 Read the [architecture, permissions and phased plan](docs/operations/architecture.md),
 [staging deployment instructions](docs/operations/deployment.md), and
 [database/bootstrap instructions](supabase/README.md). Copy `.env.example` to a

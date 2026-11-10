@@ -47,7 +47,8 @@ export async function loadPortal(): Promise<Portal | { problem: "none" | "expire
   const token = await portalToken();
   if (!token) return { problem: "none" };
   try {
-    const { data, error } = await portalClient().rpc("portal_session", { p_token: token });
+    const publicClient = portalClient();
+    const { data, error } = await publicClient.rpc("portal_session", { p_token: token });
     if (error) return { problem: linkRefused(error) ? "expired" : "unavailable" };
     if (!data) return { problem: "expired" };
     return { token, session: data as PortalSession };

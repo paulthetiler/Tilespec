@@ -11,7 +11,8 @@ const plain = (message: string, status: number) => new NextResponse(message, { s
 export async function GET(request: Request) {
   const token = await portalToken();
   if (!token) return plain("Open your TileSPEC link again to see your agreement.", 404);
-  const { data, error } = await portalClient().rpc("portal_agreement", { p_token: token });
+  const publicClient = portalClient();
+  const { data, error } = await publicClient.rpc("portal_agreement", { p_token: token });
   if (error) return plain(error.code === "42501" ? "Your link has expired or been withdrawn. Ask TileSPEC for a new link." : "The agreement is temporarily unavailable. Please try again.", error.code === "42501" ? 404 : 503);
   if (!data) return plain("Not found", 404);
   const agreement = data as PortalAgreement;

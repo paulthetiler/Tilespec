@@ -13,7 +13,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const token = await portalToken();
   if (!token || !/^[0-9a-f-]{36}$/i.test(id)) return plain("Open your TileSPEC link again to see this invoice.", 404);
-  const { data, error } = await portalClient().rpc("portal_invoice", { p_token: token, p_invoice: id });
+  const publicClient = portalClient();
+  const { data, error } = await publicClient.rpc("portal_invoice", { p_token: token, p_invoice: id });
   if (error) return plain(error.code === "42501" ? "Your link has expired or been withdrawn. Ask TileSPEC for a new link." : "This invoice is temporarily unavailable. Please try again.", error.code === "42501" ? 404 : 503);
   const invoice = data as { reference: string; source: string; status: string; snapshot: ClaimSnapshot | null } | null;
   if (!invoice || invoice.source !== "generated" || !invoice.snapshot || invoice.status === "uploading") return plain("Not found", 404);

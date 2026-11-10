@@ -64,3 +64,10 @@ position includes approved gang costs.
 When the supervisor records work needing correction it is linked to the gang and area, described,
 can have photos, and is excluded from payment. The supervisor records it as corrected and checked
 on the progress page; the history is kept. Formal defects can also be raised in the snag register.
+
+## Subcontractor portal
+
+Subcontractors can also send these invoices without a login, from a personal link, and can have the
+invoice created for them from the agreed rates. Onboarding, the signed agreement, day rates,
+variations, CIS and retention are described in [subcontractor-portal.md](subcontractor-portal.md).
+The checking and approval steps on this page are unchanged.

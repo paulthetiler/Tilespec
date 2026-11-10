@@ -17,7 +17,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ token: str
   };
   if (!isPortalToken(token)) return respond("?link=expired", "");
   try {
-    const { data, error } = await portalClient().rpc("portal_session", { p_token: token });
+    const publicClient = portalClient();
+    const { data, error } = await publicClient.rpc("portal_session", { p_token: token });
     if (error || !data) return respond(error && error.code !== "42501" ? "?link=unavailable" : "?link=expired", "");
   } catch { return respond("?link=unavailable"); }
   return respond("", token);

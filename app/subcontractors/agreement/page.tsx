@@ -11,7 +11,8 @@ const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { dateStyle: "lon
 export default async function AgreementPage() {
   const portal = await loadPortal();
   if ("problem" in portal) redirect(portal.problem === "none" ? "/subcontractors" : `/subcontractors?link=${portal.problem}`);
-  const { data, error } = await portalClient().rpc("portal_agreement", { p_token: portal.token });
+  const publicClient = portalClient();
+  const { data, error } = await publicClient.rpc("portal_agreement", { p_token: portal.token });
   const agreement = error ? null : (data as PortalAgreement | null);
   const back = <p className={css.eyebrow}><Link href="/subcontractors">← Back</Link></p>;
   if (error) return <>{back}<p className={css.error} role="alert">Your agreement cannot be opened at the moment. Please try again in a few minutes.</p></>;
