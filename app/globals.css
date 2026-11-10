@@ -571,3 +571,6 @@ main#top .ts-photo-service-sequence .ts-photo-service-label{background:linear-gr
 @media (prefers-reduced-motion: reduce) {
   .ts-scroll-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
+
+/* Frame the pool basin rather than the far wall in the preparation panel. */
+main#top .ts-photo-service-preparation img{object-position:12% 72%}
