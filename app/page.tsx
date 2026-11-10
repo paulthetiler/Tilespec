@@ -29,7 +29,6 @@ export default function Home() {
 
 
   return <main id="top">
-    <div className="topline"><span>COMMERCIAL TILING. CONSIDERED FROM EVERY ANGLE.</span><span className="topline-right"><MapPin size={13}/> NORTH WEST BASED · UK PROJECTS</span></div>
     <header className="site-header">
       <div className="shell nav"><Logo/><nav className={menu ? "nav-links open" : "nav-links"} aria-label="Main navigation">
         <a href="#expertise" onClick={() => setMenu(false)}>Expertise</a><a href="#approach" onClick={() => setMenu(false)}>Our approach</a><a href="#projects" onClick={() => setMenu(false)}>Projects</a><a href="#about" onClick={() => setMenu(false)}>About</a>
