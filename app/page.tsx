@@ -40,7 +40,7 @@ export default function Home() {
       <div className="hero-image" role="img" aria-label="Architectural interior with large-format tiled floor"/><div className="hero-grain"/>
       <div className="shell hero-content"><div className="eyebrow light"><span className="eyebrow-line"/> SPECIALIST COMMERCIAL TILING</div>
         <h1>COMMERCIAL<br/>WALL & FLOOR<br/><em>TILING.</em></h1>
-        <p>Complete tiling packages for main contractors, developers, luxury homes and specialist residential projects. One specialist contractor for tile supply, substrate preparation, installation and handover.</p>
+        <p>Complete tiling packages for main contractors, developers, luxury homes and specialist projects. One specialist contractor for tile supply, substrate preparation, installation and handover.</p>
         <div className="hero-actions"><a className="button button-teal" href="/contact">DISCUSS A PROJECT <ArrowUpRight size={19}/></a><a className="text-link light-link" href="#expertise">Explore OUR EXPERTISE <ArrowDown size={17}/></a></div>
         <a href="tel:+443333393445" aria-label="Call TileSPEC on 0333 339 3445" style={{display:"inline-flex",alignItems:"center",gap:"12px",marginTop:"24px",paddingTop:"18px",borderTop:"1px solid rgba(255,255,255,.3)",color:"#fff",textDecoration:"none"}}><Phone size={21} color="#83BDB5"/><span style={{display:"flex",flexDirection:"column",gap:"3px"}}><span style={{fontSize:"11px",letterSpacing:"1.5px",color:"#B9C8CE"}}>PREFER TO SPEAK TO US?</span><strong style={{fontSize:"clamp(18px, 3vw, 23px)",letterSpacing:".5px"}}>0333 339 3445</strong></span></a>
         <p className="hero-mobile-experience">BUILT ON OVER TWO DECADES OF HANDS-ON TILING EXPERIENCE</p>
