@@ -102,13 +102,14 @@ try {
     await visit(page, origin + base);
     assert.equal(await href(page, 'Start morning checks'), `${base}/checks`);
     assert.equal(await href(page, 'Report an issue'), `${base}/report`);
-    assert.deepEqual(await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link').allTextContents(), ['Today', 'People', 'Inspect', 'Issues']);
+    assert.deepEqual(await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link').allTextContents(), ['Today', 'People', 'Inspect', 'Docs']);
     assert.equal(await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link', { name: 'Today', exact: true }).getAttribute('aria-current'), 'page');
     assert.equal(await page.getByText('Everything else', { exact: true }).count(), 0, 'a supervisor has no second menu');
     assert.equal(await page.getByRole('link', { name: /Money|Estimator/ }).count(), 0);
     assert.equal(await href(page, 'Change site'), '/admin/supervisor');
     const more = page.getByRole('region', { name: 'More', exact: true });
-    assert.deepEqual(await more.locator('strong').allTextContents(), ['Office messages', 'Finish today', 'Materials used', 'Job activity', 'Variations', 'Dayworks'], 'More does not repeat the tab bar');
+    assert.deepEqual(await more.locator('strong').allTextContents(), ['Verify gang progress', 'Office messages', 'Finish today', 'Materials used', 'Job activity', 'Variations', 'Dayworks'], 'More does not repeat the tab bar');
+    assert.equal(await more.getByRole('link', { name: /^Verify gang progress/ }).getAttribute('href'), `${base}/progress`, 'gang invoice checks are one tap from Today');
     assert.equal(await more.getByRole('link', { name: /^Job activity/ }).getAttribute('href'), `${base}/activity`);
     for (const kind of ['Variations', 'Dayworks']) {
       const link = more.getByRole('link', { name: new RegExp(`^${kind}`) });
