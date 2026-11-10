@@ -534,3 +534,8 @@ main#top .ts-live-proof-item{min-width:0}
   main#top .ts-photo-service-label{padding:15px 12px}
   main#top .ts-photo-service-label h3{font-size:clamp(20px,2.2vw,27px)}
 }
+
+/* Keep the full three-stage preparation/levelling/tiling sequence visible. */
+main#top .ts-photo-service-sequence{background:#182f3b}
+main#top .ts-photo-service-sequence img{object-fit:contain;object-position:center center}
+main#top .ts-photo-service-sequence:after{background:linear-gradient(180deg,transparent 55%,rgba(7,25,35,.85) 100%)}
