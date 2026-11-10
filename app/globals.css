@@ -539,3 +539,10 @@ main#top .ts-live-proof-item{min-width:0}
 main#top .ts-photo-service-sequence{background:#182f3b}
 main#top .ts-photo-service-sequence img{object-fit:contain;object-position:center center}
 main#top .ts-photo-service-sequence:after{background:linear-gradient(180deg,transparent 55%,rgba(7,25,35,.85) 100%)}
+
+/* Larger TileSpec wordmark in the white desktop navigation only. */
+@media (min-width:1101px){
+  main#top .site-header .brand-svg img{width:350px;height:auto;max-width:none}
+  main#top .site-header .nav{gap:26px}
+  main#top .site-header .nav-links{gap:24px}
+}
