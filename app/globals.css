@@ -370,3 +370,26 @@
 .ts-live-intro p{max-width:620px;margin:0 auto;color:#596d75;font-size:17px;line-height:1.8}
 @media(max-width:900px){.ts-live-proof-inner{grid-template-columns:repeat(2,minmax(0,1fr));padding-top:16px;padding-bottom:16px}.ts-live-proof-item{justify-content:flex-start;padding:20px 12px}.ts-live-proof-item:nth-child(2){border-right:0}.ts-live-proof-item:nth-child(-n+2){border-bottom:1px solid #dce5e8}}
 @media(max-width:480px){.ts-live-proof-item{gap:9px;padding:17px 7px}.ts-live-proof-item svg{width:25px;height:25px}.ts-live-proof-item strong{font-size:11px;white-space:normal}.ts-live-intro{padding:70px 0 78px}.ts-live-intro h2{font-size:clamp(46px,11vw,66px)}.ts-live-intro p{font-size:15px}}
+
+/* Homepage editorial case: keep hero and navigation treatment unchanged. */
+main#top .ts-live-intro h2,
+main#top .services .section-head h2,
+main#top .full-package h2,
+main#top .statement h2,
+main#top .approach .section-head h2,
+main#top .projects .section-head h2,
+main#top .sectors h2,
+main#top .tender h2,
+main#top .service-card h3,
+main#top .process-grid h3,
+main#top .project-copy h3,
+main#top .homepage-contact-choice strong {text-transform:none}
+main#top .ts-live-intro-kicker,
+main#top .services .eyebrow,
+main#top .full-package-kicker,
+main#top .statement .eyebrow,
+main#top .approach .eyebrow,
+main#top .projects .eyebrow,
+main#top .sectors .eyebrow,
+main#top .tender .eyebrow,
+main#top .full-package-tagline {text-transform:none}
