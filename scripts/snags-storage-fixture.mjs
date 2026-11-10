@@ -9,7 +9,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 export function storageFixture({ restPort, verify }) {
   const objects = new Map(), signed = new Map();
   const faults = { failUploads: 0, corruptDownloads: 0 };
-  const stats = { uploads: 0, downloads: 0, signedReviews: 0, denied: 0 };
+  const stats = { uploads: 0, downloads: 0, signedReviews: 0, denied: 0, serviceRole: 0 };
   const json = (response, status, value) => {
     response.writeHead(status, { 'content-type': 'application/json' });
     response.end(JSON.stringify(value));
@@ -48,6 +48,8 @@ export function storageFixture({ restPort, verify }) {
       response.writeHead(200, { 'content-type': file.type, 'cache-control': 'private, no-store' });
       response.end(file.bytes); return true;
     }
+    // Production holds no service key, so nothing may reach storage with one.
+    if (claims?.role === 'service_role') stats.serviceRole++;
     if (!claims || !['authenticated', 'service_role'].includes(claims.role)) {
       error(response, 403, 'Storage authentication required'); return true;
     }

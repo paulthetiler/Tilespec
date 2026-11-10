@@ -173,8 +173,9 @@ async function startNext(gatewayPort) {
   const child = spawn(process.execPath, [join(repository, 'node_modules/next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], {
     cwd: repository, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, TILESPEC_E2E_OUTPUT: '1', NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${gatewayPort}`, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: anonKey,
-      // Like production, the app holds no service-role key: photographs must work without one.
-      NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: '',
+      // The key exists here only for shared document links. Photographs and documents must never
+      // use it (production holds none): the storage fixture counts any service-role request.
+      NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: serviceKey,
       // The existing regression always proves the default admin. Phase 3 is a
       // separate invocation with an explicit office/owner-only opt-in.
       FEATURE_NEXT_ACTIONS: adminTodayOnly ? 'owner,contracts_manager' : '',
@@ -329,6 +330,8 @@ async function main() {
       tokenFor: email => session(users[email], email).access_token, log: next.log });
   }
   if (process.env.E2E_SNAGS_ONLY !== '1' && process.env.E2E_HOLDS_ONLY !== '1' && process.env.E2E_SIMPLE_ONLY !== '1') await accounts();
+  assert.equal(gateway.storage.stats.serviceRole, 0, 'no photograph or document was stored, read or confirmed with a service key');
+  pass('every photograph and document was stored and confirmed in the signed-in person\'s own session; storage saw no service key');
 }
 
 try {
