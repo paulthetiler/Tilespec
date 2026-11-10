@@ -45,7 +45,7 @@ export async function verifyGangInvoiceAction(_: ActionState, form: FormData): P
     const { supabase, contract } = await requireSite(contractId);
     if (!contract) throw new ValidationError("Only the job's supervisor or the office can verify gang invoices.");
     const lineIds = form.getAll("line_id").map(String);
-    const data = parseVerificationForm(form, lineIds);
+    const data = parseVerificationForm(form, lineIds, form.getAll("extra_id").map(String));
     const result = await supabase.rpc("verify_gang_invoice", { p_request_key: uuid(form, "request_key"), p_invoice: invoiceId, p_version: integer(form, "version", 1), p_data: data });
     if (result.error) return { error: rpcErrorMessage(result.error) };
     refresh(contractId, invoiceId);

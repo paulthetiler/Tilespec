@@ -40,6 +40,10 @@ export default async function VerifyGangInvoice({ params }: { params: Promise<{ 
     supabase.from("work_areas").select("id,name,path_ids").eq("contract_id", id),
   ]);
   [lines, ledger, photos, events, request, areas].forEach(r => checkDatabase(r.error));
+  // Extras come through a function that returns quantities and descriptions only: never a rate or an amount.
+  const extraResult = await supabase.rpc("gang_invoice_extras_for_check", { p_invoice: inv.id });
+  const extras = (extraResult.error ? [] : extraResult.data ?? []) as { id: string; kind: string; unit: string; description: string; claimed_quantity: number; confirmed_quantity: number | null; confirmation_note: string | null }[];
+  const extraTitle = (kind: string) => kind === "day_rate" ? "Day rate work" : kind === "variation" ? "Variation" : "Additional work claimed (not an approved variation)";
   const areaById = new Map((areas.data ?? []).map(a => [a.id, a]));
   const areaName = (areaId: string) => (areaById.get(areaId)?.path_ids as string[] | undefined)?.map(p => areaById.get(p)?.name).filter(Boolean).join(" › ") || "Area";
   const rows = (ledger.data ?? []) as LedgerRow[];
@@ -69,6 +73,16 @@ export default async function VerifyGangInvoice({ params }: { params: Promise<{ 
             unit={l.unit} unitText={unitLabel(l.unit)} claimed={Number(l.claimed_quantity)} passed={row.passed} correction={row.correction}
             approved={row.approved} verifiedElsewhere={row.verified} available={row.available} />;
         })}
+        {extras.map(e => <div className={css.lineBox} key={e.id}>
+          <input type="hidden" name="extra_id" value={e.id} /><input type="hidden" name={`extra_label_${e.id}`} value={e.description.slice(0, 190)} />
+          <h3>{extraTitle(e.kind)}</h3>
+          <p style={{ margin: "0 0 8px" }}>{e.description}</p>
+          {e.kind === "day_rate"
+            ? <label className={styles.field}>{e.unit === "hour" ? "Hours" : "Days"} actually worked (claimed {Number(e.claimed_quantity)})<input name={`extra_confirmed_${e.id}`} inputMode="decimal" required defaultValue={String(Number(e.claimed_quantity))} /></label>
+            : <label className={styles.field}>Was this work carried out?<select name={`extra_confirmed_${e.id}`} required defaultValue=""><option value="" disabled>Choose</option><option value="1">Yes, carried out</option><option value="0">No, or I cannot confirm it</option></select></label>}
+          <label className={styles.field}>Note (needed if you confirm less than claimed)<input name={`extra_note_${e.id}`} maxLength={1000} /></label>
+          <small>You confirm what was done. The office decides what is paid.</small>
+        </div>)}
         <WorkmanshipChoice />
         <label className={styles.field}>Notes for the office (optional)<textarea name="note" rows={2} maxLength={2000} placeholder="Anything the office should know about the quantities" /></label>
       </OperationsForm>
@@ -79,6 +93,10 @@ export default async function VerifyGangInvoice({ params }: { params: Promise<{ 
           <td className={css.num}>{quantityText(l.claimed_quantity, l.unit)}</td><td className={css.num}>{quantityText(l.verified_quantity, l.unit)}</td>
           <td className={`${css.num} ${css.difference}`}>{l.verified_quantity === null ? "—" : quantityText(Number(l.claimed_quantity) - Number(l.verified_quantity), l.unit)}</td>
           <td>{l.line_quality === "passed" ? "Checked and passed" : l.line_quality === "correction_required" ? "Correction needed" : "—"}</td></tr>)}</tbody></table>
+      {extras.length > 0 && <table className={css.compare}><thead><tr><th>Extra item</th><th className={css.num}>Claimed</th><th className={css.num}>Confirmed</th></tr></thead>
+        <tbody>{extras.map(e => <tr key={e.id}><td>{extraTitle(e.kind)}: {e.description}{e.confirmation_note ? <><br /><small>{e.confirmation_note}</small></> : null}</td>
+          <td className={css.num}>{e.kind === "day_rate" ? `${Number(e.claimed_quantity)} ${e.unit}s` : "Claimed"}</td>
+          <td className={css.num}>{e.confirmed_quantity === null ? "—" : e.kind === "day_rate" ? `${Number(e.confirmed_quantity)} ${e.unit}s` : Number(e.confirmed_quantity) > 0 ? "Carried out" : "Not confirmed"}</td></tr>)}</tbody></table>}
       {inv.verified_at && <p className={styles.muted}>Checked by {inv.verified_by_name} on {when(inv.verified_at)}.</p>}
       {inv.correction_note && <p className={styles.warning}><strong>Correction needed:</strong> {inv.correction_note} <Link href={`${base}/progress`}>Record it as corrected and checked</Link> when it is done.</p>}
       {inv.supervisor_note && <p><strong>Notes:</strong> {inv.supervisor_note}</p>}

@@ -12,7 +12,8 @@ import css from "@/components/gang/gang.module.css";
 export const dynamic = "force-dynamic";
 const weekdays = [[1, "Monday"], [2, "Tuesday"], [3, "Wednesday"], [4, "Thursday"], [5, "Friday"], [6, "Saturday"], [7, "Sunday"]] as const;
 
-type Sub = { id: string; contract_id: string; team_id: string; payment_cycle: string; pay_weekday: number; payment_days: number; cycle_anchor: string | null; terms_note: string; active: boolean; version: number };
+type Sub = { id: string; contract_id: string; team_id: string; payment_cycle: string; pay_weekday: number; payment_days: number; cycle_anchor: string | null; terms_note: string; active: boolean; version: number; retention_percent?: number };
+const rateUnit = (unit: string) => (unit === "day" ? "day" : unit === "hour" ? "hour" : unitLabel(unit));
 
 function TermsFields({ sub }: { sub?: Sub }) {
   return <>
@@ -23,8 +24,9 @@ function TermsFields({ sub }: { sub?: Sub }) {
         {weekdays.map(([n, d]) => <option key={n} value={n}>{d}</option>)}</select></label>
       <label className={styles.field}>Days to pay<input name="payment_days" inputMode="numeric" defaultValue={String(sub?.payment_days ?? 7)} required /></label>
       <label className={styles.field}>Fortnightly: a period end date<input name="cycle_anchor" type="date" defaultValue={sub?.cycle_anchor ?? ""} /></label>
+      <label className={styles.field}>Retention % (0 if none)<input name="retention_percent" inputMode="decimal" defaultValue={String(Number(sub?.retention_percent ?? 0))} /></label>
     </div>
-    <label className={styles.field}>Agreed terms note (optional)<input name="terms_note" maxLength={2000} defaultValue={sub?.terms_note ?? ""} placeholder="For example: retention, CIS status, agreed exceptions" /></label>
+    <label className={styles.field}>Agreed terms note (optional)<input name="terms_note" maxLength={2000} defaultValue={sub?.terms_note ?? ""} placeholder="For example: agreed exceptions" /></label>
     <small>Weekly with Friday and 7 days: invoice Friday, paid the following Friday.</small>
   </>;
 }
@@ -73,11 +75,11 @@ export default async function GangSetup() {
         return <li key={sub.id} className={css.card}>
           <div className={css.cardHead}><h3>{teamName.get(sub.team_id) ?? "Gang"} — {job.get(sub.contract_id) ?? "Job"}</h3>
             <span className={`${css.status} ${sub.active ? css.good : css.closed}`}>{sub.active ? "Can send invoices" : "Stopped"}</span></div>
-          <p style={{ margin: "4px 0" }}>{paymentTermsText(sub)}{sub.terms_note ? ` ${sub.terms_note}` : ""}</p>
+          <p style={{ margin: "4px 0" }}>{paymentTermsText(sub)} Retention {Number(sub.retention_percent ?? 0)}%.{sub.terms_note ? ` ${sub.terms_note}` : ""} <Link href={`/admin/subcontractors/${sub.team_id}`}>Onboarding, agreement, variations and portal link</Link></p>
           <p className={styles.muted} style={{ margin: "4px 0" }}>Members: {people.length ? people.map(p => `${p.display_name}${p.user_id ? "" : " (no login)"}`).join(", ") : "none recorded"}</p>
           <h4 style={{ margin: "12px 0 4px" }}>Agreed rates</h4>
           {subRates.length ? <table className={css.compare}><tbody>{subRates.map(r => <tr key={r.id} style={r.voided_at ? { opacity: 0.55 } : undefined}>
-            <td>{areaName(r.work_area_id)}{r.description ? ` · ${r.description}` : ""}</td><td className={css.num}>{money(Number(r.rate))} per {unitLabel(r.unit)}</td>
+            <td>{["day", "hour"].includes(r.unit) ? (r.description || (r.unit === "day" ? "Day rate" : "Hourly rate")) : `${areaName(r.work_area_id)}${r.description ? ` · ${r.description}` : ""}`}</td><td className={css.num}>{money(Number(r.rate))} per {rateUnit(r.unit)}</td>
             <td>from {calendarDate(r.effective_from)}{r.voided_at ? " · withdrawn" : ""}</td>
             <td>{!r.voided_at && <details><summary>Withdraw</summary><OperationsForm action={voidGangRateAction} submitLabel="Withdraw rate" compact>
               <input type="hidden" name="rate_id" value={r.id} /><label className={styles.field}>Reason<input name="reason" required minLength={3} maxLength={1000} /></label>
@@ -89,11 +91,12 @@ export default async function GangSetup() {
               <div className={css.inputs}>
                 <label className={styles.field}>Area<select name="work_area_id" defaultValue=""><option value="">Every area</option>
                   {(areas.data ?? []).filter(a => a.contract_id === sub.contract_id && !a.archived_at).map(a => <option key={a.id} value={a.id}>{areaName(a.id)}</option>)}</select></label>
-                <label className={styles.field}>Unit<select name="unit" defaultValue="m2"><option value="m2">m²</option><option value="lm">linear m</option><option value="item">items</option></select></label>
+                <label className={styles.field}>Unit<select name="unit" defaultValue="m2"><option value="m2">m²</option><option value="lm">linear m</option><option value="item">items</option><option value="day">day (every area)</option><option value="hour">hour (every area)</option></select></label>
                 <label className={styles.field}>Rate £<input name="rate" inputMode="decimal" required /></label>
                 <label className={styles.field}>From<input name="effective_from" type="date" /></label>
               </div>
-              <label className={styles.field}>Description (optional)<input name="description" maxLength={200} placeholder="For example: floor tiling, fix only" /></label>
+              <label className={styles.field}>Description (optional)<input name="description" maxLength={200} placeholder="For example: floor tiling, fix only; or for a day rate: tiler, labourer" /></label>
+              <small>The subcontractor sees their own agreed rates in the portal and cannot change them. A day or hourly rate applies across the job: leave the area as every area.</small>
             </OperationsForm>
           </details>
           <details><summary>Change terms or stop invoices</summary>

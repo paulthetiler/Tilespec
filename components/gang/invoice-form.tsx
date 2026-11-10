@@ -15,7 +15,7 @@ const MAX = 4 * 1024 * 1024;
 const newLine = (): Line => ({ key: crypto.randomUUID(), area: "", quantity: "", unit: "m2" });
 
 /** A large phone photo is made smaller (still easily readable) so it uploads quickly and fits the 4 MB limit. */
-async function shrinkPhoto(file: File): Promise<File> {
+export async function shrinkPhoto(file: File): Promise<File> {
   if (!["image/jpeg", "image/png"].includes(file.type) || file.size <= 3.5 * 1024 * 1024) return file;
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));

@@ -166,8 +166,13 @@ export function parseGangInvoiceForm(form: FormData): GangInvoiceInput {
 }
 
 export type VerificationLineInput = { line_id: string; verified_quantity: number; measured_passed?: number; measured_correction?: number; note?: string };
-export type VerificationInput = { lines: VerificationLineInput[]; workmanship: "satisfactory" | "correction_needed"; note?: string; correction_note?: string };
-export function parseVerificationForm(form: FormData, lineIds: string[]): VerificationInput {
+export type VerificationExtraInput = { extra_id: string; confirmed_quantity: number; note?: string };
+export type VerificationInput = { lines: VerificationLineInput[]; workmanship: "satisfactory" | "correction_needed"; note?: string; correction_note?: string; extras?: VerificationExtraInput[] };
+/**
+ * Extras (day rate work, variations, additional work) are confirmed by quantity or completion only.
+ * A supervisor is never asked for, or shown, an amount.
+ */
+export function parseVerificationForm(form: FormData, lineIds: string[], extraIds: string[] = []): VerificationInput {
   const lines = lineIds.map((lineId, index) => {
     const label = field(form, `label_${lineId}`, 200) || `line ${index + 1}`;
     const line: VerificationLineInput = { line_id: lineId, verified_quantity: parseQuantity(field(form, `verified_${lineId}`, 20), label, { allowZero: true }) as number };
@@ -181,6 +186,14 @@ export function parseVerificationForm(form: FormData, lineIds: string[]): Verifi
   });
   const workmanship = field(form, "workmanship", 30) === "correction_needed" || lines.some(l => l.measured_correction) ? "correction_needed" : "satisfactory";
   const result: VerificationInput = { lines, workmanship };
+  if (extraIds.length) result.extras = extraIds.map(extraId => {
+    id(extraId, "An extra item could not be found. Refresh and check again.");
+    const label = field(form, `extra_label_${extraId}`, 200) || "the extra item";
+    const extra: VerificationExtraInput = { extra_id: extraId, confirmed_quantity: parseQuantity(field(form, `extra_confirmed_${extraId}`, 20), label, { allowZero: true }) as number };
+    const extraNote = field(form, `extra_note_${extraId}`, 1000);
+    if (extraNote) extra.note = extraNote;
+    return extra;
+  });
   const note = field(form, "note", 2000);
   if (note) result.note = note;
   const correction = field(form, "correction_note", 2000);
@@ -191,7 +204,7 @@ export function parseVerificationForm(form: FormData, lineIds: string[]): Verifi
 
 export const officeActions = ["approve", "recheck", "query_gang", "return", "reject", "mark_paid"] as const;
 export type OfficeAction = (typeof officeActions)[number];
-export function parseDecisionForm(form: FormData, lineIds: string[]): { action: OfficeAction; data: Record<string, unknown> } {
+export function parseDecisionForm(form: FormData, lineIds: string[], extraIds: string[] = []): { action: OfficeAction; data: Record<string, unknown> } {
   const action = field(form, "action", 20) as OfficeAction;
   if (!officeActions.includes(action)) throw new ValidationError("Choose what to do with this invoice.");
   const note = field(form, "note", 2000);
@@ -204,6 +217,14 @@ export function parseDecisionForm(form: FormData, lineIds: string[]): { action: 
       return { line_id: lineId, approved_quantity: approved, rate: rate ?? 0 };
     });
     const data: Record<string, unknown> = { lines };
+    if (extraIds.length) data.extras = extraIds.map(extraId => {
+      id(extraId, "An extra item could not be found. Refresh and try again.");
+      const approved = parseMoney(field(form, `extra_approved_${extraId}`, 20), `the approved amount for ${field(form, `extra_label_${extraId}`, 200) || "the extra item"}`);
+      if (approved === null) throw new ValidationError("Enter the approved amount for each extra item. Enter 0 to approve nothing for it.");
+      return { extra_id: extraId, approved_amount: approved };
+    });
+    const materials = parseMoney(field(form, "cis_materials", 20), "the materials amount");
+    if (materials !== null && materials > 0) data.cis_materials = materials;
     const adjustment = parseMoney(field(form, "adjustment_amount", 20), "the adjustment", { allowNegative: true });
     if (adjustment !== null && adjustment !== 0) {
       data.adjustment_amount = adjustment;

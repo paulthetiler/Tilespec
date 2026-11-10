@@ -102,9 +102,9 @@ export async function renderDocumentPdf(model: DocumentModel): Promise<Buffer> {
   });
   const pillColours = model.mode === "issued" ? { backgroundColor: tealTint, color: tealText }
     : model.mode === "sample" ? { backgroundColor: "#FFF4DC", color: "#7A5300" } : { backgroundColor: "#FBE9E7", color: "#9A2B1E" };
-  const status = model.superseded ? "Superseded" : model.mode === "issued" ? `Issued ${model.issuedOn ? model.issuedOn.split("-").reverse().join("/") : ""}`
+  const status = model.statusLabel ? model.statusLabel : model.superseded ? "Superseded" : model.mode === "issued" ? `Issued ${model.issuedOn ? model.issuedOn.split("-").reverse().join("/") : ""}`
     : model.mode === "sample" ? "Sample: dummy figures" : "Draft: not issued";
-  const watermark = model.superseded ? "SUPERSEDED" : model.mode === "sample" ? "SAMPLE" : model.mode === "preview" ? "DRAFT · NOT ISSUED" : null;
+  const watermark = model.watermark ? model.watermark : model.superseded ? "SUPERSEDED" : model.mode === "sample" ? "SAMPLE" : model.mode === "preview" ? "DRAFT · NOT ISSUED" : null;
 
   const Mark = ({ size }: { size: number }) => <Svg width={size} height={size * 0.98} viewBox="40 52 456 474">
     <Polygon points="268,52 496,160 268,268 40,160" fill={ink} />
@@ -140,23 +140,26 @@ export async function renderDocumentPdf(model: DocumentModel): Promise<Buffer> {
     <View style={s.pairs}>{b.items.map((p, i) => <View key={i} style={s.pair}><Text style={s.factLabel}>{p.label}</Text><Text style={s.factValue}>{p.value}</Text></View>)}</View>
   </View>;
 
-  const issuerParty = { label: "From", lines: [model.issuer.name, ...(model.issuer.tradingAs ? [`Trading as ${model.issuer.tradingAs}`] : []), ...model.issuer.lines] };
+  const issuerParty = { label: model.issuerLabel ?? "From", lines: [model.issuer.name, ...(model.issuer.tradingAs ? [`Trading as ${model.issuer.tradingAs}`] : []), ...model.issuer.lines] };
   const legalLine = [...model.issuer.legal, model.issuer.footer].filter(Boolean).join("  ·  ");
-  const doc = <Document title={`${model.title} ${model.reference}`} author={model.issuer.name} creator="TileSPEC" producer="TileSPEC" subject={model.title}>
+  const doc = <Document title={`${model.title} ${model.reference}`} author={model.issuer.name} creator="TileSPEC" producer="TileSPEC" {...(model.createdAt ? { creationDate: new Date(model.createdAt), modificationDate: new Date(model.createdAt) } : {})} subject={model.title}>
     <Page size="A4" style={s.page}>
       {watermark && <Text style={s.watermark} fixed>{watermark}</Text>}
       <Text style={s.runningLeft} fixed render={({ pageNumber }) => pageNumber > 1 ? model.issuer.name : ""} />
       <Text style={s.runningRight} fixed render={({ pageNumber }) => pageNumber > 1 ? `${model.title} · ${model.reference}` : ""} />
       <View style={s.headerRow}>
-        <View style={s.brand}>
+        {model.plainHeader ? <View style={{ maxWidth: 250 }}>
+          <Text style={{ fontFamily: "Barlow Condensed", fontWeight: 700, fontSize: 22, lineHeight: 1.05 }}>{model.issuer.name}</Text>
+          {model.issuer.tradingAs && <Text style={{ fontSize: 8, color: muted, marginTop: 2 }}>Trading as {model.issuer.tradingAs}</Text>}
+        </View> : <View style={s.brand}>
           <Mark size={40} />
           <View style={s.wordmark}>
             <Text style={s.wordLine}><Text style={s.wordTile}>Tile</Text><Text style={s.wordSpec}>SPEC</Text></Text>
             <Text style={s.tagline}>WALL & FLOOR TILING CONTRACTORS</Text>
           </View>
-        </View>
+        </View>}
         <View style={s.titleBlock}>
-          <Text style={s.eyebrow}>{model.revision ?? "Commercial document"}</Text>
+          <Text style={s.eyebrow}>{model.eyebrow ?? model.revision ?? "Commercial document"}</Text>
           <Text style={s.title}>{model.title}</Text>
           <Text style={s.reference}>{model.reference}</Text>
           <Text style={[s.pill, pillColours]}>{status}</Text>

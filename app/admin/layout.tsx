@@ -50,6 +50,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <Link href="/admin/contracts">Contracts</Link>
             {canReadFinancial(member) && <Link href="/admin/invoices">Invoices</Link>}
             {canReadFinancial(member) && <Link href="/admin/gang-invoices">Gang invoices</Link>}
+            {canReadFinancial(member) && <Link href="/admin/subcontractors">Subcontractors</Link>}
             {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
             <Link href="/admin/supervisor">Site dashboards</Link>
             <Link href="/admin/snags">Snag register</Link>
@@ -70,6 +71,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 <Link href="/admin">Overview</Link>
                 <Link href="/admin/contracts">Contracts</Link>
                 {canReadFinancial(member) && <Link href="/admin/gang-invoices">Gang invoices</Link>}
+                {canReadFinancial(member) && <Link href="/admin/subcontractors">Subcontractors</Link>}
                 {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/workforce">Workforce</Link>}
                 <Link href="/admin/supervisor">Site dashboards</Link>
                 <Link href="/admin/snags">Snag register</Link>
