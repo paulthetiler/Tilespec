@@ -19,7 +19,7 @@ export type Block =
   | { type: "text"; heading?: string; paragraphs: string[]; tone?: "normal" | "legal" }
   | { type: "pairs"; heading?: string; items: { label: string; value: string }[] };
 export type DocumentModel = {
-  kind: DocumentKind; title: string; reference: string; mode: "issued" | "preview" | "sample"; superseded: boolean; revision: string | null;
+  kind: DocumentKind | "subcontractor_invoice" | "subcontractor_agreement"; title: string; reference: string; mode: "issued" | "preview" | "sample"; superseded: boolean; revision: string | null;
   issuedOn: string | null;
   issuer: { name: string; tradingAs: string | null; lines: string[]; legal: string[]; footer: string | null };
   parties: { label: string; lines: string[] }[];
@@ -27,6 +27,17 @@ export type DocumentModel = {
   headline: { label: string; value: string; detail?: string } | null;
   blocks: Block[];
   checksum: string | null;
+  /** Another business's own document (a subcontractor's invoice): printed under its name, never TileSPEC's logo. */
+  plainHeader?: boolean;
+  /** The small line above the title, when it is not a revision. */
+  eyebrow?: string;
+  /** The status pill, when it is not the issue date. */
+  statusLabel?: string;
+  /** The first party's label when it is not "From", and the watermark when it is not the draft one. */
+  issuerLabel?: string;
+  watermark?: string;
+  /** A fixed creation time, so the same snapshot always produces byte-identical PDF (a retried upload matches its reservation). */
+  createdAt?: string;
 };
 export type DocumentRecord = { kind: DocumentKind; reference: string | null; title: string; issued_on: string | null; snapshot: J;
   snapshot_sha256?: string | null; superseded?: boolean; preview?: boolean };

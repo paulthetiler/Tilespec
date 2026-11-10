@@ -39,6 +39,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/admin/contracts/[id]/accounts/**': ['./lib/documents/fonts/**'],
     '/shared/documents/[token]': ['./lib/documents/fonts/**'],
+    '/subcontractors/**': ['./lib/documents/fonts/**'],
+    '/admin/subcontractors/**': ['./lib/documents/fonts/**'],
     '/admin/documents/terms/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/commercial-terms-and-conditions-draft.md'],
     '/admin/documents/health-safety/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/health-and-safety-policy-draft.md'],
     '/admin/documents/risk-assessment/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/rams-risk-assessment-template.md'],
@@ -62,6 +64,8 @@ const nextConfig: NextConfig = {
     return [
       ...['/admin/:path*', '/login', '/auth/:path*'].map(source => ({ source, headers })),
       { source: '/shared/:path*', headers: [...headers, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
+      // The subcontractor portal: never cached, never indexed, and the link's secret never leaves in a referrer.
+      ...['/subcontractors', '/subcontractors/:path*'].map(source => ({ source, headers: [...headers, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] })),
       { source: '/preview/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'private, no-store' }] },
     ];
   },

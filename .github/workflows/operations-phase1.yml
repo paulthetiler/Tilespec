@@ -88,6 +88,11 @@ jobs:
               - 'app/admin/**/route.ts'
               - 'app/admin/gang/**'
               - 'app/admin/gang-invoices/**'
+              - 'app/admin/subcontractors/**'
+              - 'app/subcontractors/**'
+              - 'components/subcontractors/**'
+              - 'lib/subcontractors/**'
+              - 'scripts/test-portal-e2e.mjs'
               - 'app/admin/invoices/**'
               - 'app/admin/money/**'
               - 'app/admin/accounts/**'
@@ -224,12 +229,22 @@ jobs:
           echo "9f71269e61ac3a940281e93ff415760f5957e430e475ba4c3889f3ede7d5527c  $RUNNER_TEMP/postgrest.tar.xz" | sha256sum -c -
           tar -xf "$RUNNER_TEMP/postgrest.tar.xz" -C "$RUNNER_TEMP"
           echo "POSTGREST_BIN=$RUNNER_TEMP/postgrest" >> "$GITHUB_ENV"
+      # The subcontractor portal on a phone: link, agreement, invoice, upload, approval and payment.
+      - run: npm run test:portal
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/subcontractor-portal
       - run: npm run test:e2e
         env:
           SCREENSHOT_DIR: ${{ runner.temp }}/site-screenshots
       - run: npm run test:admin-today
         env:
           SCREENSHOT_DIR: ${{ runner.temp }}/admin-today-authenticated
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: subcontractor-portal
+          path: ${{ runner.temp }}/subcontractor-portal
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: always()
         with:

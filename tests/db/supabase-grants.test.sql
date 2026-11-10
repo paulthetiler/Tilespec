@@ -24,8 +24,13 @@ select test.assert((select count(*) = 0 from information_schema.role_table_grant
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')
     and p.oid::regprocedure::text not in ('submit_tender_enquiry(jsonb)', 'complete_tender_enquiry(uuid,text)',
-      'shared_commercial_document(text)', 'private.can_upload_tender_file(text)')),
-  'anonymous visitors can call only the enquiry form and shared-link functions, and no other application function');
+      'shared_commercial_document(text)', 'private.can_upload_tender_file(text)',
+      -- The subcontractor portal: each refuses without the secret of a live, unrevoked link.
+      'portal_session(text)', 'portal_preview_invoice(text,jsonb)', 'portal_prepare_invoice(text,uuid,jsonb)',
+      'portal_reserve_file(text,uuid,uuid,text,jsonb)', 'portal_complete_file(text,uuid)', 'portal_invoice(text,uuid)',
+      'portal_cancel_invoice(text,uuid,text)', 'portal_answer_query(text,uuid,text)', 'portal_agreement(text)',
+      'portal_sign_agreement(text,uuid,jsonb)', 'private.can_upload_portal_file(text)')),
+  'anonymous visitors can call only the enquiry form, shared-link and subcontractor portal functions, and no other application function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'private' and has_function_privilege('authenticated', p.oid, 'execute')
     and p.proname not in ('current_org', 'current_role', 'is_owner', 'can_manage_contract', 'can_access_contract',

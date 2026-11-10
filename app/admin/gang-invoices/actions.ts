@@ -26,7 +26,7 @@ export async function decideGangInvoiceAction(_: ActionState, form: FormData): P
   const { supabase } = await requireFinancialActor();
   try {
     const invoiceId = uuid(form, "invoice_id");
-    const { action, data } = parseDecisionForm(form, form.getAll("line_id").map(String));
+    const { action, data } = parseDecisionForm(form, form.getAll("line_id").map(String), form.getAll("extra_id").map(String));
     const requestKey = uuid(form, "request_key"), version = integer(form, "version", 1);
     const result = await supabase.rpc("decide_gang_invoice", { p_request_key: requestKey, p_invoice: invoiceId, p_version: version, p_action: action, p_data: data });
     if (result.error) return { error: rpcErrorMessage(result.error) };
@@ -42,15 +42,18 @@ export async function saveGangSubcontractAction(_: ActionState, form: FormData):
     if (!["weekly", "fortnightly", "custom"].includes(cycle)) throw new ValidationError("Choose weekly, fortnightly or custom terms.");
     const version = text(form, "version", 10);
     const anchor = text(form, "cycle_anchor", 10);
+    const retention = parseMoney(text(form, "retention_percent", 6), "the retention percentage");
+    if (retention !== null && retention > 10) throw new ValidationError("Retention is at most 10 percent.");
     const result = await supabase.rpc("save_gang_subcontract", { p_data: {
       contract_id: uuid(form, "contract_id"), team_id: uuid(form, "team_id"), payment_cycle: cycle,
       pay_weekday: integer(form, "pay_weekday", 1, 7), payment_days: integer(form, "payment_days", 0, 90),
       ...(anchor ? { cycle_anchor: anchor } : {}), terms_note: text(form, "terms_note", 2000),
+      ...(retention !== null ? { retention_percent: retention } : {}),
       active: form.get("active") !== "false", ...(version ? { version: Number(version) } : {}),
     } });
     if (result.error) return { error: rpcErrorMessage(result.error) };
-    revalidatePath("/admin/gang-invoices/setup");
-    return { success: "Saved. Gang members on this gang can now send invoices for this job." };
+    revalidatePath("/admin/gang-invoices/setup"); revalidatePath("/admin/subcontractors", "layout");
+    return { success: "Saved. This gang can now send invoices for this job, by login or from its subcontractor portal link." };
   } catch (error) { return { error: message(error, "The terms were not saved.") }; }
 }
 

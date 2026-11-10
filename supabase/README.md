@@ -302,3 +302,15 @@ Uploads use the signed-in person's own session (storage policies allow only a pa
 no service-role key is needed. The two hosted-only migrations `20261108132214_site_programme_revisions.sql`
 and `20261109225148_gang_progress_checks.sql` are reconciled into this repository so local acceptance
 runs build the same schema; both refuse to run where their objects already exist.
+
+## Subcontractor portal (`20261112090000_subcontractor_portal.sql`)
+
+Extends the gang invoice workflow; see
+[docs/operations/subcontractor-portal.md](../docs/operations/subcontractor-portal.md). Requires the gang invoice
+workflow, commercial accounts and the private `gang-claims` bucket. Additive: it adds tables and
+columns, relaxes three `not null` columns so an invoice can come from a link instead of a login, and
+replaces `gang_event`, `complete_gang_file`, `save_gang_subcontract`, `save_gang_rate`,
+`verify_gang_invoice`, `decide_gang_invoice` and `guard_gang_commercial` with versions that behave
+identically for existing invoices. No existing row is changed. Apply it unmodified, in one
+transaction, after `npm run test:db` and `npm run test:portal` pass, and before deploying the
+application code that uses it.

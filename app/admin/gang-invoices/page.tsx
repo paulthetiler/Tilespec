@@ -80,7 +80,8 @@ export default async function GangInvoiceQueue() {
   return <>
     <div className={styles.pageHeader}><div><p className={styles.eyebrow}>Money</p><h1 className={styles.title}>Gang invoices</h1>
       <p className={styles.description}>Gangs claim the work, supervisors verify it, you approve the money. Nothing is paid automatically and no bank payment is made from here.</p></div>
-      <Link className={styles.secondaryButton} href="/admin/gang-invoices/setup">Gangs on jobs, terms and rates</Link></div>
+      <div className={styles.actions}><Link className={styles.secondaryButton} href="/admin/subcontractors">Subcontractors</Link>
+        <Link className={styles.secondaryButton} href="/admin/gang-invoices/setup">Gangs on jobs, terms and rates</Link></div></div>
     {section("Needs a supervisor", needsSupervisor, "Every waiting check has a supervisor.", i => <p className={styles.warning} style={{ margin: "10px 0 0" }}>
       No supervisor is assigned to this job. Assign one on the job&apos;s team page and it will appear on their site, or check it yourself.</p>)}
     {section("Ready to approve", ready, "Nothing checked and waiting for approval.")}
