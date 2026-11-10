@@ -30,10 +30,8 @@ export async function submitGangInvoiceAction(_: ActionState, form: FormData): P
     const input = parseGangInvoiceForm(form);
     const requestKey = uuid(form, "request_key");
     const file = await readGangFile(form.get("file"));
-    const created = await supabase.rpc("submit_gang_invoice", {
-      p_request_key: requestKey,
-      p_data: { ...input, file: { mime_type: file.mime, bytes: file.bytes.length, sha256: file.sha256 } },
-    });
+    const payload = { ...input, file: { mime_type: file.mime, bytes: file.bytes.length, sha256: file.sha256 } };
+    const created = await supabase.rpc("submit_gang_invoice", { p_request_key: requestKey, p_data: payload });
     if (created.error) return { error: friendly(created.error) };
     const invoiceId = String(created.data);
     const document = await supabase.from("gang_invoice_files").select("id,sha256").eq("invoice_id", invoiceId).eq("kind", "invoice").maybeSingle();
@@ -97,10 +95,8 @@ export async function addClaimPhotoAction(_: ActionState, form: FormData): Promi
   try {
     const invoiceId = uuid(form, "invoice_id");
     const file = await readGangFile(form.get("file"), { photoOnly: true });
-    const reserved = await supabase.rpc("reserve_gang_photo", {
-      p_request_key: uuid(form, "request_key"), p_invoice: invoiceId,
-      p_meta: { mime_type: file.mime, bytes: file.bytes.length, sha256: file.sha256 },
-    });
+    const meta = { mime_type: file.mime, bytes: file.bytes.length, sha256: file.sha256 };
+    const reserved = await supabase.rpc("reserve_gang_photo", { p_request_key: uuid(form, "request_key"), p_invoice: invoiceId, p_meta: meta });
     if (reserved.error) return { error: friendly(reserved.error) };
     await storeGangFile(supabase, String(reserved.data), file.bytes);
     const invoice = await supabase.from("gang_invoices").select("contract_id").eq("id", invoiceId).maybeSingle();

@@ -451,8 +451,10 @@ test("every navigation link opens a page that already exists", () => {
 test("the supervisor's tabs follow the site they are in, and the current tab is the closest match", () => {
   assert.equal(siteBaseOf(`${SITE}/workforce`), SITE);
   assert.equal(siteBaseOf("/admin/contracts"), null);
-  const items = destinationsFor("supervisor", `${SITE}/snags`);
-  assert.equal(currentDestination(items, `${SITE}/snags`), "issues");
+  // Docs (drawings and RAMS) replaced Issues as a primary tab; issues are reported from Today.
+  const items = destinationsFor("supervisor", `${SITE}/documents`);
+  assert.equal(currentDestination(items, `${SITE}/documents`), "documents");
+  assert.equal(currentDestination(items, `${SITE}/snags`), "today");
   assert.equal(currentDestination(items, SITE), "today");
   assert.deepEqual(destinationsFor("supervisor", "/admin/supervisor").map(d => d.key), ["today"]);
 });

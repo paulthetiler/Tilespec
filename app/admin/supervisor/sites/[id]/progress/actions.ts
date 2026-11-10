@@ -25,14 +25,12 @@ export async function recordGangProgress(_: ActionState, form: FormData): Promis
     const quality = text(form, "quality_status", 30, true);
     if (!["passed", "correction_required"].includes(quality)) throw new ValidationError("Choose the quality result.");
     const periodStart = text(form, "period_start", 10);
-    const result = await supabase.rpc("record_gang_measurement", {
-      p_request_key: uuid(form, "request_key"),
-      p_data: {
-        contract_id: contractId, team_id: uuid(form, "team_id"), work_area_id: uuid(form, "work_area_id"), unit,
-        quantity: parseQuantity(text(form, "quantity", 20, true), "the measurement"), quality_status: quality,
-        note: text(form, "note", 2000), ...(periodStart ? { period_start: periodStart } : {}),
-      },
-    });
+    const measurement = {
+      contract_id: contractId, team_id: uuid(form, "team_id"), work_area_id: uuid(form, "work_area_id"), unit,
+      quantity: parseQuantity(text(form, "quantity", 20, true), "the measurement"), quality_status: quality,
+      note: text(form, "note", 2000), ...(periodStart ? { period_start: periodStart } : {}),
+    };
+    const result = await supabase.rpc("record_gang_measurement", { p_request_key: uuid(form, "request_key"), p_data: measurement });
     if (result.error) return { error: rpcErrorMessage(result.error) };
     refresh(contractId);
     return { success: "Measurement recorded. This is not a payment approval." };

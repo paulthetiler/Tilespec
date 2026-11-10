@@ -27,9 +27,8 @@ export async function decideGangInvoiceAction(_: ActionState, form: FormData): P
   try {
     const invoiceId = uuid(form, "invoice_id");
     const { action, data } = parseDecisionForm(form, form.getAll("line_id").map(String));
-    const result = await supabase.rpc("decide_gang_invoice", {
-      p_request_key: uuid(form, "request_key"), p_invoice: invoiceId, p_version: integer(form, "version", 1), p_action: action, p_data: data,
-    });
+    const requestKey = uuid(form, "request_key"), version = integer(form, "version", 1);
+    const result = await supabase.rpc("decide_gang_invoice", { p_request_key: requestKey, p_invoice: invoiceId, p_version: version, p_action: action, p_data: data });
     if (result.error) return { error: rpcErrorMessage(result.error) };
     refresh(invoiceId);
     return { success: done[action] };
