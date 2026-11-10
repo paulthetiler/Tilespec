@@ -27,7 +27,7 @@ export default function HomepagePreview(){
       <button className="ts-menu" aria-label={open?"Close navigation":"Open navigation"} onClick={()=>setOpen(!open)}>{open?<X/>:<Menu/>}</button>
     </header>
     <section className="ts-hero" style={{backgroundImage:`linear-gradient(90deg,rgba(7,29,42,.88) 0%,rgba(7,29,42,.65) 39%,rgba(7,29,42,.18) 75%,rgba(7,29,42,.04) 100%),url("${images.hero}")`}}>
-      <div className="ts-hero-inner"><span className="ts-kicker">TILESPEC · COMMERCIAL TILING CONTRACTORS</span><h1>Precision in every detail.</h1><p>Specialist commercial wall and floor tiling.</p><div className="ts-hero-links"><a href="#work" className="ts-primary">View our work <ArrowUpRight size={18}/></a><a href="/contact" className="ts-secondary">Discuss a project <ArrowUpRight size={18}/></a></div></div>
+      <div className="ts-hero-inner"><span className="ts-kicker">TILESPEC · COMMERCIAL TILING CONTRACTORS</span><h1>Commercial Tiling.</h1><p>Specialist supply, preparation &amp; installation.</p><div className="ts-hero-links"><a href="#work" className="ts-primary">View our work <ArrowUpRight size={18}/></a><a href="/contact" className="ts-secondary">Discuss a project <ArrowUpRight size={18}/></a></div></div>
       <span className="ts-hero-foot">NORTH WEST BASED · PROJECTS ACROSS THE UK</span>
     </section>
     <section className="ts-proof-strip" aria-label="TileSpec commercial capabilities"><div className="ts-proof-inner">
