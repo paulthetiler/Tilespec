@@ -40,7 +40,7 @@ preview settings and the cloud environment:
 | --- | --- |
 | NEXT_PUBLIC_SUPABASE_URL | Exact dedicated staging project origin |
 | NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | Public connection key; not business authorisation |
-| SUPABASE_SERVICE_ROLE_KEY | Optional. Office document upload verification, public tender intake and shared document links only. Site and gang photographs do not use it |
+| SUPABASE_SERVICE_ROLE_KEY | Not used. Do not set it: uploads, the tender enquiry form and inbox, and shared document links all run without a service key |
 
 Business records always use the authenticated user client and RLS. The separate
 service client is confined to quarantined file verification; it is never attached

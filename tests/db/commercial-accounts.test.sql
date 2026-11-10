@@ -374,10 +374,14 @@ select test.assert((test.app(:'c3',1)->>'net')::numeric=4800 and (test.app(:'c3'
 -- ---------------------------------------------------------------------------------------------
 select public.share_commercial_document(:'inv2','{"days":14,"recipient":"Example Main Contractor Ltd accounts"}') as token \gset
 reset role;
-select test.assert(not has_function_privilege('anon','public.shared_commercial_document(text)','execute')
+select test.assert(has_function_privilege('anon','public.shared_commercial_document(text)','execute')
  and not has_function_privilege('authenticated','public.shared_commercial_document(text)','execute'),
- 'no browser role can open a shared link directly; only the server''s shared-link route can');
-set local role service_role;
+ 'a shared link is opened signed out with its secret token, and needs no service key');
+set local role anon;
+select set_config('request.jwt.claims','{"role":"anon"}',true);
+select test.expect_error('select count(*) from public.contracts',array['42501'],'a signed-out visitor still reads no contract');
+select test.expect_error('select count(*) from public.commercial_documents',array['42501'],'a signed-out visitor cannot read documents directly');
+select test.expect_error('select count(*) from public.commercial_document_shares',array['42501'],'a signed-out visitor cannot read or list share links');
 select test.assert((public.shared_commercial_document(:'token')->>'reference')='INV-00001' and public.shared_commercial_document(repeat('0',64)) is null
  and public.shared_commercial_document('not a token') is null,'a live link opens exactly its own document');
 reset role;

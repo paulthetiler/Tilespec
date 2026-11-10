@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createPublicClient } from "@/lib/supabase/public-client";
 
 export const runtime="nodejs";
-const extensions=new Set(["pdf","dwg","dxf","doc","docx","xls","xlsx","zip","jpg","jpeg","png"]);
-const maxSize=25*1024*1024;
-function storage(){
- const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
- const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
- if(!url||!key)throw new Error("Tender intake is not configured");
- return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-}
 const str=(v:unknown,max:number)=>typeof v==="string"?v.trim().slice(0,max):"";
+// A visitor's enquiry. No service key is used: the database function validates every field,
+// limits how many enquiries can arrive, and reserves the only paths files may be stored at.
 export async function POST(req:Request){
  try{
   if(Number(req.headers.get("content-length")||0)>32000)return NextResponse.json({error:"Request too large"},{status:413});
@@ -19,29 +12,28 @@ export async function POST(req:Request){
   if(origin && new URL(origin).host!==req.headers.get("host"))return NextResponse.json({error:"Invalid origin"},{status:403});
   const input=await req.json();
   if(str(input.website,100))return NextResponse.json({error:"Unable to submit enquiry"},{status:400});
-  const kind=input.kind==="general"?"general":"tender";
-  const name=str(input.name,120),email=str(input.email,200),company=str(input.company,160),project=str(input.project,200),message=str(input.message,3000);
-  if(!name||!/^\S+@\S+\.\S+$/.test(email))return NextResponse.json({error:"Name and a valid email are required"},{status:400});
   const docs=Array.isArray(input.files)?input.files:[];
   if(docs.length>10)return NextResponse.json({error:"Maximum 10 files"},{status:400});
-  const verified: {name:string;size:number;type:string;path:string}[]=[];
-  const id=randomUUID(), token=randomBytes(24).toString("hex");
-  for(const entry of docs){
-   const filename=str(entry?.name,180).replace(/[\\/]/g,"_");
-   const ext=filename.split(".").pop()?.toLowerCase()||"";
-   if(!extensions.has(ext)||!Number.isSafeInteger(entry?.size)||entry.size<=0||entry.size>maxSize)return NextResponse.json({error:"Unsupported file or file too large"},{status:400});
-   verified.push({name:filename,size:entry.size,type:str(entry.type,100),path:id+"/"+randomUUID()+"."+ext});
+  const connection=createPublicClient();
+  if(!connection)throw new Error("Tender intake is not configured");
+  const publicClient=connection.client;
+  const {data,error}=await publicClient.rpc("submit_tender_enquiry",{p_data:{
+   kind:input.kind==="general"?"general":"tender",name:str(input.name,120),email:str(input.email,200),company:str(input.company,160),
+   project:str(input.project,200),message:str(input.message,3000),deadline:str(input.deadline,10),
+   files:docs.map((entry:{name?:unknown;size?:unknown;type?:unknown})=>({name:str(entry?.name,180),size:Number.isSafeInteger(entry?.size)?entry.size:0,type:str(entry?.type,100)})),
+  }});
+  if(error){
+   if(error.code==="22023")return NextResponse.json({error:error.message},{status:400});
+   if(error.code==="53400")return NextResponse.json({error:error.message},{status:429});
+   throw error;
   }
-  const db=storage();
-  const ref="TS-"+id.slice(0,8).toUpperCase();
-  const {error}=await db.from("tender_enquiries").insert({id,reference:ref,kind,name,email,company,project,message,deadline:/^\d{4}-\d{2}-\d{2}$/.test(input.deadline)?input.deadline:null,token_hash:createHash("sha256").update(token).digest("hex"),attachments:verified});
-  if(error)throw error;
-  const uploads=[];
-  for(const file of verified){
-   const {data,error:uploadError}=await db.storage.from("tilespec-tenders").createSignedUploadUrl(file.path);
-   if(uploadError||!data)throw uploadError||new Error("Failed to prepare upload");
-   uploads.push({url:data.signedUrl,contentType:file.type||"application/octet-stream"});
-  }
-  return NextResponse.json({id,token,reference:ref,uploads},{headers:{"Cache-Control":"no-store"}});
+  const result=data as {id:string;token:string;reference:string;files:{path:string;type:string}[]};
+  const {url,publishableKey}=connection.configuration;
+  // The browser stores each file itself. Storage accepts only these reserved paths, once each.
+  const uploads=result.files.map(file=>({
+   url:`${url}/storage/v1/object/tilespec-tenders/${file.path.split("/").map(encodeURIComponent).join("/")}`,method:"POST",
+   contentType:file.type||"application/octet-stream",headers:{apikey:publishableKey,Authorization:`Bearer ${publishableKey}`,"x-upsert":"false"},
+  }));
+  return NextResponse.json({id:result.id,token:result.token,reference:result.reference,uploads},{headers:{"Cache-Control":"no-store"}});
  }catch(e){console.error("Tender intake error",e);return NextResponse.json({error:"Unable to prepare submission. Please try again later."},{status:503});}
 }

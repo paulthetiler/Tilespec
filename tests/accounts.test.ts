@@ -138,7 +138,8 @@ test("accounts pages and documents are for money access only, and never reach su
   const shared = source("app/shared/documents/[token]/route.ts"), reader = source("lib/supabase/shared-documents.ts");
   assert.match(shared, /readSharedDocument\(token\)/);
   assert.equal((reader.match(/\.rpc\(/g) ?? []).length, 1, "the shared link reader makes exactly one call");
-  assert.match(reader, /serviceClient\.rpc\("shared_commercial_document"/);
+  assert.match(reader, /publicClient\.rpc\("shared_commercial_document"/);
+  assert.doesNotMatch(reader, /SERVICE_ROLE|service_role/, "a shared link is opened with its own secret token, never a service key");
   assert.doesNotMatch(source("lib/operations/accounts-data.ts"), /token_sha256/, "the link secret's hash is never read by the app");
 });
 
