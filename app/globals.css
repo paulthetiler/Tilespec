@@ -546,3 +546,7 @@ main#top .ts-photo-service-sequence:after{background:linear-gradient(180deg,tran
   main#top .site-header .nav{gap:26px}
   main#top .site-header .nav-links{gap:24px}
 }
+
+/* Original preparation photo retained; shift the orange matting towards Prem Tools dark navy-teal. */
+main#top .ts-photo-service-preparation{background:#102c35}
+main#top .ts-photo-service-preparation img{filter:hue-rotate(166deg) saturate(.65) brightness(.68)}
