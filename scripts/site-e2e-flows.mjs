@@ -36,15 +36,22 @@ export async function run({ browser, origin, sql, signIn, contractId, screenshot
   // Morning checks, then straight on to today's workforce.
   await page.getByRole('link', { name: 'START MORNING CHECKS', exact: true }).click();
   await page.waitForURL('**/checks');
+  // Eight Yes/No questions and three stock levels. Attendance is answered Not applicable here so
+  // the workforce scenarios below still confirm each gang by hand (a Yes now confirms planned
+  // gangs automatically when the checks are saved).
   const groups = page.locator('main fieldset').filter({ has: page.getByRole('button', { name: 'YES', exact: true }) });
-  assert.equal(await groups.count(), 11);
-  for (let index = 0; index < 11; index++) await groups.nth(index).getByRole('button', { name: index < 9 ? 'YES' : 'NO', exact: true }).click();
+  const stock = page.locator('main fieldset').filter({ has: page.getByRole('button', { name: 'Plenty in stock', exact: true }) });
+  assert.equal(await groups.count(), 8);
+  assert.equal(await stock.count(), 3);
+  for (let index = 0; index < 8; index++) await groups.nth(index).getByRole('button', { name: index === 0 ? 'NOT APPLICABLE' : index < 6 ? 'YES' : 'NO', exact: true }).click();
+  for (let index = 0; index < 3; index++) await stock.nth(index).getByRole('button', { name: 'Plenty in stock', exact: true }).click();
   await page.getByRole('button', { name: 'COMPLETE MORNING CHECKS', exact: true }).click();
   await page.getByRole('heading', { name: 'Morning checks complete' }).waitFor();
   assert.equal(value(`select count(*) from public.supervisor_inspections where contract_id = '${contractId}'`), '1');
-  await page.getByRole('link', { name: 'Who’s on site?', exact: true }).click();
-  await page.waitForURL('**/workforce');
-  pass('after the morning checks are saved, the next prominent action goes straight to confirming today\'s workforce');
+  assert.equal(await page.getByText('workforce register needs attention').count(), 0, 'Not applicable attendance is not treated as a failed register update');
+  await page.getByRole('link', { name: 'Back to site dashboard', exact: true }).click();
+  await page.waitForURL(site);
+  pass('after the morning checks are saved the supervisor goes back to the dashboard without repeating the people check');
   await page.goto(site);
   await page.getByRole('link', { name: "WHO'S ON SITE?", exact: true }).waitFor();
   pass('the dashboard\'s next action comes from saved records: with checks done it asks to confirm today\'s allocations');

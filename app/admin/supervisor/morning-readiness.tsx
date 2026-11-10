@@ -75,6 +75,9 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
 
   async function syncAttendance(inspectionId: string) {
     setAttendanceError("");
+    // Only a Yes or No to the attendance question says anything about who is here. "Not
+    // applicable" leaves the workforce register to be confirmed in Who's on site?.
+    if (!["yes", "no"].includes(responses[attendanceItem] ?? "")) return true;
     try {
       const choices = plannedGangs.map(gang => {
         const row = responses[attendanceItem] === "yes" ? { status: "all" as const, missing: [] as string[] } : gangAbsences[gang.id];
