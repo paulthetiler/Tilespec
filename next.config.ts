@@ -39,6 +39,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/admin/contracts/[id]/accounts/**': ['./lib/documents/fonts/**'],
     '/shared/documents/[token]': ['./lib/documents/fonts/**'],
+    '/admin/documents/om': ['./docs/om-handover-template.md'],
     '/admin/documents/terms/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/commercial-terms-and-conditions-draft.md'],
     '/admin/documents/health-safety/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/health-and-safety-policy-draft.md'],
     '/admin/documents/risk-assessment/pdf': ['./node_modules/pdfkit/js/standard-fonts/**', './docs/rams-risk-assessment-template.md'],
