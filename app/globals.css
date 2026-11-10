@@ -555,3 +555,19 @@ main#top .ts-photo-service-sequence{background:#29343a}
 main#top .ts-photo-service-sequence img{object-fit:contain;object-position:center}
 main#top .ts-photo-service-sequence .ts-photo-service-label{background:linear-gradient(0deg,rgba(7,20,26,.94),rgba(7,20,26,.4) 62%,transparent)}
 
+
+/* Site-wide gentle scroll entrance animations. No layout shift; reduced-motion safe. */
+@media (prefers-reduced-motion: no-preference) {
+  .ts-scroll-reveal {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+    transition: opacity .72s ease, transform .72s cubic-bezier(.2,.75,.25,1);
+    will-change: opacity, transform;
+  }
+  .ts-scroll-reveal[data-reveal-direction="left"] { transform: translate3d(-34px, 0, 0); }
+  .ts-scroll-reveal[data-reveal-direction="right"] { transform: translate3d(34px, 0, 0); }
+  .ts-scroll-reveal.ts-reveal-visible { opacity: 1; transform: translate3d(0,0,0); will-change: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-scroll-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+}
