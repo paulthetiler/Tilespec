@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, FileUp, HardHat, Layers3, Mail, MapPin, Menu, MoveUpRight, Phone, Ruler, ShieldCheck, X } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUpRight, Building2, CalendarCheck2, Check, ChevronDown, FileUp, HardHat, Layers3, Mail, MapPin, Menu, MoveUpRight, Phone, Ruler, ShieldCheck, X } from "lucide-react";
 
 const services = [
   { title: "Commercial floor tiling", detail: "High-traffic commercial floors, large-format porcelain and detailed setting-out, delivered over properly prepared substrates.", icon: Ruler, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/bf52c74c-59fe-4cdd-9a44-4bfcad5063c4/73281.webp" },
@@ -48,8 +48,13 @@ export default function Home() {
       </div>
       <div className="hero-bottom shell"><span>BUILT ON OVER TWO DECADES OF HANDS-ON TILING EXPERIENCE</span></div>
     </section>
-    <section className="package-transition package-transition-slim" aria-label="Complete tiling package"><div className="shell package-transition-steps"><span>SUPPLY</span><span>PREPARATION</span><span>INSTALLATION</span></div></section>
-    <section className="statement section-pad" id="about"><div className="shell statement-grid"><div><div className="eyebrow"><span className="eyebrow-line"/> WHO WE ARE</div><div className="vertical-rule"/></div><div><h2>EXPERIENCE<br/><span>ON SITE.</span></h2><p>Built on over 20 years of hands-on tiling experience, TileSPEC puts preparation, technical knowledge and workmanship at the heart of commercial delivery. We focus on getting substrates right, working to specification and coordinating installation with the wider site programme — with clear responsibility from preparation through to handover.</p><a className="underlined-link" href="#approach">DISCUSS A PROJECT <ArrowUpRight size={17}/></a></div></div></section>
+    <section className="ts-live-proof" aria-label="TileSpec commercial capabilities"><div className="shell ts-live-proof-inner">
+      <div className="ts-live-proof-item"><Building2 aria-hidden="true" strokeWidth={1.6}/><strong>Commercial Projects</strong></div>
+      <div className="ts-live-proof-item"><Layers3 aria-hidden="true" strokeWidth={1.6}/><strong>Supply &amp; Installation</strong></div>
+      <div className="ts-live-proof-item"><HardHat aria-hidden="true" strokeWidth={1.6}/><strong>Experienced Teams</strong></div>
+      <div className="ts-live-proof-item"><CalendarCheck2 aria-hidden="true" strokeWidth={1.6}/><strong>Delivered on Programme</strong></div>
+    </div></section>
+    <section className="ts-live-intro" id="about"><div className="shell ts-live-intro-inner"><span className="ts-live-intro-kicker">THE SPECIALIST PACKAGE</span><h2>From preparation<br/><em>to the finishing detail.</em></h2><p>Commercial wall and floor tiling for contractors and developers. We coordinate tile supply, preparation and installation as one complete package.</p></div></section>
     <section className="services section-pad" id="expertise"><div className="shell"><div className="section-head"><div><div className="eyebrow"><span className="eyebrow-line"/> WHAT WE DO</div><h2>COMMERCIAL<br/><em>TILING SERVICES.</em></h2></div><p>One specialist tiling contractor responsible for the complete package — materials, preparation, installation and quality checks.</p></div>
       <p className="services-swipe-hint">Swipe to explore services <span aria-hidden="true">→</span></p><div className="service-grid" role="region" aria-label="Commercial tiling services" tabIndex={0}>{services.map(s => <article className="service-card" key={s.title}><div className="service-photo"><img src={s.image} alt="" loading="lazy"/></div><div className="service-body"><div className="service-top"><s.icon size={22} strokeWidth={1.6}/></div><h3>{s.title}</h3><p>{s.detail}</p><ArrowUpRight className="service-arrow" size={22}/></div></article>)}</div>
     </div></section>
