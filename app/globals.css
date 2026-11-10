@@ -496,3 +496,27 @@ main#top .ts-live-proof-item{min-width:0}
   main#top .ts-live-proof-item{border-right:0;border-bottom:1px solid #dce5e8}
   main#top .ts-live-proof-item:last-child{border-bottom:0}
 }
+
+/* Fix desktop hero content being clipped by fixed viewport-height rules.
+   Let its content determine height, keeping the phone CTA fully visible. */
+@media(min-width:761px){
+  main#top .hero{
+    height:auto;
+    min-height:clamp(660px,calc(100svh - 96px),920px);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  main#top .hero .hero-content{
+    flex:1 0 auto;
+    padding-top:clamp(48px,6vw,100px);
+    padding-bottom:48px;
+  }
+  main#top .hero .hero-bottom{
+    position:relative;
+    inset:auto;
+    transform:none;
+    flex:0 0 auto;
+    padding-bottom:24px;
+  }
+}
