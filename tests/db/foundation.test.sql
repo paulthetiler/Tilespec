@@ -277,7 +277,21 @@ select test.expect_error($q$insert into storage.objects(bucket_id,name) values (
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000006"}', true);
 insert into storage.objects(bucket_id,name,owner,metadata) values ('tilespec-evidence',
   '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/operational/30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001.jpg', auth.uid(), '{"mimetype":"image/jpeg","size":128}');
-select test.assert((select count(*) = 0 from storage.objects), 'reserved object remains unreadable until completion');
+select test.assert((select count(*) = 1 from storage.objects), 'the uploader can read back their own reserved object to check its bytes');
+select test.expect_error($q$select public.confirm_document_upload('50000000-0000-0000-0000-000000000001',repeat('b',64))$q$, array['42501'], 'session confirmation must quote the reserved file fingerprint');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000004"}', true);
+select test.assert((select count(*) = 0 from storage.objects), 'reserved object remains unreadable to everyone else until completion');
+select test.expect_error($q$select public.confirm_document_upload('50000000-0000-0000-0000-000000000001',repeat('a',64))$q$, array['42501'], 'nobody else can confirm an uploader reservation');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000006"}', true);
+update storage.objects set metadata='{"mimetype":"image/jpeg","size":127}';
+delete from storage.objects;
+select test.assert((select metadata->>'size'='128' from storage.objects), 'not even the uploader can rewrite or delete a stored document through their session');
+select public.confirm_document_upload('50000000-0000-0000-0000-000000000001',repeat('a',64));
+select uploaded_at::text as session_confirmed_at from public.document_revisions where id='50000000-0000-0000-0000-000000000001' \gset
+select public.confirm_document_upload('50000000-0000-0000-0000-000000000001',repeat('a',64));
+select test.assert((select uploaded_at::text=:'session_confirmed_at' from public.document_revisions where id='50000000-0000-0000-0000-000000000001'),
+  'the uploader confirms their own matching document without a service key, and a retry keeps the original time');
+select test.assert(not has_function_privilege('anon','public.confirm_document_upload(uuid,text)','EXECUTE'), 'anonymous visitors cannot confirm documents');
 reset role;
 set local role service_role;
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
@@ -362,7 +376,11 @@ select test.expect_error($q$select public.complete_document_upload('50000000-000
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000006"}', true);
-select test.assert((select count(*) = 0 from storage.objects where name like '%50000000-0000-0000-0000-000000000003.jpg'), 'mismatched pending object remains unavailable for downloads');
+select test.expect_error($q$select public.confirm_document_upload('50000000-0000-0000-0000-000000000003',repeat('c',64))$q$, array['23514'], 'the uploader cannot confirm a stored file whose type differs from the reservation');
+select test.assert((select uploaded_at is null from public.document_revisions where id='50000000-0000-0000-0000-000000000003'), 'a mismatched document stays unconfirmed');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000004"}', true);
+select test.assert((select count(*) = 0 from storage.objects where name like '%50000000-0000-0000-0000-000000000003.jpg'), 'mismatched pending object remains unavailable for downloads by anyone but its uploader');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000006"}', true);
 select test.expect_error($q$insert into public.document_revisions(id,organisation_id,contract_id,work_area_id,document_reference,revision,title,classification,object_path,sha256,mime_type,bytes) values ('50000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','INVALID-HASH',1,'Invalid hash','operational','10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/operational/30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000004.jpg','not-a-sha256','image/jpeg',128)$q$,
   array['23514'], 'document metadata rejects malformed SHA256 hashes');
 select test.expect_error($q$insert into public.document_revisions(id,organisation_id,contract_id,work_area_id,document_reference,revision,title,classification,object_path,sha256,mime_type,bytes) values ('50000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','EXECUTABLE',1,'Executable','operational','10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/operational/30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000004.png',repeat('a',64),'application/x-executable',128)$q$,

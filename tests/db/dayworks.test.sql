@@ -309,14 +309,28 @@ select test.expect_error(format('select public.record_daywork_signoff(%L,gen_ran
 select test.expect_error(format('select public.reserve_daywork_photo(%L,gen_random_uuid(),''work'',jsonb_build_object(''mime_type'',''image/jpeg'',''sha256'',repeat(''c'',64),''bytes'',10))',:'dw_reject'),
  array['42501'],'a rejected daywork takes no photograph');
 
--- Photographs are optional and verified by the trusted server.
+-- Photographs are optional. The person who took one confirms it in their own session.
 select public.reserve_daywork_photo(:'dw1',gen_random_uuid(),'work',jsonb_build_object('mime_type','image/jpeg','sha256',repeat('d',64),'bytes',10)) as photo \gset
 select test.assert((select uploaded_at is null and object_path like :'org'||'/dayworks/'||:'dw1'||'/%.jpg' from public.daywork_photos where id=:'photo'),
  'a photograph is reserved at a checked path and stays unconfirmed until verified');
 select test.expect_error(format('select public.complete_daywork_photo(%L,%L,repeat(''d'',64))',:'photo',:'dave'),array['42501'],
- 'only the trusted server can confirm a photograph');
+ 'the service-key confirmation stays closed to ordinary sessions');
+select object_path as photo_path from public.daywork_photos where id=:'photo' \gset
+select test.expect_error(format('select public.confirm_daywork_photo(%L,repeat(''d'',64))',:'photo'),array['23514'],'a photograph cannot be confirmed before it is stored');
+insert into storage.objects(bucket_id,name,owner,metadata) values('supervisor-evidence',:'photo_path',auth.uid(),'{"size":10,"mimetype":"image/jpeg"}');
+select test.assert((select count(*)=1 from storage.objects where name=:'photo_path'),'the person who took a photograph can read it back to check its bytes');
+select test.expect_error(format('select public.confirm_daywork_photo(%L,repeat(''e'',64))',:'photo'),array['42501'],'confirmation must quote the reserved fingerprint');
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'mia'),true);
 select test.assert((select count(*)=0 from public.daywork_photos where id=:'photo'),'an unconfirmed photograph is visible only to the person who took it');
+select test.assert((select count(*)=0 from storage.objects where name=:'photo_path'),'an unconfirmed photograph''s bytes are readable only by the person who took it');
+select test.expect_error(format('select public.confirm_daywork_photo(%L,repeat(''d'',64))',:'photo'),array['42501'],'nobody else can confirm another person''s photograph');
+select set_config('request.jwt.claims',format('{"sub":"%s"}',:'dave'),true);
+select public.confirm_daywork_photo(:'photo',repeat('d',64));
+select public.confirm_daywork_photo(:'photo',repeat('d',64));
+select test.assert((select uploaded_at is not null from public.daywork_photos where id=:'photo'),'the person who took a photograph confirms it without a service key');
+select set_config('request.jwt.claims',format('{"sub":"%s"}',:'mia'),true);
+select test.assert((select count(*)=1 from public.daywork_photos where id=:'photo') and (select count(*)=1 from storage.objects where name=:'photo_path'),
+ 'once confirmed, the office can see the photograph');
 
 -- Supervisors see the site record and whether to go ahead, never money or commercial approvals.
 select set_config('request.jwt.claims',format('{"sub":"%s"}',:'dave'),true);

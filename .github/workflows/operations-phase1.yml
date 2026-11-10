@@ -1,40 +1,107 @@
 name: TileSPEC operations acceptance
+# Testing follows what a pull request changes, and the jobs run side by side:
+#
+#   What changed                                   What runs                         Roughly
+#   ---------------------------------------------  --------------------------------  -------
+#   Documents, photographs and other public files  quick                             3 min
+#   Public pages, wording, styling, page layout    quick + public site               4 min
+#   Admin screens and their components             quick + public site + admin       8 min
+#   Database, sign-in, permissions, invoicing,     everything (adds database and     15 min
+#   payments, uploads, API routes, dependencies    signed-in end-to-end)
+#
+# "quick" always runs: type checks, the unit tests (which include the permission and
+# money-boundary checks) and a production build. "public site" also proves that signed-out
+# visitors receive no pricing, accounts or documents. Run the workflow by hand for everything.
 on:
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
   pull-requests: read
+concurrency:
+  group: acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
+      site: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.site == 'true' || steps.filter.outputs.admin == 'true' || steps.filter.outputs.critical == 'true' }}
+      admin: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.admin == 'true' || steps.filter.outputs.critical == 'true' }}
+      full: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.critical == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name == 'pull_request'
         with:
           filters: |
-            backend:
+            # Public pages: wording, styling and layout.
+            site:
+              - 'app/*.tsx'
+              - 'app/*.css'
+              - 'app/contact/**'
+              - 'app/privacy/**'
+              - 'tests/browser/**'
+              - 'playwright.config.*'
+            # Admin screens, their components and the logic behind them.
+            admin:
               - 'app/admin/**'
-              - 'app/api/**'
               - 'components/**'
               - 'lib/**'
-              - 'supabase/**'
               - 'tests/**'
               - 'scripts/**'
+              - 'docs/redesign/**'
+              - 'tsconfig.json'
+            # Anything that touches data, access or money always gets every test.
+            critical:
+              - 'supabase/**'
+              - 'tests/db/**'
+              - 'tests/e2e/**'
+              - 'tests/rpc-contract/**'
+              - 'scripts/test-db.sh'
+              - 'scripts/test-site-e2e.mjs'
+              - 'scripts/*e2e-flows.mjs'
+              - 'scripts/snags-storage-fixture.mjs'
+              - 'middleware.ts'
+              - 'next.config.*'
+              - 'lib/auth.ts'
+              - 'lib/supabase/**'
+              - 'lib/documents/**'
+              - 'lib/operations/gang-*'
+              - 'lib/operations/payments*'
+              - 'lib/operations/money*'
+              - 'lib/operations/accounts*'
+              - 'lib/operations/job-costs*'
+              - 'lib/operations/financial-position*'
+              - 'lib/operations/permissions*'
+              - 'lib/operations/evidence*'
+              - 'lib/operations/photo-form*'
+              - 'lib/operations/validation*'
+              - 'lib/operations/data.ts'
+              - 'app/api/**'
+              - 'app/auth/**'
+              - 'app/login/**'
+              - 'app/shared/**'
+              - 'app/admin/layout.tsx'
+              - 'app/admin/**/*actions.ts'
+              - 'app/admin/**/route.ts'
+              - 'app/admin/gang/**'
+              - 'app/admin/gang-invoices/**'
+              - 'app/admin/invoices/**'
+              - 'app/admin/money/**'
+              - 'app/admin/accounts/**'
+              - 'app/admin/team/**'
+              - 'app/admin/documents/**'
+              - 'components/gang/**'
               - 'package.json'
               - 'package-lock.json'
-              - 'playwright.config.*'
-              - 'jest.config.*'
-              - 'tsconfig.json'
-              - '.github/workflows/operations-phase1.yml'
-  acceptance:
-    needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
+              - '.github/workflows/**'
+
+  # Always: types, unit tests (including permission and money-boundary checks) and a build.
+  quick:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,22 +111,44 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - name: Local PostgreSQL prerequisites
-        run: |
-          if ! find /usr/lib/postgresql -path '*/bin/initdb' -print -quit 2>/dev/null | grep -q .; then
-            sudo apt-get update
-            sudo apt-get install -y postgresql postgresql-client
-          fi
-      - run: npm run test:db
       - run: npm run build
+
+  # Public pages in a real browser, and proof that signed-out visitors get nothing private.
+  site:
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run preview:check
+      - run: npm run test:browser -- --trace off
+
+  # Admin screens rendered with fixture data at phone and tablet sizes.
+  admin:
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - run: npm run preview:smoke
       - run: npm run preview:e2e
       - run: npm run preview:mobile
         env:
           SCREENSHOT_DIR: ${{ runner.temp }}/workflow-preview-mobile
-      - run: npm run test:browser
       - run: npm run test:forms
       - run: npm run test:ui
       - run: npm run test:next-actions-ui
@@ -68,8 +157,67 @@ jobs:
       - run: npm run test:admin-today-ui
         env:
           SCREENSHOT_DIR: ${{ runner.temp }}/admin-today-ui-mobile
-      # The end-to-end test runs the real app against PostgREST and a disposable
-      # PostgreSQL. The PostgREST release is pinned and checksum-verified.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workflow-preview-mobile
+          path: ${{ runner.temp }}/workflow-preview-mobile
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: next-actions-app-mobile
+          path: ${{ runner.temp }}/next-actions-app-mobile
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-today-ui-mobile
+          path: ${{ runner.temp }}/admin-today-ui-mobile
+          if-no-files-found: ignore
+
+  # Every migration, permission, invoicing and payment rule against a fresh local PostgreSQL.
+  database:
+    needs: changes
+    if: needs.changes.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Local PostgreSQL prerequisites
+        run: |
+          if ! find /usr/lib/postgresql -path '*/bin/initdb' -print -quit 2>/dev/null | grep -q .; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql postgresql-client
+          fi
+      - run: npm run test:db
+
+  # The real app, signed in as each role, against PostgREST and a disposable PostgreSQL.
+  # The PostgREST release is pinned and checksum-verified.
+  end-to-end:
+    needs: changes
+    if: needs.changes.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Local PostgreSQL prerequisites
+        run: |
+          if ! find /usr/lib/postgresql -path '*/bin/initdb' -print -quit 2>/dev/null | grep -q .; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql postgresql-client
+          fi
+      - run: npx playwright install --with-deps chromium
       - name: PostgREST for the end-to-end test
         run: |
           curl -fsSL -o "$RUNNER_TEMP/postgrest.tar.xz" https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
@@ -91,24 +239,24 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: workflow-preview-mobile
-          path: ${{ runner.temp }}/workflow-preview-mobile
-          if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: next-actions-app-mobile
-          path: ${{ runner.temp }}/next-actions-app-mobile
-          if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: admin-today-ui-mobile
-          path: ${{ runner.temp }}/admin-today-ui-mobile
-          if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
           name: admin-today-authenticated
           path: ${{ runner.temp }}/admin-today-authenticated
           if-no-files-found: ignore
+
+  # One result for the whole run. A job that was not needed counts as passed; a job that
+  # failed or was cancelled fails the run.
+  acceptance:
+    needs: [changes, quick, site, admin, database, end-to-end]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every required check passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+          CHANGES: ${{ needs.changes.result }}
+          QUICK: ${{ needs.quick.result }}
+        run: |
+          echo "changes quick site admin database end-to-end: $RESULTS"
+          if [ "$CHANGES" != success ] || [ "$QUICK" != success ]; then echo "The essential checks did not pass."; exit 1; fi
+          case " $RESULTS " in *" failure "*|*" cancelled "*) echo "A required check failed."; exit 1;; esac

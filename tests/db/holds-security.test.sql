@@ -70,8 +70,15 @@ select object_path as original_path from public.hold_photos where id=:'original_
 select test.expect_error(format('insert into storage.objects(bucket_id,name,owner,metadata) values(''supervisor-evidence'',%L,auth.uid(),''{}'')',replace(:'original_path',:'original_photo','00000000-0000-4000-8000-000000000001')),array['42501'],
  'a private hold object requires an exact caller-owned reservation');
 insert into storage.objects(bucket_id,name,owner,metadata) values('supervisor-evidence',:'original_path',auth.uid(),'{"size":9,"mimetype":"image/png"}');
+select test.assert((select count(*)=1 from storage.objects where name=:'original_path'),
+ 'the uploader can read back their own pending hold photograph to check its bytes');
+select test.expect_error(format('select public.confirm_hold_photo(%L,repeat(''a'',64))',:'original_photo'),array['23514'],'session hold confirmation rejects metadata that differs from the reserved bytes');
+select test.expect_error(format('select public.confirm_hold_photo(%L,repeat(''b'',64))',:'original_photo'),array['42501'],'session hold confirmation rejects a different content digest');
+select set_config('request.jwt.claims','{"sub":"ce100000-0000-4000-8000-000000000003"}',true);
+select test.expect_error(format('select public.confirm_hold_photo(%L,repeat(''a'',64))',:'original_photo'),array['42501'],'nobody else can confirm the uploader''s hold photograph');
 select test.assert((select count(*)=0 from storage.objects where name=:'original_path'),
- 'unverified pending hold bytes are not visible through caller Storage SELECT');
+ 'unverified pending hold bytes are not visible to anyone but their uploader');
+select set_config('request.jwt.claims','{"sub":"ce100000-0000-4000-8000-000000000002"}',true);
 reset role;
 set local role service_role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
@@ -83,6 +90,14 @@ select test.expect_error(format('select public.complete_hold_photo(%L,%L,repeat(
  'trusted hold completion requires the server-verified content digest');
 reset role;
 update storage.objects set metadata='{"size":8,"mimetype":"image/png"}' where name=:'original_path';
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"ce100000-0000-4000-8000-000000000002"}',true);
+select public.confirm_hold_photo(:'original_photo',repeat('a',64));
+select uploaded_at::text as hold_verified_at from public.hold_photos where id=:'original_photo' \gset
+select public.confirm_hold_photo(:'original_photo',repeat('a',64));
+select test.assert((select uploaded_at::text=:'hold_verified_at' from public.hold_photos where id=:'original_photo'),
+ 'the uploader confirms their own matching hold photograph without a service key, and a retry keeps the original time');
+reset role;
 set local role service_role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 select public.complete_hold_photo(:'original_photo','ce100000-0000-4000-8000-000000000002',repeat('a',64));
@@ -260,7 +275,9 @@ select test.expect_error(format('update public.hold_photos set event_id=null whe
  'saved correction photographs cannot be detached from permanent correction history');
 select test.assert(not has_function_privilege('anon','public.create_work_hold(uuid,jsonb)','EXECUTE')
  and not has_function_privilege('anon','public.transition_work_hold(uuid,uuid,integer,text,jsonb)','EXECUTE')
- and not has_function_privilege('authenticated','public.complete_hold_photo(uuid,uuid,text)','EXECUTE'),
+ and not has_function_privilege('authenticated','public.complete_hold_photo(uuid,uuid,text)','EXECUTE')
+ and not has_function_privilege('anon','public.confirm_hold_photo(uuid,text)','EXECUTE')
+ and has_function_privilege('authenticated','public.confirm_hold_photo(uuid,text)','EXECUTE'),
  'anonymous lifecycle calls and client-side evidence certification have no EXECUTE grants');
 select test.assert(not exists(select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname like 'hold%' and cmd in ('UPDATE','DELETE','ALL')),
  'private hold evidence has no client replacement or deletion policy');
