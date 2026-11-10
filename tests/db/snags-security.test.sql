@@ -58,6 +58,17 @@ select object_path as path from public.supervisor_issue_photos where id=:'photo'
 select test.expect_error(format('insert into storage.objects(bucket_id,name,owner,metadata) values(''supervisor-evidence'',%L,auth.uid(),''{}'')',replace(:'path',:'photo','00000000-0000-4000-8000-000000000001')),array['42501'],
  'evidence storage rejects objects without a caller-owned reservation');
 insert into storage.objects(bucket_id,name,owner,metadata) values('supervisor-evidence',:'path',auth.uid(),'{"size":9,"mimetype":"image/png"}');
+-- Confirmation in the uploader's own session (production holds no service key).
+select test.assert((select count(*)=1 from storage.objects where name=:'path'),'the uploader can read back their own pending photograph to check its bytes');
+select test.expect_error(format('select public.confirm_snag_photo(%L,repeat(''a'',64))',:'photo'),array['23514'],'session confirmation rejects stored metadata that differs from the reserved bytes');
+select test.expect_error(format('select public.confirm_snag_photo(%L,repeat(''b'',64))',:'photo'),array['42501'],'session confirmation rejects a different content digest');
+select set_config('request.jwt.claims','{"sub":"ac100000-0000-4000-8000-000000000003"}',true);
+select test.expect_error(format('select public.confirm_snag_photo(%L,repeat(''a'',64))',:'photo'),array['42501'],'another supervisor cannot confirm someone else''s photograph');
+select test.assert((select count(*)=0 from storage.objects where name=:'path'),'another supervisor cannot read someone else''s pending photograph');
+select set_config('request.jwt.claims','{"sub":"ac100000-0000-4000-8000-000000000002"}',true);
+update storage.objects set metadata='{"size":8,"mimetype":"image/png"}' where name=:'path';
+delete from storage.objects where name=:'path';
+select test.assert((select metadata->>'size'='9' from storage.objects where name=:'path'),'not even the uploader can rewrite or delete a stored photograph through their session');
 reset role;
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 select test.expect_error(format('select public.complete_snag_photo(%L,%L,repeat(''a'',64))',:'photo','ac100000-0000-4000-8000-000000000002'),array['23514'],'trusted completion rejects stored metadata that differs from reserved bytes');
@@ -65,6 +76,12 @@ select test.expect_error(format('select public.complete_snag_photo(%L,%L,repeat(
 select test.expect_error(format('select public.complete_snag_photo(%L,%L,repeat(''b'',64))',:'photo','ac100000-0000-4000-8000-000000000002'),array['42501'],'trusted completion rejects a different content digest');
 select test.assert((select uploaded_at is null and event_id is null from public.supervisor_issue_photos where id=:'photo'),'all failed verification attempts leave evidence unverified and unattached');
 update storage.objects set metadata='{"size":8,"mimetype":"image/png"}' where name=:'path';
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"ac100000-0000-4000-8000-000000000002"}',true);
+select public.confirm_snag_photo(:'photo',repeat('a',64));
+select test.assert((select uploaded_at is not null from public.supervisor_issue_photos where id=:'photo'),'the uploader confirms their own matching photograph without a service key');
+reset role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
 select public.complete_snag_photo(:'photo','ac100000-0000-4000-8000-000000000002',repeat('a',64));
 select uploaded_at::text as verified_at from public.supervisor_issue_photos where id=:'photo' \gset
 select public.complete_snag_photo(:'photo','ac100000-0000-4000-8000-000000000002',repeat('a',64));
@@ -160,6 +177,8 @@ select test.expect_error(format('update public.supervisor_issue_photos set uploa
 select test.expect_error(format('update public.supervisor_issue_photos set event_id=null where id=%L',:'photo'),array['42501'],'even privileged SQL cannot detach photographs from permanent lifecycle events');
 select test.assert(not has_function_privilege('anon','public.create_snag(uuid,jsonb)','EXECUTE')
  and not has_function_privilege('anon','public.snag_context(uuid)','EXECUTE')
- and not has_function_privilege('authenticated','public.complete_snag_photo(uuid,uuid,text)','EXECUTE'),
+ and not has_function_privilege('authenticated','public.complete_snag_photo(uuid,uuid,text)','EXECUTE')
+ and not has_function_privilege('anon','public.confirm_snag_photo(uuid,text)','EXECUTE')
+ and has_function_privilege('authenticated','public.confirm_snag_photo(uuid,text)','EXECUTE'),
  'anonymous snag RPCs and authenticated byte-certification RPCs have no EXECUTE grant');
 rollback;

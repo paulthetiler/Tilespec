@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireActor, canManageContracts, canReadFinancial } from "@/lib/auth";
-import { createStorageVerifier } from "@/lib/supabase/storage-admin";
 import { checkDatabase } from "@/lib/operations/data";
 import { commercialInput, contractInput, integer, MAX_FILE_BYTES, memberRole, packageInput, text, uuid, ValidationError } from "@/lib/operations/validation";
 import { inspectEvidence, verifyStoredEvidence } from "@/lib/operations/evidence";
@@ -157,7 +156,6 @@ export async function uploadDocumentAction(_: ActionState, form: FormData): Prom
       object_path: `${member.organisation_id}/${contractId}/${classification}/${areaId || "contract"}/${id}.${type.extension}`,
       sha256: type.sha256, mime_type: type.mime, bytes: bytes.length, created_by: member.user_id,
     };
-    const verifier = createStorageVerifier();
     const inserted = await supabase.from("document_revisions").insert(document);
     if (inserted.error?.code === "23505") {
       const existing = await supabase.from("document_revisions").select("*").eq("id", id).maybeSingle();
@@ -165,14 +163,15 @@ export async function uploadDocumentAction(_: ActionState, form: FormData): Prom
       if (!existing.data || Object.entries(document).some(([k, v]) => (existing.data as DocumentRevision & Record<string, unknown>)[k] !== v)) throw new ValidationError("This upload request was already used for different content. Refresh for a new request.");
     } else checkDatabase(inserted.error);
     await supabase.storage.from("tilespec-evidence").upload(document.object_path, bytes, { contentType: type.mime, upsert: false });
-    // Even if a user races us with a direct raw upload, verify the stored bytes
-    // before privileged completion. Unverified objects remain quarantined: user
-    // RLS cannot download them or assert they were validated.
-    const stored = await verifier.storage.from("tilespec-evidence").download(document.object_path);
+    // Everything runs in the signed-in person's own session (production holds no service key):
+    // storage accepts only the reserved path from the person who reserved it, the stored bytes are
+    // read back and compared with the chosen file, and the database re-checks permission, size
+    // and type before the revision becomes visible to anyone else.
+    const stored = await supabase.storage.from("tilespec-evidence").download(document.object_path);
     if (stored.error || !stored.data) throw new ValidationError("Upload is pending. The file has not been confirmed in storage. Retry this same form and file.");
     const storedBytes = new Uint8Array(await stored.data.arrayBuffer());
     verifyStoredEvidence(storedBytes, document);
-    const completed = await verifier.rpc("complete_document_upload", { p_document: id, p_actor: member.user_id, p_sha256: document.sha256 });
+    const completed = await supabase.rpc("confirm_document_upload", { p_document: id, p_sha256: document.sha256 });
     checkDatabase(completed.error);
     revalidatePath(`/admin/contracts/${contractId}`);
     return { success: "Private document revision uploaded. Uploading evidence does not approve it." };

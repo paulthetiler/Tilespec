@@ -99,7 +99,7 @@ export function storageFixture({ restPort, verify }) {
     }
     if (request.method === 'GET') {
       const file = objects.get(key); let bytes = file.bytes;
-      if (claims.role === 'service_role' && faults.corruptDownloads > 0) {
+      if (!signRoute && faults.corruptDownloads > 0) {
         faults.corruptDownloads--; bytes = Buffer.from(bytes); bytes[bytes.length - 1] ^= 1;
       }
       stats.downloads++;

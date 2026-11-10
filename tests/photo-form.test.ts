@@ -88,10 +88,14 @@ test("a verified reservation requires the exact uploaded bytes, size and signatu
 
 test("every verified photo route handles a failed upload and checks stored bytes before completing", async () => {
   const { readFileSync } = await import("node:fs");
-  for (const [resource, completion] of [["snags", "complete_snag_photo"], ["holds", "complete_hold_photo"], ["dayworks", "complete_daywork_photo"]]) {
+  for (const [resource, completion] of [["snags", "confirm_snag_photo"], ["holds", "confirm_hold_photo"], ["dayworks", "confirm_daywork_photo"]]) {
     const route = readFileSync(`app/api/supervisor/${resource}/[id]/photos/route.ts`, "utf8");
     assert.match(route, /const upload=await supabase\.storage[^\n]+\n\s+if\(upload\.error && !alreadyStored\(upload\.error\)\)/, `${resource}: a failed upload is reported, not ignored`);
     assert.ok(route.indexOf("verifyStoredEvidence(") > route.indexOf(".download("), `${resource}: the stored bytes are read back`);
     assert.ok(route.indexOf("verifyStoredEvidence(") < route.indexOf(`rpc("${completion}"`), `${resource}: the bytes are checked before completion`);
+    // Production holds no service-role key. Uploading, reading back and confirming all use the
+    // signed-in person's own session, so storage policies and the database decide what is allowed.
+    assert.doesNotMatch(route, /storage-admin|createStorageVerifier|SERVICE_ROLE|verifier/, `${resource}: no service key is involved`);
+    assert.match(route, new RegExp(`await supabase\\.rpc\\("${completion}",\\{p_photo:metadata\\.data\\.id,p_sha256:metadata\\.data\\.sha256\\}\\)`), `${resource}: confirmed in the uploader's session`);
   }
 });

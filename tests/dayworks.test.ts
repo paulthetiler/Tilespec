@@ -217,15 +217,14 @@ test("a photo retry may find its object already stored; every other upload failu
     assert.equal(alreadyStored(error), false, JSON.stringify(error));
   const route = source("app/api/supervisor/dayworks/[id]/photos/route.ts");
   assert.match(route, /if\(upload\.error && !alreadyStored\(upload\.error\)\)/, "an upload failure is handled, not ignored");
-  assert.ok(route.indexOf("verifyStoredEvidence(") < route.indexOf('rpc("complete_daywork_photo"'), "the stored bytes are checked before completion");
+  assert.ok(route.indexOf("verifyStoredEvidence(") < route.indexOf('rpc("confirm_daywork_photo"'), "the stored bytes are checked before completion");
   assert.doesNotMatch(source("app/admin/supervisor/daywork-actions.ts"), /photo/i, "saving or sending a daywork never depends on photographs");
 });
 
-test("without photo storage, a photograph is refused before anything is reserved and the daywork stays saved", () => {
+test("daywork photographs need no service key and the photo route never changes the daywork", () => {
   const route = source("app/api/supervisor/dayworks/[id]/photos/route.ts");
-  const unavailable = route.indexOf("catch { return NextResponse.json({error:\"Photographs cannot be saved here yet. The daywork is saved without them");
-  assert.ok(unavailable > route.indexOf("createStorageVerifier()"), "a missing storage key is answered with a plain message, not an error page");
-  assert.ok(unavailable < route.indexOf('rpc("reserve_daywork_photo"'), "nothing is reserved when photographs cannot be verified");
+  assert.doesNotMatch(route, /storage-admin|createStorageVerifier|SERVICE_ROLE/, "photographs are stored and confirmed in the signed-in person's own session");
+  assert.ok(route.indexOf('rpc("reserve_daywork_photo"') < route.indexOf(".upload("), "a photograph is reserved before it is stored");
   assert.doesNotMatch(route, /from\("dayworks"\)|rpc\("(create|send|save)_daywork/, "the photo route never changes the daywork itself");
 });
 
