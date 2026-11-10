@@ -3,9 +3,9 @@ import { expect, test } from "@playwright/test";
 test("public TileSPEC website routes visitors to the new enquiry forms", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("img", { name: "TileSPEC Commercial Tiling" }).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: /SEND US A TENDER/ })).toHaveAttribute("href", "/contact?type=tender");
-  await expect(page.getByRole("link", { name: /GENERAL ENQUIRY/ })).toHaveAttribute("href", "/contact?type=general");
-  await page.getByRole("link", { name: /SEND US A TENDER/ }).click();
+  await expect(page.getByRole("link", { name: /send us a tender/i })).toHaveAttribute("href", "/contact?type=tender");
+  await expect(page.getByRole("link", { name: /general enquiry/i })).toHaveAttribute("href", "/contact?type=general");
+  await page.getByRole("link", { name: /send us a tender/i }).click();
   await expect(page).toHaveURL(/\/contact\?type=tender/);
   await expect(page.getByRole("button", { name: "SUBMIT TENDER ENQUIRY" })).toBeVisible();
   await expect(page.getByText("Drop documents here or browse files")).toBeVisible();
