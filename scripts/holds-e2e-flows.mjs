@@ -165,7 +165,7 @@ export async function runHolds({ browser, origin, sql, signIn, pass, screenshots
   try {
     await page.waitForURL(`**/admin/supervisor/sites/${contractId}`);
     const urgentActions = page.getByRole('region', { name: 'Site actions', exact: true });
-    for (const label of ['STOP WORK', 'Raise a snag', 'Check workmanship', 'FINISH TODAY']) await page.getByRole('link', { name: label, exact: true }).waitFor();
+    for (const label of ['Record a work restriction', 'Report a site issue', 'Check workmanship', 'FINISH TODAY']) await page.getByRole('link', { name: label, exact: true }).waitFor();
     await urgentActions.getByRole('link', { name: 'START MORNING CHECKS', exact: true }).waitFor();
     assert.equal((await releaseStatus()).status, 'not_assessed');
     assert.equal((await releaseStatus()).authorised, false);
@@ -201,7 +201,7 @@ export async function runHolds({ browser, origin, sql, signIn, pass, screenshots
     // Upload the existing private operational-document workflow through Next,
     // then configure an explicit approved specification requirement.
     await manager.goto(`${origin}/admin/contracts/${contractId}`);
-    const documents = manager.locator('details').filter({ has: manager.locator('summary').getByText('Upload a document revision or photo', { exact: true }) });
+    const documents = manager.locator('details').filter({ has: manager.locator('summary').getByText('Add a document or new revision', { exact: true }) });
     await documents.locator('summary').click(); const documentForm = documents.locator('form');
     await documentForm.locator('input[name=document_reference]').fill('QA-MANUFACTURER-52');
     await documentForm.locator('input[name=title]').fill('Approved Flat 52 waterproofing manufacturer requirements');

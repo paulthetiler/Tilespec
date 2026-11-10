@@ -283,3 +283,22 @@ time it was applied, and four applied migrations (`20261014120000`, `20261015091
    output. Every prerequisite must be present and every name collision absent.
 3. Apply the migration unmodified, recorded under its own filename, only after approval.
 4. Re-run the report: the preserved counts must be unchanged.
+
+## Gang invoices (`20261110090000_gang_invoice_workflow.sql`)
+
+Gangs claim the work, supervisors verify the work, the office approves the money. See
+[docs/operations/gang-invoices.md](../docs/operations/gang-invoices.md).
+
+Before applying, create the private `gang-claims` bucket (4 MiB, PDF/JPEG/PNG). The migration's
+preflight refuses to run without it:
+
+```sql
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('gang-claims', 'gang-claims', false, 4194304, array['application/pdf','image/jpeg','image/png'])
+on conflict (id) do nothing;
+```
+
+Uploads use the signed-in person's own session (storage policies allow only a path they reserved);
+no service-role key is needed. The two hosted-only migrations `20261108132214_site_programme_revisions.sql`
+and `20261109225148_gang_progress_checks.sql` are reconciled into this repository so local acceptance
+runs build the same schema; both refuse to run where their objects already exist.

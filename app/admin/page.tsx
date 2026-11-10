@@ -8,17 +8,20 @@ import { calendarDate, money } from "@/components/operations/format";
 import { configFromEnv, flagEnabled } from "@/lib/operations/next-actions";
 import { loadOfficeSnapshot } from "@/lib/operations/next-actions/office-snapshot";
 import { AdminToday } from "@/components/admin/admin-today";
+import { GangOfficeStrip } from "@/components/gang/office-strip";
 import styles from "./admin.module.css";
 
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ error?: string | string[] }> }) {
   const { supabase, member } = await requireActor();
   if (member.role === "supervisor") redirect("/admin/supervisor");
+  if (member.role === "lead_installer" || member.role === "subcontract_installer") redirect("/admin/gang");
   const params = await searchParams;
   if ((member.role === "owner" || member.role === "contracts_manager") && flagEnabled("nextActions", member.role)) {
     const config = configFromEnv(process.env);
     const { snapshot, viewer } = await loadOfficeSnapshot(supabase, member, config);
     return <>
       {params.error === "permission" && <p className={styles.error} role="alert">Your account does not have permission to access that page.</p>}
+      {canReadFinancial(member) && <GangOfficeStrip supabase={supabase} />}
       <AdminToday snapshot={snapshot} viewer={viewer} member={member} config={config} />
     </>;
   }
@@ -42,6 +45,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       {canManageContracts(member) && <Link href="/admin/contracts/new" className={styles.button}>New contract</Link>}
     </div>
     {params.error === "permission" && <p className={styles.error} role="alert">Your account does not have permission to access that page.</p>}
+    {financial && <GangOfficeStrip supabase={supabase} />}
     <div className={styles.metrics}>
       <div className={styles.metric}><span className={styles.metricLabel}>Available contracts</span><strong className={styles.metricValue}>{contracts.length}</strong><span className={styles.small}>Draft records within your access</span></div>
       <div className={styles.metric}><span className={styles.metricLabel}>Site operations</span><Link className={styles.secondaryButton} href="/admin/supervisor">Open site dashboard</Link><span className={styles.small}>Recorded workforce, inspections, defects and restrictions</span></div>

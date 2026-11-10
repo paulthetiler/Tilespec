@@ -77,7 +77,9 @@ export async function runAccounts({ browser, origin, sql, signIn, pass, screensh
     // The contract's own payment terms.
     await owner.goto(`${origin}/admin/contracts/${job}/accounts`);
     await owner.getByRole('heading', { name: '1. Contract and payment terms' }).waitFor();
-    await owner.getByText('Set the payment terms').click();
+    // The terms section opens by itself when no terms are saved yet ("start here").
+    const termsSection = owner.locator('details', { has: owner.locator('summary', { hasText: 'Set the payment terms' }) });
+    if (await termsSection.getAttribute('open') === null) await termsSection.locator('summary').click();
     await owner.getByLabel('Due date: days after the later of the valuation date and the application').fill('7');
     await owner.getByLabel('Final date for payment: days after the due date').fill('21');
     await owner.getByLabel('Order or subcontract reference').fill('SUB-77');

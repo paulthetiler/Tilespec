@@ -27,17 +27,19 @@ export function snapshotFor(held = false): NextActionSnapshot {
   return snapshot;
 }
 
-// Only the two additional read-only Today queries are supported. Any unexpected
-// table or mutation fails rather than silently simulating a successful write.
+// Only the additional read-only Today queries are supported: the job details, its drawings and
+// the count of gang invoices waiting for a check (none here). Any unexpected table or mutation
+// fails rather than silently simulating a successful write.
 export function fixtureClient(held = false): SupabaseClient {
   return {
     fixtureHeld: held,
     from(table: string) {
-      if (!["contracts", "document_revisions"].includes(table)) throw new Error(`Unexpected UI fixture table: ${table}`);
-      const data = table === "contracts" ? { client: "Fictional client", scope: "Test bathrooms", working_hours: "07:30 to 16:30" } : [drawing];
-      const result = { data, error: null };
+      if (!["contracts", "document_revisions", "gang_verification_requests"].includes(table)) throw new Error(`Unexpected UI fixture table: ${table}`);
+      const data = table === "contracts" ? { client: "Fictional client", scope: "Test bathrooms", working_hours: "07:30 to 16:30" }
+        : table === "gang_verification_requests" ? null : [drawing];
+      const result = { data, error: null, count: table === "gang_verification_requests" ? 0 : null };
       const query = {
-        select() { return query; }, eq() { return query; }, not() { return query; }, maybeSingle() { return Promise.resolve(result); },
+        select() { return query; }, eq() { return query; }, not() { return query; }, is() { return query; }, maybeSingle() { return Promise.resolve(result); },
         then(resolve: (value: typeof result) => unknown, reject: (error: unknown) => unknown) { return Promise.resolve(result).then(resolve, reject); },
       };
       return query;

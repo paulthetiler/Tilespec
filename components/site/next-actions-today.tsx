@@ -8,9 +8,11 @@ import { holdScope, holdTypes } from "@/lib/operations/holds";
 import { dayLabel, londonDate } from "@/lib/operations/planning";
 import { checkDatabase } from "@/lib/operations/data";
 import { flagEnabled } from "@/lib/operations/next-actions/flags";
+import { pendingGangChecks } from "@/lib/operations/gang-data";
 import type { Member } from "@/lib/auth";
 import adminStyles from "@/app/admin/admin.module.css";
 import styles from "./next-actions.module.css";
+import gangStyles from "@/components/gang/gang.module.css";
 
 type Props = {
   supabase: SupabaseClient; member: Member; contract: { id: string; reference: string; name: string; address: string };
@@ -42,10 +44,11 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
   const banner = queue.alerts.filter(a => a.state !== "ready");
   const waiting = queue.waiting.filter(a => !banner.includes(a));
   const today = snapshot.today;
-  const [quality, details, documents] = await Promise.all([
+  const [quality, details, documents, gangChecks] = await Promise.all([
     qualityOverviewFor(supabase, { contract_id: contract.id }),
     supabase.from("contracts").select("client,site_contact,scope,exclusions,tile_specification,installation_system,access_restrictions,working_hours").eq("id", contract.id).maybeSingle(),
     supabase.from("document_revisions").select("id,title,document_reference,revision").eq("contract_id", contract.id).eq("classification", "operational").not("uploaded_at", "is", null),
+    pendingGangChecks(supabase, contract.id),
   ]);
   checkDatabase(details.error);
   checkDatabase(documents.error);
@@ -80,6 +83,12 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
       </div>
       <div><Link className={styles.report} href={`${base}/documents`}>Drawings &amp; RAMS</Link> <Link className={styles.report} href={`${base}/report`}>Report an issue</Link></div>
     </header>
+
+    {!!gangChecks && <Link className={gangStyles.verifyStrip} href={`${base}/progress`}>
+      <span>Verify gang progress<span className={gangStyles.count} aria-label={`${gangChecks} waiting`}>{gangChecks}</span>
+        <small>{gangChecks === 1 ? "A gang invoice is" : "Gang invoices are"} waiting for your quantity and quality check</small></span>
+      <span aria-hidden="true">›</span>
+    </Link>}
 
     {holds.length > 0 && <section className={styles.section} aria-label="Work that is stopped">
       <h2>Work that is stopped</h2>
@@ -129,6 +138,8 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
         <section className={styles.section} aria-label="More">
           <h2>More</h2>
           <div className={styles.list}>
+            <Link className={styles.row} href={`${base}/progress`}><strong>Verify gang progress{!!gangChecks && <span className={gangStyles.count}>{gangChecks}</span>}</strong>
+              <span>{gangChecks === null ? "Check gang quantities and quality" : gangChecks ? `${gangChecks} gang ${gangChecks === 1 ? "invoice" : "invoices"} awaiting check` : "Nothing waiting · record measured work"}</span></Link>
             {!tabs && <>
               <Link className={styles.row} href={`${base}/workforce`}><strong>Who is on site</strong><span>Arrivals, moves and leaving times</span></Link>
               <Link className={styles.row} href={`${base}/inspections`}><strong>Check workmanship</strong><span>Choose an area and check work</span></Link>

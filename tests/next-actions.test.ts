@@ -451,8 +451,10 @@ test("every navigation link opens a page that already exists", () => {
 test("the supervisor's tabs follow the site they are in, and the current tab is the closest match", () => {
   assert.equal(siteBaseOf(`${SITE}/workforce`), SITE);
   assert.equal(siteBaseOf("/admin/contracts"), null);
-  const items = destinationsFor("supervisor", `${SITE}/snags`);
-  assert.equal(currentDestination(items, `${SITE}/snags`), "issues");
+  // Docs (drawings and RAMS) replaced Issues as a primary tab; issues are reported from Today.
+  const items = destinationsFor("supervisor", `${SITE}/documents`);
+  assert.equal(currentDestination(items, `${SITE}/documents`), "documents");
+  assert.equal(currentDestination(items, `${SITE}/snags`), "today");
   assert.equal(currentDestination(items, SITE), "today");
   assert.deepEqual(destinationsFor("supervisor", "/admin/supervisor").map(d => d.key), ["today"]);
 });
@@ -576,7 +578,10 @@ test("feature flags work separately, together and off, and a typo stays off", ()
   const page = source("app/admin/supervisor/sites/[id]/page.tsx");
   assert.match(layout, /flagEnabled\("roleShell"/);
   assert.match(page, /flagEnabled\("nextActions"/);
-  assert.match(page, /STOP WORK/);
+  // The large STOP WORK button was deliberately removed from the supervisor dashboard; issues are
+  // reported the ordinary way and active work restrictions are still shown.
+  assert.doesNotMatch(page, /STOP WORK/);
+  assert.match(page, /Record a work restriction/);
   assert.match(layout, /Office menu/);
 });
 

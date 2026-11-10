@@ -121,7 +121,7 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
 
     const upload = async (target, classification, title, reference) => {
       await target.goto(`${origin}/admin/contracts/${contract}#documents`);
-      const details = target.locator('details').filter({ has: target.locator('summary').getByText('Upload a document revision or photo', { exact: true }) });
+      const details = target.locator('details').filter({ has: target.locator('summary').getByText('Add a document or new revision', { exact: true }) });
       await details.locator('summary').click();
       const form = details.locator('form');
       await form.locator('[name=document_reference]').fill(reference);
@@ -195,13 +195,20 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
     const morningSupervisor = await account(email.supervisor);
     await morningSupervisor.goto(`${origin}${site}/checks`);
     const morningGroups = morningSupervisor.locator('main fieldset').filter({ has: morningSupervisor.getByRole('button', { name: 'YES', exact: true }) });
-    assert.equal(await morningGroups.count(), 11);
-    for (let index = 0; index < 11; index++) await morningGroups.nth(index).getByRole('button', { name: index === 3 || index >= 9 ? 'NO' : 'YES', exact: true }).click();
+    // Eight Yes/No questions (attendance Not applicable, so no gang is confirmed automatically)
+    // and three stock levels, with adhesive out of stock.
+    assert.equal(await morningGroups.count(), 8);
+    for (let index = 0; index < 8; index++) await morningGroups.nth(index).getByRole('button', { name: index === 0 ? 'NOT APPLICABLE' : index >= 6 ? 'NO' : 'YES', exact: true }).click();
+    const adhesiveGroup = morningSupervisor.getByRole('group', { name: 'Adhesive available?', exact: true });
+    await adhesiveGroup.getByRole('button', { name: 'Out of stock', exact: true }).click();
+    for (const item of ['Grout available?', 'Tiles and other required materials available?'])
+      await morningSupervisor.getByRole('group', { name: item, exact: true }).getByRole('button', { name: 'Plenty in stock', exact: true }).click();
     const blockerText = 'Phase 3 saved morning blocker: adhesive delivery has not arrived.';
-    await morningSupervisor.getByRole('group', { name: 'Adhesive available?', exact: true }).getByLabel('Short note (optional)', { exact: true }).fill(blockerText);
+    await adhesiveGroup.getByLabel('Short note (optional)', { exact: true }).fill(blockerText);
     await morningSupervisor.getByRole('button', { name: 'COMPLETE MORNING CHECKS', exact: true }).click();
     await morningSupervisor.getByRole('heading', { name: 'Morning checks complete', exact: true }).waitFor();
-    const morningIssue = sql(`select id from public.supervisor_issues where contract_id='${contract}' and snag_status is null and description='${blockerText}'`);
+    // The saved finding carries the stock level before the supervisor's own words.
+    const morningIssue = sql(`select id from public.supervisor_issues where contract_id='${contract}' and snag_status is null and description like '%${blockerText}'`);
     assert.match(morningIssue, /^[0-9a-f-]{36}$/);
     await office.goto(`${origin}/admin`);
     const morningAction = office.locator(`[data-action-id="readiness:${morningIssue}"]`);

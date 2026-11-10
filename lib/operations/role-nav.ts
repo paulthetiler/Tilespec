@@ -40,8 +40,9 @@ export function destinationsFor(role: MemberRole, pathname: string, financial = 
       ];
     }
     default:
+      // A gang's day starts with its own invoices: what it has sent, what is checked and when it is paid.
       return [
-        { key: "today", label: "Today", href: "/admin", icon: "home" },
+        { key: "today", label: "Today", href: "/admin/gang", icon: "home" },
         { key: "fixes", label: "Fixes", href: "/admin/snags", icon: "wrench" },
         { key: "paperwork", label: "Paperwork", href: "/admin/contracts", icon: "file" },
       ];
@@ -61,7 +62,7 @@ export function currentDestination(items: Destination[], pathname: string): stri
  */
 export function everythingElse(role: MemberRole, financial: boolean): { label: string; href: string }[] {
   if (role === "supervisor") return [];
-  if (role === "lead_installer" || role === "subcontract_installer") return [{ label: "Assigned holds", href: "/admin/holds" }];
+  if (role === "lead_installer" || role === "subcontract_installer") return [{ label: "Your invoices", href: "/admin/gang" }, { label: "Assigned holds", href: "/admin/holds" }];
   const office = role === "owner" || role === "contracts_manager";
   return [
     { label: "Overview", href: "/admin" }, { label: "Contracts", href: "/admin/contracts" },
@@ -70,6 +71,6 @@ export function everythingElse(role: MemberRole, financial: boolean): { label: s
     { label: "Site alerts", href: "/admin/alerts" },
     ...(office ? [{ label: "Paperwork", href: "/admin/paperwork" }, { label: "Messages and handovers", href: "/admin/messages" }, { label: "Quality control", href: "/admin/quality" }, { label: "Tenders", href: "/admin/tenders" }] : []),
     ...(role === "owner" ? [{ label: "User access", href: "/admin/team" }] : []),
-    ...(financial ? [{ label: "Estimator", href: "/admin/estimator" }, { label: "Money", href: "/admin/money" }, { label: "Invoices", href: "/admin/invoices" }] : []),
+    ...(financial ? [{ label: "Estimator", href: "/admin/estimator" }, { label: "Money", href: "/admin/money" }, { label: "Invoices", href: "/admin/invoices" }, { label: "Gang invoices", href: "/admin/gang-invoices" }] : []),
   ];
 }

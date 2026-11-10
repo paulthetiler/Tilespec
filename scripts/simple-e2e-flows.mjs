@@ -76,7 +76,7 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await page.getByRole('heading', { name: 'Riverside practical supervisor acceptance', exact: true }).waitFor();
     await page.getByText(/^(Morning|Afternoon|Evening), Dave$/).waitFor();
     await page.getByRole('link', { name: 'START MORNING CHECKS', exact: true }).waitFor();
-    for (const name of ["Who's on site?", 'Check workmanship', 'Raise a snag', 'Office messages']) await page.getByRole('link', { name, exact: true }).waitFor();
+    for (const name of ["Who's on site?", 'Check workmanship', 'Report a site issue', 'Office messages']) await page.getByRole('link', { name, exact: true }).waitFor();
     for (const name of ['Variations', 'Dayworks']) assert.equal(await page.getByRole('link', { name, exact: true }).count(), 0, `${name} is not an everyday tile`);
     assert.equal(await page.getByRole('link', { name: 'INSPECT WORK', exact: true }).count(), 0, 'no office inspection task is invented');
     pass('Simple A: Dave signs in through the real password form, reaches his assigned site, and sees a personal daily dashboard with one clear next task');
@@ -85,13 +85,18 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await page.waitForURL('**/checks');
     await page.getByRole('button', { name: 'YES', exact: true }).first().waitFor();
     const started = Date.now();
+    // Eight Yes/No questions and three stock levels. Attendance is Not applicable here: a Yes now
+    // confirms planned gangs automatically, and this journey confirms the gang by hand below.
     const groups = page.locator('main fieldset').filter({ has: page.getByRole('button', { name: 'YES', exact: true }) });
-    assert.equal(await groups.count(), 11);
-    for (let index = 0; index < 11; index++) await groups.nth(index).getByRole('button', { name: index >= 9 || index === 3 ? 'NO' : 'YES', exact: true }).click();
+    assert.equal(await groups.count(), 8);
+    for (let index = 0; index < 8; index++) await groups.nth(index).getByRole('button', { name: index === 0 ? 'NOT APPLICABLE' : index >= 6 ? 'NO' : 'YES', exact: true }).click();
     const adhesive = page.getByRole('group', { name: 'Adhesive available?', exact: true });
+    await adhesive.getByRole('button', { name: 'Out of stock', exact: true }).click();
+    for (const item of ['Grout available?', 'Tiles and other required materials available?'])
+      await page.getByRole('group', { name: item, exact: true }).getByRole('button', { name: 'Plenty in stock', exact: true }).click();
     const adhesiveNote = 'Adhesive delivery missing. Bathroom fixing cannot start until the office arranges delivery.';
     await adhesive.getByLabel('Short note (optional)', { exact: true }).fill(adhesiveNote);
-    assert.ok(Date.now() - started < 120000, 'the ordinary eleven answers and blocker note take under two minutes');
+    assert.ok(Date.now() - started < 120000, 'the ordinary answers and blocker note take under two minutes');
     const morningRequest = request => request.method() === 'POST' && new URL(request.url()).pathname === '/api/supervisor/inspections';
     expectedNetwork = true;
     await page.route('**/api/supervisor/inspections', route => morningRequest(route.request()) ? route.abort('internetdisconnected') : route.continue());
@@ -123,10 +128,9 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     assert.equal(sql(`select count(*) from public.actual_allocations where contract_id='${contractId}'`), '0', 'readiness never invents attendance');
     await manager.goto(`${site}/checks?inspection=${morningId}#morning-${morningId}`);
     await manager.getByText(adhesiveNote, { exact: false }).first().waitFor();
-    pass('Simple B/C/M: eleven plain answers take under two minutes; missing adhesive reaches the office; failed and lost replies preserve entries and retry the single permanent morning record');
+    pass('Simple B/C/M: the plain morning answers take under two minutes; missing adhesive reaches the office; failed and lost replies preserve entries and retry the single permanent morning record');
 
-    await page.getByRole('link', { name: 'Who’s on site?', exact: true }).click();
-    await page.waitForURL('**/workforce');
+    await page.goto(`${site}/workforce`);
     const teamCard = page.locator('article', { has: page.getByRole('heading', { name: 'Practical Acceptance Pair', exact: true }) });
     // Use a real earlier start so finishing at the current minute is after the
     // recorded attendance, including on fast acceptance machines.
@@ -234,7 +238,7 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     pass('Simple E/I: an actual office-assigned floor inspection opens the applicable short checklist; hollow tiles persist as an investigation issue and the submitted QA result points to that exact saved inspection');
 
     await page.goto(site);
-    await page.getByRole('link', { name: 'Raise a snag', exact: true }).click();
+    await page.getByRole('link', { name: 'Report a site issue', exact: true }).click();
     await page.getByRole('searchbox', { name: 'Exact location', exact: true }).fill('bathroom');
     await page.getByRole('list', { name: 'Exact location choices' }).getByRole('button', { name: 'Block B › Flat 52 › Bathroom', exact: true }).click();
     await page.locator('select[name=category]').selectOption('Excessive lippage');
@@ -498,16 +502,23 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     pass('Simple M4d: whoever submits a daywork cannot approve it and is told why; the owner approves another\'s daywork without an override, and their own only with a logged reason');
 
     await page.goto(site);
-    await page.getByRole('link', { name: 'STOP WORK', exact: true }).click();
+    // The large red STOP WORK button was removed from the dashboard; a work restriction is
+    // recorded through the ordinary dashboard tile, still one tap away.
+    assert.equal(await page.getByRole('link', { name: 'STOP WORK', exact: true }).count(), 0);
+    await page.getByRole('link', { name: 'Record a work restriction', exact: true }).click();
     await page.waitForURL(url => url.pathname === '/admin/holds/new' && url.searchParams.get('contract') === contractId);
     await page.getByRole('button', { name: 'STOP AFFECTED WORK', exact: true }).waitFor();
-    pass('Simple G: immediate STOP WORK remains one tap from the dashboard before or after the routine checks');
+    pass('Simple G: recording a work restriction remains one tap from the dashboard, without the removed STOP WORK button');
 
     await page.goto(`${site}/finish`);
     const handover = page.locator('form').filter({ has: page.locator('textarea[name=work_completed]') });
     const notes = { work_completed: 'Commercial floor inspected and bathroom threshold snag recorded.', outstanding_problems: 'Hollow floor tile needs investigation; bathroom threshold requires review.',
       materials_needed: 'Confirm adhesive stock for tomorrow.', areas_awaiting_attention: 'Flat 52 commercial floor and bathroom threshold.', office_notes: 'Office delivery instruction acknowledged and QA finding submitted.' };
-    for (const [name, value] of Object.entries(notes)) await handover.locator(`textarea[name=${name}]`).fill(value);
+    // One-tap answers open each note; the office note joins the generated day summary.
+    for (const [name, value] of [['problems_choice', 'yes'], ['materials_choice', 'no'], ['attention_choice', 'yes']]) await handover.locator(`input[name=${name}][value=${value}]`).check();
+    await handover.getByLabel('Anything else the office needs to know?', { exact: true }).check();
+    for (const name of ['work_completed', 'outstanding_problems', 'materials_needed', 'areas_awaiting_attention']) await handover.locator(`textarea[name=${name}]`).fill(notes[name]);
+    await handover.getByLabel('Office note', { exact: true }).fill(notes.office_notes);
     await handover.locator('input[name=finish_workforce]').check();
     rpcFaults.dailyResults.set('record_site_handover', [null]);
     await handover.getByRole('button', { name: 'FINISH TODAY', exact: true }).click();
@@ -535,6 +546,7 @@ export async function runSimple({ browser, origin, sql, signIn, pass, screenshot
     await handover.getByRole('status').waitFor(); expectedNetwork = false;
     assert.equal(sql(`select count(*) from public.site_handovers where contract_id='${contractId}'`), '1');
     assert.equal(sql(`select work_completed from public.site_handovers where contract_id='${contractId}'`), notes.work_completed);
+    assert.match(sql(`select office_notes from public.site_handovers where contract_id='${contractId}'`), new RegExp(`Additional office note: ${notes.office_notes}`));
     assert.equal(sql(`select count(*) from public.actual_allocations where contract_id='${contractId}' and ended_at is null and voided_at is null`), '0');
     assert.equal(sql(`select count(*) from public.actual_allocations where planned_allocation_id='${plan}'`), '1', 'finish updates the existing attendance period rather than creating another');
     await manager.goto(`${site}/messages`);
