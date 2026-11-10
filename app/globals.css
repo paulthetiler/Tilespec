@@ -405,3 +405,9 @@ main#top .full-package-tagline {text-transform:none}
 .ts-photo-service-label{position:absolute;z-index:1;bottom:0;left:0;right:0;padding:30px}
 .ts-photo-service-label h3{font-family:'Barlow Condensed',sans-serif;font-size:clamp(27px,3vw,42px);font-weight:700;line-height:1.1;color:#fff;text-transform:none;margin:0}
 @media(max-width:760px){.ts-photo-services-grid{grid-template-columns:1fr;gap:14px}.ts-photo-service{min-height:230px;aspect-ratio:1.55}.ts-photo-service-label{padding:22px}.ts-photo-service-label h3{font-size:30px}}
+
+/* Align service heading with TileSpec two-tone typography; tighten adjacent white sections */
+.ts-photo-services-heading h2 span{color:#438b83}
+.ts-live-intro{padding-bottom:58px}
+.ts-photo-services.section-pad{padding-top:32px}
+@media(max-width:760px){.ts-live-intro{padding-bottom:42px}.ts-photo-services.section-pad{padding-top:20px}}
