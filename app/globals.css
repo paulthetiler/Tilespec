@@ -548,5 +548,10 @@ main#top .ts-photo-service-sequence:after{background:linear-gradient(180deg,tran
 }
 
 /* Original preparation photo retained; shift the orange matting towards Prem Tools dark navy-teal. */
-main#top .ts-photo-service-preparation{background:#102c35}
-main#top .ts-photo-service-preparation img{filter:hue-rotate(166deg) saturate(.65) brightness(.68)}
+main#top .ts-photo-service-preparation{background:#303538}
+main#top .ts-photo-service-preparation img{filter:grayscale(1) brightness(.76) contrast(1.08)}
+/* Let the three-stage process read as one complete picture, as in the approved reference. */
+main#top .ts-photo-service-sequence{background:#29343a}
+main#top .ts-photo-service-sequence img{object-fit:contain;object-position:center}
+main#top .ts-photo-service-sequence .ts-photo-service-label{background:linear-gradient(0deg,rgba(7,20,26,.94),rgba(7,20,26,.4) 62%,transparent)}
+
