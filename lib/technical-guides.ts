@@ -40,7 +40,7 @@ export const guides = {
     takeaway: "Agreeing who designs, installs and signs off the waterproofing system is as important as selecting the visible tiles.",
     related: "/services/commercial-wall-tiling",
     relatedLabel: "Commercial wall tiling",
-  },,
+  },
   "commercial-tiling-tender-checklist": {
     "title": "Commercial Tiling Tender Checklist for Main Contractors",
     "description": "The drawings, specifications, allowances and programme information needed for a clearer commercial tiling tender.",
