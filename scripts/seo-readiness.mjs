@@ -1,55 +1,44 @@
 #!/usr/bin/env node
-// Read-only pre-launch SEO smoke test. Does not submit, index, or modify pages.
-// Run: npm run seo:check  (optionally SEO_BASE_URL=https://www.tilespec.uk)
+// Read-only pre-launch smoke test; never submits pages to a search engine.
 const base = new URL(process.env.SEO_BASE_URL || "https://www.tilespec.uk");
-const timeoutMs = 15000;
-const problems = [];
-const successes = [];
-const request = async (url) => {
+const errors = [], checked = [];
+const fetchPage = async url => {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try { return await fetch(url, { signal:controller.signal, redirect:"follow", headers:{"User-Agent":"TileSPEC-Prelaunch-SEO-Check/1.0"} }); }
-  finally { clearTimeout(timeout); }
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try { return await fetch(url,{signal:controller.signal,redirect:"follow",headers:{"User-Agent":"TileSPEC-SEO-Smoke-Test/1.0"}}); }
+  finally {clearTimeout(timer);}
 };
-function attribute(html,name) {
-  const match=html.match(new RegExp('<link\\b[^>]*\\brel=["\\']canonical["\\'][^>]*>','i'));
-  if(!match)return null;
-  return (match[0].match(/href=["']([^"']+)["']/i)||[])[1]||null;
-}
-async function main(){
-  const robots = await request(new URL("/robots.txt",base));
+async function main() {
+  const robots = await fetchPage(new URL("/robots.txt",base));
   const robotsBody = robots.ok ? await robots.text() : "";
-  if(!robots.ok || !robotsBody.includes("Sitemap: "+new URL("/sitemap.xml",base).href))problems.push("robots.txt missing or sitemap URL incorrect");
-  const sitemapResponse=await request(new URL("/sitemap.xml",base));
-  if(!sitemapResponse.ok)throw new Error("Cannot fetch sitemap ("+sitemapResponse.status+")");
+  if (!robots.ok || !robotsBody.includes("Sitemap: "+new URL("/sitemap.xml",base).href)) errors.push("robots.txt or sitemap declaration missing");
+  const sitemapResponse=await fetchPage(new URL("/sitemap.xml",base));
+  if(!sitemapResponse.ok) throw Error("Sitemap returned "+sitemapResponse.status);
   const sitemap=await sitemapResponse.text();
-  const locations=Array.from(sitemap.matchAll(/<loc>([^<]+)<\\/loc>/g),m=>m[1].replaceAll("&amp;","&"));
-  if(locations.length<90)problems.push("Too few sitemap entries: "+locations.length);
-  const unique=new Set(locations);
-  if(unique.size!==locations.length)problems.push("Duplicate sitemap URL(s)");
-  const targetHost=base.host;
-  const urls=locations.filter(url=>{try{return new URL(url).host===targetHost}catch{return false}});
-  if(urls.length!==locations.length)problems.push("Sitemap includes URLs outside canonical host");
-  let next=0;
+  const urls=Array.from(sitemap.matchAll(/<loc>([^<]+)<\/loc>/g),m=>m[1].replaceAll("&amp;","&"));
+  if(urls.length<90)errors.push("Sitemap contains only "+urls.length+" URLs");
+  if(new Set(urls).size!==urls.length)errors.push("Duplicate sitemap URLs");
+  if(urls.some(url=>new URL(url).origin!==base.origin))errors.push("Sitemap links to another origin");
+  let cursor=0;
   async function worker(){
-    while(next<urls.length){
-      const url=urls[next++];
-      try {
-        const res=await request(url);
-        if(!res.ok){problems.push(res.status+" "+url);continue}
-        const html=await res.text();
-        const canonical=attribute(html);
-        if(canonical!==url)problems.push("Canonical mismatch: "+url+" -> "+canonical);
-        if(!/<title>[^<]+<\\/title>/i.test(html))problems.push("Missing title: "+url);
-        if(!/<h1[\\s>]/i.test(html))problems.push("Missing H1: "+url);
-        if(/<meta\\s+name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html))problems.push("Unexpected noindex: "+url);
-        successes.push(url);
-      } catch(error){problems.push("Fetch failed: "+url+" "+String(error));}
+    while(cursor<urls.length){
+      const url=urls[cursor++];
+      try{
+        const response=await fetchPage(url);
+        if(!response.ok){errors.push(response.status+" "+url);continue;}
+        const html=await response.text();
+        const canonical=(html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)/i)||[])[1];
+        if(canonical!==url)errors.push("Canonical mismatch: "+url+" -> "+canonical);
+        if(!/<title>[^<]+<\/title>/i.test(html))errors.push("Missing title: "+url);
+        if(!/<h1[\s>]/i.test(html))errors.push("Missing H1: "+url);
+        if(/<meta[^>]*name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html))errors.push("Unexpected noindex: "+url);
+        checked.push(url);
+      }catch(error){errors.push("Unable to fetch "+url+": "+String(error));}
     }
   }
   await Promise.all(Array.from({length:5},()=>worker()));
-  console.log("TileSPEC SEO readiness: "+successes.length+"/"+urls.length+" URLs checked; "+problems.length+" issue(s).");
-  for(const issue of problems)console.error("- "+issue);
-  if(problems.length)process.exitCode=1;
+  console.log("TileSPEC SEO check: "+checked.length+"/"+urls.length+" pages inspected, "+errors.length+" issues");
+  for(const error of errors)console.error("- "+error);
+  if(errors.length)process.exitCode=1;
 }
-main().catch(error=>{console.error("SEO check failed:",error);process.exitCode=1;});
+main().catch(error=>{console.error(error);process.exitCode=1;});
