@@ -69,7 +69,7 @@ export function everythingElse(role: MemberRole, financial: boolean): { label: s
     ...(office ? [{ label: "Workforce", href: "/admin/workforce" }] : []),
     { label: "Site dashboards", href: "/admin/supervisor" }, { label: "Snag register", href: "/admin/snags" }, { label: "Holds and releases", href: "/admin/holds" },
     { label: "Site alerts", href: "/admin/alerts" },
-    ...(office ? [{ label: "Paperwork", href: "/admin/paperwork" }, { label: "Messages and handovers", href: "/admin/messages" }, { label: "Quality control", href: "/admin/quality" }, { label: "Tenders", href: "/admin/tenders" }] : []),
+    ...(office ? [{ label: "Paperwork", href: "/admin/paperwork" }, { label: "Messages and handovers", href: "/admin/messages" }, { label: "Quality control", href: "/admin/quality" }, { label: "Tenders", href: "/admin/tenders" }, { label: "Marketing & SEO readiness", href: "/admin/marketing" }] : []),
     ...(role === "owner" ? [{ label: "User access", href: "/admin/team" }] : []),
     ...(financial ? [{ label: "Estimator", href: "/admin/estimator" }, { label: "Money", href: "/admin/money" }, { label: "Invoices", href: "/admin/invoices" }, { label: "Gang invoices", href: "/admin/gang-invoices" }, { label: "Subcontractors", href: "/admin/subcontractors" }] : []),
   ];
