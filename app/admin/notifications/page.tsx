@@ -81,8 +81,9 @@ export default async function NotificationsPage() {
           </DailyForm>
         </details>
       </article>)}</div>
-      {candidates.length > 0 && <details className={styles.details} open={!rows.length}><summary>Add a recipient</summary>
+      {(candidates.length > 0 || rows.length > 0) && <details className={styles.details} open><summary>Add a recipient</summary>
         <DailyForm action={addRecipientAction} label="Add recipient">
+          {candidates.length === 0 && <p className={styles.small}>Every owner and contracts manager is already a recipient.</p>}
           <label className={styles.field}>Person<select name="user_id" required>{candidates.map(m => <option key={String(m.user_id)} value={String(m.user_id)}>{String(m.display_name)} ({m.role === "owner" ? "owner" : "contracts manager"})</option>)}</select></label>
           <label className={styles.checkboxRow}><input type="checkbox" name="urgent" defaultChecked />Urgent alerts</label>
           <label className={styles.checkboxRow}><input type="checkbox" name="summary" defaultChecked />Morning summary</label>

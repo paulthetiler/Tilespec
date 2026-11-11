@@ -195,7 +195,8 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
   for (const m of diary?.materials ?? []) entries.push({ id: `material:${m.id}`, at: m.at, who: person(m.actor_id, m.actor_name), what: `${MATERIAL_VERBS[m.to_status] ?? "updated"} ${m.item}`,
     detail: m.note ? brief(m.note) : undefined, href: options.office ? "/admin/materials" : `${siteBase}/diary` });
   for (const g of diary?.stages ?? []) entries.push({ id: `stage:${g.id}`, at: g.at, who: person(g.actor_id, g.actor_name, "Office"),
-    what: `moved the job from ${STAGE_WORDS[g.from] ?? g.from} to ${STAGE_WORDS[g.to] ?? g.to}`, detail: g.note ?? undefined });
+    what: g.from === g.to ? `confirmed the job is ${STAGE_WORDS[g.to] ?? g.to}` : `moved the job from ${STAGE_WORDS[g.from] ?? g.from} to ${STAGE_WORDS[g.to] ?? g.to}`,
+    detail: g.note ?? undefined });
   for (const o of diary?.outcomes ?? []) entries.push({ id: `outcome:${o.id}`, at: o.at, who: person(o.actor_id, o.actor_name, "Office"), what: OUTCOME_VERBS[o.outcome] ?? "recorded a decision",
     detail: o.note ? brief(o.note) : undefined, href: `${siteBase}/messages?thread=${o.thread_id}#thread-${o.thread_id}`, tone: "done" });
   return entries.sort((a, b) => b.at.localeCompare(a.at) || a.id.localeCompare(b.id));

@@ -29,14 +29,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   [events, customers, contracts].forEach(r => checkDatabase(r.error));
   const editable = q.status === "draft" || q.status === "sent";
   const margin = q.estimated_cost !== null && Number(q.value_net) > 0 ? ((Number(q.value_net) - Number(q.estimated_cost)) / Number(q.value_net)) * 100 : null;
-  const statusForm = (status: string, label: string, extra?: React.ReactNode) => <details className={styles.details}><summary>{label}</summary>
-    <DailyForm action={setQuoteStatusAction} label={label}>
-      <input type="hidden" name="request_key" value={randomUUID()} /><input type="hidden" name="quote_id" value={id} />
-      <input type="hidden" name="version" value={String(q.version)} /><input type="hidden" name="status" value={status} />
-      <label className={styles.field}>Date<input type="date" name="on" /></label>{extra}
-      <label className={styles.field}>{["declined", "withdrawn"].includes(status) ? "Reason" : "Note"}<input name="note" maxLength={1000} required={["declined", "withdrawn"].includes(status)} /></label>
-    </DailyForm>
-  </details>;
+  // One status form, kept in place while the quotation is open, so its confirmation stays in view after saving.
+  const next: [string, string][] = q.status === "draft" ? [["sent", "Sent to the customer"]]
+    : q.status === "sent" ? [["accepted", "Accepted"], ["declined", "Declined"], ["expired", "Expired"], ["withdrawn", "Withdrawn"]] : [];
   return <>
     <div className={styles.pageHeader}><div><p className={styles.eyebrow}><Link href="/admin/quotes">Quotations</Link> · {statusLabels[String(q.status)]}</p>
       <h1 className={styles.title}>{String(q.reference)} · {String(q.title)}</h1>
@@ -45,13 +40,18 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     <section className={styles.panel} aria-labelledby="quote-decision"><h2 id="quote-decision">Status</h2>
       <p>{q.issued_on ? `Sent ${String(q.issued_on)}` : "Not sent yet"}{q.valid_until ? ` · valid until ${String(q.valid_until)}` : ""}{q.follow_up_on && q.status === "sent" ? ` · follow up ${String(q.follow_up_on)}` : ""}
         {q.decided_on ? ` · decided ${String(q.decided_on)}` : ""}{q.decision_note ? ` · ${String(q.decision_note)}` : ""}</p>
-      {q.status === "draft" && statusForm("sent", "Record as sent", <div className={styles.formGrid}>
-        <label className={styles.field}>Follow up on<input type="date" name="follow_up_on" /></label><label className={styles.field}>Valid until<input type="date" name="valid_until" /></label></div>)}
-      {q.status === "sent" && <>
-        {statusForm("accepted", "Record as accepted", <label className={styles.field}>Job it became<select name="contract_id" defaultValue=""><option value="">Not created yet</option>
-          {((contracts.data ?? []) as Row[]).map(c => <option key={String(c.id)} value={String(c.id)}>{String(c.reference)} · {String(c.name)}</option>)}</select></label>)}
-        {statusForm("declined", "Record as declined")}{statusForm("expired", "Record as expired")}{statusForm("withdrawn", "Withdraw")}
-      </>}
+      {editable && <DailyForm action={setQuoteStatusAction} label="Record the status">
+        <input type="hidden" name="request_key" value={randomUUID()} /><input type="hidden" name="quote_id" value={id} /><input type="hidden" name="version" value={String(q.version)} />
+        <label className={styles.field}>New status<select name="status" defaultValue={next[0]?.[0]}>{next.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <div className={styles.formGrid}>
+          <label className={styles.field}>Date<input type="date" name="on" /></label>
+          {q.status === "draft" && <><label className={styles.field}>Follow up on<input type="date" name="follow_up_on" /></label>
+            <label className={styles.field}>Valid until<input type="date" name="valid_until" /></label></>}
+          {q.status === "sent" && <label className={styles.field}>Job it became (if accepted)<select name="contract_id" defaultValue=""><option value="">Not created yet</option>
+            {((contracts.data ?? []) as Row[]).map(c => <option key={String(c.id)} value={String(c.id)}>{String(c.reference)} · {String(c.name)}</option>)}</select></label>}
+        </div>
+        <label className={styles.field}>Note (a reason is needed for declined or withdrawn)<input name="note" maxLength={1000} /></label>
+      </DailyForm>}
     </section>
     {editable && <section className={styles.panel} aria-labelledby="quote-edit"><h2 id="quote-edit">Details</h2>
       <DailyForm action={saveQuoteAction} label="Save quotation">

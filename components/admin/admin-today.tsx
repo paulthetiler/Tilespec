@@ -38,6 +38,18 @@ function ActionRow({ action, today }: { action: ViewerAction; today: string }) {
   </article>;
 }
 
+/**
+ * A queue section. In the command centre (embedded) on a desk, long lists of work that is with other
+ * people scroll within a capped height, so live jobs, money and planning stay near the top. Nothing is
+ * removed, folded away or left out of the counts.
+ */
+function Fold({ embedded, label, id, count, note, children }: { embedded: boolean; label: string; id?: string; count: number; note?: string; children: React.ReactNode }) {
+  return <section className={styles.section} aria-label={label} id={id}>
+    <h2>{label} ({count})</h2>{note && <p className={styles.note}>{note}</p>}
+    <div className={`${styles.list} ${embedded ? styles.capped : ""}`} tabIndex={embedded ? 0 : undefined} aria-label={embedded ? `${label}, scrollable list` : undefined}>{children}</div>
+  </section>;
+}
+
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 function SiteUpdateRow({ update }: { update: SiteUpdate }) {
@@ -139,20 +151,13 @@ export function AdminToday({ snapshot, viewer, member, config, embedded = false 
           <h2>Then ({queue.then.length})</h2><div className={styles.list}>{queue.then.map(row)}</div>
         </section>}
 
-        {queue.exceptions.length > 0 && <section className={styles.section} aria-label="Outstanding problems" id="today-problems">
-          <h2>Outstanding problems ({queue.exceptions.length})</h2>
-          <p className={styles.note}>These still need attention. The person responsible, or an independent reviewer, must act.</p>
-          <div className={styles.list}>{queue.exceptions.map(row)}</div>
-        </section>}
+        {queue.exceptions.length > 0 && <Fold embedded={embedded} label="Outstanding problems" id="today-problems" count={queue.exceptions.length}
+          note="These still need attention. The person responsible, or an independent reviewer, must act.">{queue.exceptions.map(row)}</Fold>}
       </div>
 
       <div className={styles.stack}>
-        {queue.waiting.length > 0 && <section className={styles.section} aria-label="Waiting on others" id="today-waiting">
-          <h2>Waiting on others ({queue.waiting.length})</h2><div className={styles.list}>{queue.waiting.map(row)}</div>
-        </section>}
-        {queue.info.length > 0 && <section className={styles.section} aria-label="For your information">
-          <h2>For your information ({queue.info.length})</h2><div className={styles.list}>{queue.info.map(row)}</div>
-        </section>}
+        {queue.waiting.length > 0 && <Fold embedded={embedded} label="Waiting on others" id="today-waiting" count={queue.waiting.length}>{queue.waiting.map(row)}</Fold>}
+        {queue.info.length > 0 && <Fold embedded={embedded} label="For your information" count={queue.info.length}>{queue.info.map(row)}</Fold>}
 
         {!embedded && <section className={styles.section} aria-label="Open a record">
           <h2>Open a record</h2>

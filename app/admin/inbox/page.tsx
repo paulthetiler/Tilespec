@@ -61,7 +61,9 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
   const threads = threadsFrom((messages.data ?? []) as unknown as JobMessage[], (reads.data ?? []) as unknown as JobMessageRead[])
     .map(thread => ({ thread, state: threadState(thread), root: thread.messages[0] as JobMessage & { category?: string; urgent?: boolean } }))
-    .filter(t => t.state.waitingOn === "office" || t.thread.id === focus)
+    // A conversation you have just answered stays in view (marked answered) so the confirmation is seen.
+    .filter(t => t.state.waitingOn === "office" || t.thread.id === focus
+      || (t.state.latest.author_side === "office" && t.state.latest.author_id === member.user_id && Date.now() - Date.parse(t.state.latest.created_at) < 2 * 3_600_000))
     .sort((a, b) => Number(b.root.urgent === true) - Number(a.root.urgent === true) || a.state.latest.created_at.localeCompare(b.state.latest.created_at));
   const reports = ((handovers.data ?? []) as Row[]).filter(h => !reviewed.has(String(h.id))
     && [h.outstanding_problems, h.areas_awaiting_attention, h.office_notes].some(t => meaningfulText(t as string)));
@@ -95,7 +97,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       <div className={styles.cardList}>{threads.map(({ thread, state, root }) => {
         const category = (root.category ?? "message") as keyof typeof messageCategoryLabels;
         return <article key={thread.id} id={`thread-${thread.id}`} className={styles.card} data-inbox-thread={thread.id}>
-          <p className={styles.eyebrow}>{root.urgent ? "Urgent · " : ""}{messageCategoryLabels[category] ?? "Message"} · {jobs.get(thread.contract_id)} · {age(state.latest.created_at)}</p>
+          <p className={styles.eyebrow}>{state.waitingOn === "office" ? "" : "Answered · "}{root.urgent ? "Urgent · " : ""}{messageCategoryLabels[category] ?? "Message"} · {jobs.get(thread.contract_id)} · {age(state.latest.created_at)}</p>
           <ol className={styles.plainList}>{thread.messages.map(message => <li key={message.id}>
             <p className={styles.small}><strong>{message.author_name}</strong> · {when(message.created_at)}{message.needs_answer ? " · Needs an answer" : ""}</p>
             <p style={{ whiteSpace: "pre-wrap" }}>{message.body}</p>

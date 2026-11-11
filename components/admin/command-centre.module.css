@@ -52,7 +52,7 @@
 .jobHead { display: none; }
 .job { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--admin-line); border-radius: 10px; color: inherit; }
 .job:hover { border-color: var(--admin-teal); background: #f8fbfb; }
-.job > span { display: grid; gap: 3px; align-content: start; min-width: 0; font-size: 14px; }
+.job > span { display: grid; gap: 3px; align-content: start; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
 .job small { color: var(--admin-muted); font-size: 12px; }
 .jobName strong { font-size: 15px; }
 .counts { display: flex !important; flex-wrap: wrap; gap: 4px; align-content: flex-start; }
@@ -101,10 +101,10 @@
   .header { grid-template-columns: minmax(0, 1fr) minmax(360px, 520px); align-items: end; }
   .metrics { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .planGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .jobHead, .job { grid-template-columns: minmax(200px, 2fr) minmax(120px, 1.2fr) minmax(130px, 1.3fr) minmax(100px, 1fr) minmax(110px, 1fr) minmax(130px, 1.2fr) minmax(120px, 1.2fr); gap: 12px; }
+  .jobHead, .job { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr); gap: 12px; }
   .jobHead { display: grid; padding: 0 14px; color: var(--admin-muted); font-size: 12px; font-weight: 800; }
-  [data-command-centre] .jobs:not(:has(.jobHead > span:nth-child(7))) .job { grid-template-columns: minmax(200px, 2fr) minmax(120px, 1.2fr) minmax(130px, 1.3fr) minmax(100px, 1fr) minmax(110px, 1fr) minmax(120px, 1.2fr); }
-  [data-command-centre] .jobs:not(:has(.jobHead > span:nth-child(7))) .jobHead { grid-template-columns: minmax(200px, 2fr) minmax(120px, 1.2fr) minmax(130px, 1.3fr) minmax(100px, 1fr) minmax(110px, 1fr) minmax(120px, 1.2fr); }
+  [data-command-centre] .jobs:not(:has(.jobHead > span:nth-child(7))) .job,
+  [data-command-centre] .jobs:not(:has(.jobHead > span:nth-child(7))) .jobHead { grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr); }
   .job small { display: block; }
   .yesterday { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

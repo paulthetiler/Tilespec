@@ -19,15 +19,15 @@ export async function GET(request: Request) {
   const token = process.env.NOTIFICATIONS_DISPATCH_TOKEN?.trim();
   const connection = createPublicClient();
   if (!token || !connection) return NextResponse.json({ status: "not configured" });
-  const db = connection.client;
+  const publicClient = connection.client;
   const now = new Date();
   let queued = 0;
   if (londonClock(now.toISOString()) >= SUMMARY_FROM) {
-    const summaries = await db.rpc("dispatch_queue_summaries", { p_token: token, p_date: londonDate(now) });
+    const summaries = await publicClient.rpc("dispatch_queue_summaries", { p_token: token, p_date: londonDate(now) });
     if (summaries.error) return NextResponse.json({ error: "Could not queue the morning summaries" }, { status: 502 });
     queued = Number(summaries.data) || 0;
   }
-  const claim = await db.rpc("dispatch_claim", { p_token: token, p_limit: 25 });
+  const claim = await publicClient.rpc("dispatch_claim", { p_token: token, p_limit: 25 });
   if (claim.error) return NextResponse.json({ error: "Could not read the outbox" }, { status: 502 });
   const configured = emailConfiguration().configured, baseUrl = publicBaseUrl();
   const results = { sent: 0, failed: 0, dry_run: 0 };
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       const sent = await sendEmail({ id: message.id, to: message.email, subject: email.subject, html: email.html, text: email.text });
       outcome = sent.ok ? { result: "sent", provider: sent.providerId, error: null } : { result: "failed", provider: null, error: sent.error };
     }
-    const report = await db.rpc("dispatch_report", { p_token: token, p_outbox: message.id, p_result: outcome.result, p_provider_id: outcome.provider, p_error: outcome.error });
+    const report = await publicClient.rpc("dispatch_report", { p_token: token, p_outbox: message.id, p_result: outcome.result, p_provider_id: outcome.provider, p_error: outcome.error });
     if (!report.error) results[outcome.result] += 1;
   }
   return NextResponse.json({ status: "ok", queued, ...results });

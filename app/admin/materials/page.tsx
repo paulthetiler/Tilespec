@@ -30,17 +30,20 @@ export default async function MaterialsPage() {
   const jobs = new Map(((contracts.data ?? []) as Row[]).map(c => [String(c.id), `${c.reference} · ${c.name}`]));
   const rows = (requests.data ?? []) as Row[];
   const groups = (["requested", "ordered", "delivered", "cancelled"] as const).map(status => ({ status, rows: rows.filter(r => r.status === status) }));
+  const ordered = groups.flatMap(group => group.rows);
   return <>
     <div className={styles.pageHeader}><div><p className={styles.eyebrow}>Operations</p><h1 className={styles.title}>Materials</h1>
       <p className={styles.description}>What each site needs, what has been ordered and what has arrived. Supervisors request from their site diary; the office orders here.</p></div></div>
     {unavailable && <p className={styles.warning}>The materials tracker arrives with the latest database update, which is not applied yet.</p>}
     {!unavailable && <>
-      {groups.map(group => group.rows.length > 0 && <section key={group.status} className={styles.panel} aria-labelledby={`materials-${group.status}`}>
-        <h2 id={`materials-${group.status}`}>{statusLabel[group.status]} ({group.rows.length})</h2>
-        <div className={styles.cardList}>{group.rows.map(r => {
+      {rows.length > 0 && <section className={styles.panel} aria-labelledby="materials-heading">
+        <h2 id="materials-heading">Requirements and orders</h2>
+        <p className={styles.small}>{groups.map(g => `${g.rows.length} ${statusLabel[g.status].toLowerCase()}`).join(" · ")}</p>
+        {/* One list in status order: a card moves when it is ordered or delivered, so its confirmation stays in view. */}
+        <div className={styles.cardList}>{ordered.map(r => {
           const late = r.status === "requested" && r.needed_by && String(r.needed_by) <= addDays(today, 2);
           return <article key={String(r.id)} id={`material-${r.id}`} className={styles.card} data-material-status={String(r.status)}>
-            <p className={styles.eyebrow}>{jobs.get(String(r.contract_id))}{(r.location_path as string[])?.length ? ` · ${(r.location_path as string[]).join(" › ")}` : ""}</p>
+            <p className={styles.eyebrow}>{statusLabel[String(r.status)]} · {jobs.get(String(r.contract_id))}{(r.location_path as string[])?.length ? ` · ${(r.location_path as string[]).join(" › ")}` : ""}</p>
             <h3>{String(r.quantity)} {String(r.unit)} · {String(r.item)}</h3>
             <p className={late ? styles.error : styles.small}>Needed {day(r.needed_by as string | null)} · requested by {String(r.requested_by_name)}{r.note ? ` · ${String(r.note)}` : ""}</p>
             {r.status === "ordered" && <p className={styles.small}>Ordered {day(r.ordered_on as string)} from {String(r.supplier ?? "supplier not recorded")}{r.order_reference ? `, order ${String(r.order_reference)}` : ""}{r.expected_on ? ` · expected ${day(r.expected_on as string)}` : ""}</p>}
@@ -62,7 +65,7 @@ export default async function MaterialsPage() {
             </details>}
           </article>;
         })}</div>
-      </section>)}
+      </section>}
       {!rows.length && <section className={styles.empty}><h2>No materials requested or on order</h2><p>Requests from site and the office appear here.</p></section>}
       <section className={styles.panel} id="new" aria-labelledby="new-material">
         <h2 id="new-material">Add a materials requirement</h2>

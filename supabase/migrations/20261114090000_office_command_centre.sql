@@ -89,8 +89,8 @@ alter table public.contracts add column customer_id uuid,
 -- ---------------------------------------------------------------------------------------------
 alter table public.contracts add column lifecycle_stage text
   check(lifecycle_stage in ('tender','won','mobilising','live','on_hold','practical_completion','defects','final_account','closed','lost'));
--- New jobs start as won. Existing jobs keep no stored stage (their rows are not rewritten).
-alter table public.contracts alter column lifecycle_stage set default 'won';
+-- No job has a stored stage until the office confirms one (existing rows are not rewritten); until then
+-- the programme dates decide it, for new and existing jobs alike.
 -- The stage the office works to: the confirmed stage, or until one is confirmed, the one the programme dates indicate.
 create function private.job_stage(p_stage text,p_start date,p_end date) returns text
 language sql stable set search_path='' as $$

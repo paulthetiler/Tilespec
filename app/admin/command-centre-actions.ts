@@ -95,8 +95,8 @@ export async function setQuoteStatusAction(_: DailyActionState, form: FormData):
     const quote = uuid(form, "quote_id"), status = text(form, "status", 20, true);
     const data = { status, on: optionalDate(form, "on"), note: text(form, "note", 1000) || null, contract_id: optionalId(form, "contract_id"),
       follow_up_on: optionalDate(form, "follow_up_on"), valid_until: optionalDate(form, "valid_until") };
-    const result = await supabase.rpc("set_quote_status", { p_request_key: uuid(form, "request_key"), p_quote: quote, p_version: integer(form, "version", 1),
-      p_data: Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null)) });
+    const payload = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== null));
+    const result = await supabase.rpc("set_quote_status", { p_request_key: uuid(form, "request_key"), p_quote: quote, p_version: integer(form, "version", 1), p_data: payload });
     if (result.error) return declined(result.error);
     revalidatePath("/admin/quotes"); revalidatePath(`/admin/quotes/${quote}`); revalidatePath("/admin/tenders");
     return { success: { sent: "Recorded as sent. A follow-up date is set.", accepted: "Recorded as accepted.", declined: "Recorded as declined.", expired: "Recorded as expired.", withdrawn: "Recorded as withdrawn." }[status] ?? "Saved." };
@@ -130,8 +130,8 @@ export async function updateMaterialAction(_: DailyActionState, form: FormData):
   try {
     const data = { status: text(form, "status", 20, true), supplier: text(form, "supplier", 160), order_reference: text(form, "order_reference", 120),
       ordered_on: optionalDate(form, "ordered_on"), expected_on: optionalDate(form, "expected_on"), delivered_on: optionalDate(form, "delivered_on"), note: text(form, "note", 1000) };
-    const result = await supabase.rpc("update_material_request", { p_request: uuid(form, "request_id"), p_version: integer(form, "version", 1),
-      p_data: Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null && v !== "")) });
+    const payload = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null && v !== ""));
+    const result = await supabase.rpc("update_material_request", { p_request: uuid(form, "request_id"), p_version: integer(form, "version", 1), p_data: payload });
     if (result.error) return declined(result.error);
     refreshOffice("/admin/materials");
     return { success: "Materials record saved." };
@@ -213,8 +213,9 @@ export async function createGangAction(_: DailyActionState, form: FormData): Pro
     let company = optionalId(form, "company_id");
     const companyName = text(form, "company_name", 160).replace(/\s+/g, " ");
     if (!company && companyName) {
-      const created = await supabase.rpc("create_company", { p_request_key: uuid(form, "company_request_key"), p_data: { name: companyName, company_number: "", contact_name: text(form, "contact_name", 160),
-        contact_phone: text(form, "contact_phone", 40), contact_email: text(form, "contact_email", 254), address: "", notes: "" } });
+      const company_data = { name: companyName, company_number: "", contact_name: text(form, "contact_name", 160), contact_phone: text(form, "contact_phone", 40),
+        contact_email: text(form, "contact_email", 254), address: "", notes: "" };
+      const created = await supabase.rpc("create_company", { p_request_key: uuid(form, "company_request_key"), p_data: company_data });
       if (created.error) return declined(created.error);
       company = String(created.data);
     }

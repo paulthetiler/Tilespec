@@ -42,11 +42,15 @@ select test.assert(not private.meaningful_text('none') and not private.meaningfu
 set local role authenticated;
 -- Owner: stages, customers.
 select set_config('request.jwt.claims','{"sub":"cc510000-0000-4000-8000-000000000001"}',true);
-select test.assert((select lifecycle_stage='won' from public.contracts where id='cc530000-0000-4000-8000-000000000002'), 'a new job starts as won');
-select public.set_contract_stage(gen_random_uuid(),'cc530000-0000-4000-8000-000000000001','live',null) as stage_event \gset
-select test.assert((select lifecycle_stage='live' from public.contracts where id='cc530000-0000-4000-8000-000000000001')
-  and (select count(*)=1 from public.contract_stage_events where contract_id='cc530000-0000-4000-8000-000000000001' and to_stage='live' and from_stage='won'),
-  'the owner moves a job to live and the change is recorded');
+select test.assert((select lifecycle_stage is null and private.job_stage(lifecycle_stage,start_date,end_date)='won' from public.contracts where id='cc530000-0000-4000-8000-000000000002')
+  and (select lifecycle_stage is null and private.job_stage(lifecycle_stage,start_date,end_date)='live' from public.contracts where id='cc530000-0000-4000-8000-000000000001'),
+  'until the office confirms a stage, a job''s programme dates decide it (won before its start, live after)');
+select public.set_contract_stage(gen_random_uuid(),'cc530000-0000-4000-8000-000000000002','mobilising',null) as stage_event \gset
+select public.set_contract_stage(gen_random_uuid(),'cc530000-0000-4000-8000-000000000001','live',null);
+select test.assert((select lifecycle_stage='mobilising' from public.contracts where id='cc530000-0000-4000-8000-000000000002')
+  and (select count(*)=1 from public.contract_stage_events where contract_id='cc530000-0000-4000-8000-000000000002' and to_stage='mobilising' and from_stage='won')
+  and (select count(*)=1 from public.contract_stage_events where contract_id='cc530000-0000-4000-8000-000000000001' and to_stage='live' and from_stage='live'),
+  'the owner moves a job on, or confirms the stage its dates indicate, and each change is recorded');
 select test.expect_error('select public.set_contract_stage(gen_random_uuid(),''cc530000-0000-4000-8000-000000000001'',''on_hold'',null)',array['22023'],
   'putting a job on hold needs a reason');
 select test.expect_error('select public.set_contract_stage(gen_random_uuid(),''cc530000-0000-4000-8000-000000000001'',''live'',null)',array['23514'],

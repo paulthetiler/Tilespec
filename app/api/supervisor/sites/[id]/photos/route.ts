@@ -17,8 +17,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!(file instanceof File) || !["image/jpeg", "image/png"].includes(file.type) || file.size === 0 || file.size > MAX_FILE_BYTES)
       return NextResponse.json({ error: "Choose a JPEG or PNG photograph between 1 byte and 4 MB." }, { status: 400 });
     const bytes = new Uint8Array(await file.arrayBuffer()), type = inspectEvidence(bytes, file.type);
-    const reservation = await supabase.rpc("reserve_site_photo", { p_request_key: key, p_contract: contract,
-      p_meta: { mime_type: type.mime, sha256: type.sha256, bytes: bytes.length, ...(caption ? { caption } : {}), ...(area ? { work_area_id: area } : {}) } });
+    const meta = { mime_type: type.mime, sha256: type.sha256, bytes: bytes.length, ...(caption ? { caption } : {}), ...(area ? { work_area_id: area } : {}) };
+    const reservation = await supabase.rpc("reserve_site_photo", { p_request_key: key, p_contract: contract, p_meta: meta });
     if (reservation.error) return NextResponse.json({ error: rpcErrorMessage(reservation.error) }, { status: reservation.error.code === "42501" ? 403 : 409 });
     const metadata = await supabase.from("site_photos").select("id,contract_id,actor_id,object_path,sha256,bytes,mime_type,uploaded_at").eq("id", reservation.data).single();
     if (metadata.error || !metadata.data || metadata.data.actor_id !== member.user_id || metadata.data.contract_id !== contract)
