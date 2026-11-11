@@ -5,7 +5,7 @@ import LandingFooter from "../../components/landing-footer";
 import { ArrowUpRight, Check, FileText, Layers3, MapPin, ShieldCheck } from "lucide-react";
 import "../north-west-commercial-tiling/north-west.css";
 
-const origin = "https://tilespec.vercel.app";
+const origin = "https://www.tilespec.uk";
 const pagePath = "/manchester-commercial-tiling";
 
 export const metadata: Metadata = {
