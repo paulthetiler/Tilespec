@@ -644,3 +644,51 @@ main#top .approach .process-grid p{
   main#top .approach .process-grid h3{font-size:29px}
   main#top .approach .process-grid p{font-size:14px}
 }
+
+
+/* Concise, editorial About section between services and approach. */
+main#top .ts-about-section{
+  background:#f4f7f7;
+  padding:clamp(56px,6vw,92px) 0;
+  scroll-margin-top:88px;
+}
+main#top .ts-about-inner{
+  display:grid;
+  grid-template-columns:1.04fr .96fr;
+  gap:clamp(28px,6vw,110px);
+  align-items:center;
+}
+main#top .ts-about-heading .eyebrow{color:#438b83}
+main#top .ts-about-heading h2{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:800;
+  font-size:clamp(48px,5.6vw,82px);
+  line-height:1.02;
+  letter-spacing:-.015em;
+  color:#102b38;
+  margin:18px 0 0;
+  text-transform:none;
+}
+main#top .ts-about-heading h2 em{
+  font-style:normal;
+  color:#438b83;
+}
+main#top .ts-about-copy p{
+  color:#435a65;
+  font-size:clamp(15px,1.2vw,17px);
+  line-height:1.75;
+  margin:0 0 18px;
+}
+main#top .ts-about-accent{
+  display:block;
+  background:#75b6aa;
+  width:48px;
+  height:3px;
+  border-radius:4px;
+  margin-top:20px;
+}
+@media(max-width:760px){
+  main#top .ts-about-inner{grid-template-columns:1fr;gap:28px}
+  main#top .ts-about-heading h2{font-size:clamp(44px,10vw,68px)}
+  main#top .ts-about-copy p{font-size:15px}
+}
