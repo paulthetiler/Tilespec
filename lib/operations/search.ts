@@ -13,7 +13,7 @@ export function hrefFor(hit: Hit, financial: boolean): string {
     case "customer": return `/admin/customers/${hit.id}`;
     case "gang": return financial ? `/admin/subcontractors/${hit.id}` : "/admin/workforce";
     case "company": case "person": return "/admin/workforce";
-    case "gang_invoice": return `/admin/gang-invoices/${hit.id}`;
+    case "gang_invoice": return financial ? `/admin/gang-invoices/${hit.id}` : hit.contract_id ? `/admin/supervisor/sites/${hit.contract_id}/progress` : "/admin/inbox#claims";
     case "client_document": return hit.contract_id ? `/admin/contracts/${hit.contract_id}/accounts` : "/admin/invoices";
     case "quote": return `/admin/quotes/${hit.id}`;
     case "tender": return `/admin/tenders#tender-${hit.id}`;

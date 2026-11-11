@@ -161,7 +161,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
     {gangRows.length > 0 && <section className={styles.panel} id="claims" aria-labelledby="claims-heading">
       <h2 id="claims-heading">Subcontractor claims ({gangRows.length})</h2>
-      <ul className={styles.plainList}>{gangRows.map(g => <li key={String(g.id)}><Link href={`/admin/gang-invoices/${g.id}`}>{String(g.reference)}</Link> · {jobs.get(String(g.contract_id))} · {String(g.submitted_by_name)} ·
+      <ul className={styles.plainList}>{gangRows.map(g => <li key={String(g.id)}><Link href={financial ? `/admin/gang-invoices/${g.id}` : `/admin/supervisor/sites/${g.contract_id}/progress`}>{String(g.reference)}</Link> · {jobs.get(String(g.contract_id))} · {String(g.submitted_by_name)} ·
         {g.status === "awaiting_check" ? " waiting for the supervisor to verify the work" : " verified, ready for approval"}</li>)}</ul>
     </section>}
 

@@ -48,19 +48,19 @@ export function metricsFor(data: CommandCentreData, queueCount: number, stops: {
     metrics.push(
       { key: "jobs", label: "Live jobs", value: String(data.jobs.length), detail: `${data.jobs.filter(j => j.status === "behind" || j.status === "overrun").length} behind programme`,
         href: "#live-jobs", tone: data.jobs.some(j => j.status === "behind" || j.status === "overrun") ? "warning" : "neutral" },
-      { key: "claims", label: "Claims to check", value: String(data.inbox.gangChecks), detail: "Gang invoices waiting for a supervisor", href: "/admin/gang-invoices",
+      { key: "claims", label: "Claims to check", value: String(data.inbox.gangChecks), detail: "Gang invoices waiting for a supervisor", href: "/admin/inbox#claims",
         tone: data.inbox.gangChecks ? "warning" : "ok" },
     );
   }
   metrics.push({ key: "compliance", label: "Compliance", value: String(expiring + incomplete),
-    detail: `${plural(expiring, "insurance")} expiring or expired · ${plural(incomplete, "gang")} not fully onboarded`, href: "/admin/subcontractors",
+    detail: `${plural(expiring, "insurance")} expiring or expired · ${plural(incomplete, "gang")} not fully onboarded`, href: data.financial ? "/admin/subcontractors" : "/admin/workforce",
     tone: data.admin.insurance.some(i => i.expired) ? "alert" : expiring + incomplete ? "warning" : "ok" });
   return metrics;
 }
 
 function QuickActions({ financial, owner }: { financial: boolean; owner: boolean }) {
   const links = [
-    ["New job", "/admin/contracts/new"], ["Add or onboard a gang", "/admin/subcontractors/new"], ["Plan gangs", "/admin/planner"],
+    ["New job", "/admin/contracts/new"], ["Add or onboard a gang", financial ? "/admin/subcontractors/new" : "/admin/workforce"], ["Plan gangs", "/admin/planner"],
     ["Send an instruction to site", "/admin/messages"], ["Raise a snag or stop", "/admin/snags/new"], ["Request materials", "/admin/materials#new"],
     ["Add a customer", "/admin/customers#new"], ...(financial ? [["New quotation", "/admin/quotes#new"], ["Record a customer payment", "/admin/contracts?invoice=1"],
       ["Record a startup expense", "/admin/startup-expenses"]] : []), ...(owner ? [["Email notifications", "/admin/notifications"]] : []),
@@ -89,6 +89,7 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
           <input id="centre-search" name="q" type="search" placeholder="Search jobs, customers, gangs, invoices…" maxLength={80} />
           <button type="submit">Search</button>
         </form>
+        <Link className={styles.issue} href="/admin/snags/new">Report an issue</Link>
         <QuickActions financial={data.financial} owner={owner} />
       </div>
     </header>
@@ -107,7 +108,7 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
         {data.inbox.threads > 0 && <li><Link href="/admin/inbox#questions"><strong>{data.inbox.threads}</strong> supervisor {data.inbox.threads === 1 ? "question or decision" : "questions and decisions"} waiting for an answer</Link></li>}
         {data.inbox.reports > 0 && <li><Link href="/admin/inbox#reports"><strong>{data.inbox.reports}</strong> site {data.inbox.reports === 1 ? "report" : "reports"} with problems to review</Link></li>}
         {data.inbox.instructions > 0 && <li><Link href="/admin/inbox#instructions"><strong>{data.inbox.instructions}</strong> {data.inbox.instructions === 1 ? "instruction" : "instructions"} not yet acknowledged on site</Link></li>}
-        {data.inbox.gangChecks > 0 && <li><Link href="/admin/gang-invoices"><strong>{data.inbox.gangChecks}</strong> gang {data.inbox.gangChecks === 1 ? "claim" : "claims"} waiting for supervisor verification</Link></li>}
+        {data.inbox.gangChecks > 0 && <li><Link href={data.financial ? "/admin/gang-invoices" : "/admin/inbox#claims"}><strong>{data.inbox.gangChecks}</strong> gang {data.inbox.gangChecks === 1 ? "claim" : "claims"} waiting for supervisor verification</Link></li>}
         {data.inbox.gangApprovals > 0 && <li><Link href="/admin/gang-invoices"><strong>{data.inbox.gangApprovals}</strong> gang {data.inbox.gangApprovals === 1 ? "claim" : "claims"} ready for approval</Link></li>}
         {m && m.ageing.overdue > 0 && <li className={styles.alertItem}><Link href="/admin/finance#debtors"><strong>{money(m.ageing.overdue)}</strong> overdue from customers</Link></li>}
         {m && m.gang.overdue.count > 0 && <li className={styles.alertItem}><Link href="/admin/gang-invoices"><strong>{money(m.gang.overdue.amount)}</strong> approved gang payments past their date</Link></li>}
@@ -268,7 +269,7 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
     <Panel id="administration" title="Administration" description="Customers, subcontractors, compliance, sales and settings.">
       <div className={styles.adminGrid}>
         <Link className={styles.adminLink} href="/admin/customers"><strong>Customers</strong><span>{data.admin.customers === null ? "Customer list" : plural(data.admin.customers, "customer")}</span></Link>
-        <Link className={styles.adminLink} href="/admin/subcontractors"><strong>Subcontractor onboarding</strong>
+        <Link className={styles.adminLink} href={data.financial ? "/admin/subcontractors" : "/admin/workforce"}><strong>{data.financial ? "Subcontractor onboarding" : "Gangs and workforce"}</strong>
           <span>{data.admin.gangs === null ? "Gangs, portal links and agreements" : `${data.admin.gangs.filter(g => g.steps.every(s => s.done)).length} of ${data.admin.gangs.length} gangs fully onboarded`}</span></Link>
         <Link className={styles.adminLink} href="/admin/workforce"><strong>Insurance and people</strong><span>{plural(data.admin.insurance.length, "certificate")} expiring or expired</span></Link>
         <Link className={styles.adminLink} href="/admin/tenders"><strong>Tenders</strong><span>{data.admin.tenders === null ? "Enquiries" : `${data.admin.tenders} open`}</span></Link>

@@ -36,6 +36,12 @@ The subcontractor portal (`/subcontractors`: personal links instead of logins, a
 rates or uploaded, CIS and retention at approval, all on the gang invoice workflow) and its audit are described in
 [subcontractor-portal.md](docs/operations/subcontractor-portal.md). `npm run test:portal` runs its journey in a real browser.
 
+The office command centre (the owner's and managers' homepage: immediate attention, live jobs, yesterday on site,
+money, planning and administration, with an office inbox, global search, planner, materials, customers, quotations,
+supervisor site diary and email notifications) is described in [command-centre.md](docs/operations/command-centre.md).
+Its production rollout, with backup, rehearsal and rollback, is in [command-centre-rollout.md](docs/operations/command-centre-rollout.md).
+`npm run test:command-centre` runs the morning office journey in a real browser.
+
 Read the [architecture, permissions and phased plan](docs/operations/architecture.md),
 [staging deployment instructions](docs/operations/deployment.md), and
 [database/bootstrap instructions](supabase/README.md). Copy `.env.example` to a
