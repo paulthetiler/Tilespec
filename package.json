@@ -25,7 +25,8 @@
     "preview:smoke": "node docs/redesign/prototype/smoke.mjs",
     "preview:e2e": "node docs/redesign/prototype/e2e.mjs",
     "preview:mobile": "node scripts/preview-mobile-journeys.mjs",
-    "samples:documents": "bash scripts/generate-sample-documents.sh"
+    "samples:documents": "bash scripts/generate-sample-documents.sh",
+    "seo:check": "node scripts/seo-readiness.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

@@ -101,6 +101,7 @@ export function officeMenu(role: MemberRole, financial: boolean): MenuSection[] 
       ...(financial ? [{ label: "Estimator", href: "/admin/estimator" }] : []),
     ] },
     { title: "Administration", links: [
+      { label: "Marketing & SEO readiness", href: "/admin/marketing" },
       ...(financial ? [{ label: "Documents and compliance", href: "/admin/documents" }, { label: "Business settings", href: "/admin/accounts/settings" }] : []),
       ...(owner ? [{ label: "Email notifications", href: "/admin/notifications" }] : []),
     ] },

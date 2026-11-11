@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { commercialLocations } from "../lib/commercial-locations";
 import { regionalHubs } from "../lib/region-hubs";
+import { guides } from "../lib/technical-guides";
 
 const origin = "https://www.tilespec.uk";
 const establishedLocations = [
@@ -28,7 +29,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: origin + "/privacy", changeFrequency: "yearly", priority: 0.2 },
     { url: origin + "/coverage", changeFrequency: "monthly", priority: 0.85 },
     { url: origin + "/guides", changeFrequency: "monthly", priority: 0.6 },
-    ...["substrate-readiness","movement-joints-and-setting-out","waterproofing-and-wet-areas"].map(slug => ({ url: origin + "/guides/" + slug, changeFrequency: "monthly" as const, priority: 0.6 })),
+    ...Object.keys(guides).map(slug => ({ url: origin + "/guides/" + slug, changeFrequency: "monthly" as const, priority: 0.6 })),
     ...["commercial-floor-tiling","commercial-wall-tiling","commercial-tiling-packages","commercial-substrate-preparation"].map(slug => ({ url: origin + "/services/" + slug, changeFrequency: "monthly" as const, priority: 0.85 })),
     ...regionalHubs.filter(hub => hub.id !== "north-west" && hub.id !== "london").map(hub => ({
       url: origin + "/" + hub.path,
