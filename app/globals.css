@@ -524,7 +524,7 @@ main#top .ts-live-proof-item{min-width:0}
 /* Desktop service showcase: four photographs across, no extra card furniture. */
 @media(min-width:761px){
   main#top .ts-photo-services-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-  main#top .ts-photo-service{min-width:0;min-height:300px;aspect-ratio:0.82}
+  main#top .ts-photo-service{min-width:0;min-height:220px;aspect-ratio:1.16}
   main#top .ts-photo-service-label{padding:20px 16px}
   main#top .ts-photo-service-label h3{font-size:clamp(23px,2.15vw,34px);overflow-wrap:normal}
 }
