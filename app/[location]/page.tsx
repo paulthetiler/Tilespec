@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!market) return {};
   const url = origin + "/" + market.slug;
   const title = market.city + " Commercial Tiling Contractors | TileSPEC";
-  const description = "Commercial wall and floor tiling for " + market.city + " contractors. TileSPEC considers preparation, tile supply and installation for commercial projects.";
+  const description = "Commercial tiling in " + market.city + " for " + market.focus + ". We assess " + market.risk + ", preparation and installation.";
   return {
     title,
     description,
