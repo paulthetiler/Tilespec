@@ -142,7 +142,7 @@ export default async function RegionalCommercialTiling({ params }: Params) {
       </div>
     </section>
 
-    {market.slug === "london-commercial-tiling" ? <LondonConnections/> : <RegionalConnections slug={market.slug}/>
+    {market.slug === "london-commercial-tiling" ? <LondonConnections/> : <RegionalConnections slug={market.slug}/>}
     <section className="nw-faq nw-space">
       <div className="nw-wrap nw-two-col">
         <div><div className="nw-kicker">FREQUENT QUESTIONS</div><h2>THE PRACTICAL<br/><em>DETAILS.</em></h2></div>
