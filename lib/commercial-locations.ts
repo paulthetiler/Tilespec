@@ -540,6 +540,76 @@ export const commercialLocations = [
     "areas": "Huddersfield town centre · University area · Lindley · Bradley",
     "intro1": "Huddersfield's university, commercial and retail buildings include established premises where floor and wall backgrounds need careful inspection before tiling.",
     "intro2": "We review preparation, tile specifications and finishing details against the scope and programme for each commercial refurbishment or fit-out."
+  },
+  {
+    "slug": "chester-commercial-tiling",
+    "city": "Chester",
+    "region": "Cheshire",
+    "focus": "hotel refurbishments, hospitality, retail, office and visitor-facing interiors",
+    "risk": "historic building backgrounds and city-centre delivery constraints",
+    "areas": "Chester city centre · Chester Business Park · Hoole · Sealand Road",
+    "intro1": "Chester's hospitality, visitor and commercial buildings include established properties where substrate condition, setting-out and site access need careful planning.",
+    "intro2": "TileSPEC considers commercial tiling packages for hotels, offices, retail interiors and washrooms, reviewing specifications, preparation and programme before installation."
+  },
+  {
+    "slug": "blackpool-commercial-tiling",
+    "city": "Blackpool",
+    "region": "Lancashire",
+    "focus": "hotel and leisure refurbishment, visitor attractions, retail and business premises",
+    "risk": "hospitality washroom systems and phased work in operating venues",
+    "areas": "Blackpool town centre · Promenade · South Shore · Blackpool Airport Enterprise Zone",
+    "intro1": "Blackpool's hospitality and leisure buildings require durable tiled finishes in washrooms, reception areas and other busy public spaces.",
+    "intro2": "We consider refurbishment and commercial tiling tenders around suitable substrate preparation, waterproofing where specified and coordination with seasonal or phased access requirements."
+  },
+  {
+    "slug": "bolton-commercial-tiling",
+    "city": "Bolton",
+    "region": "Greater Manchester",
+    "focus": "retail, commercial estates, education and office refurbishment",
+    "risk": "high-use commercial floors and established building substrates",
+    "areas": "Bolton town centre · Middlebrook · Horwich · Farnworth",
+    "intro1": "Bolton combines retail, education and workplace premises with a mix of existing commercial buildings and newer interiors.",
+    "intro2": "TileSPEC reviews floor and wall backgrounds, tile procurement and practical installation sequencing for a coordinated commercial tiling package."
+  },
+  {
+    "slug": "blackburn-commercial-tiling",
+    "city": "Blackburn",
+    "region": "Lancashire",
+    "focus": "manufacturing offices, business estates, education and retail refurbishment",
+    "risk": "commercial staff facilities and mixed industrial-office interiors",
+    "areas": "Blackburn town centre · Whitebirk · Shadsworth · Ewood",
+    "intro1": "Blackburn's business and manufacturing premises can include tiled staff facilities, commercial washrooms, offices and public-facing areas.",
+    "intro2": "We assess intended floor use, existing backgrounds and the contractor's programme, including appropriate levelling, repairs and material supply."
+  },
+  {
+    "slug": "stevenage-commercial-tiling",
+    "city": "Stevenage",
+    "region": "Hertfordshire",
+    "focus": "research and life-sciences facilities, business parks, commercial offices and hospitality",
+    "risk": "technical finish specifications and controlled site coordination",
+    "areas": "Stevenage town centre · Gunnels Wood · Stevenage Bioscience Catalyst area · Broadwater",
+    "intro1": "Stevenage has an established concentration of research, science and commercial workplaces where fit-out specifications and coordination can be demanding.",
+    "intro2": "TileSPEC considers suitable commercial tiling work in receptions, washrooms and shared spaces, reviewing the documented system and substrate requirements rather than assuming a standard solution."
+  },
+  {
+    "slug": "maidstone-commercial-tiling",
+    "city": "Maidstone",
+    "region": "Kent",
+    "focus": "business estates, office refurbishment, retail and healthcare-related commercial interiors",
+    "risk": "occupied building refurbishment and durable public-use finishes",
+    "areas": "Maidstone town centre · Eclipse Park · Parkwood · Allington",
+    "intro1": "Maidstone's business parks, retail premises and healthcare-related commercial buildings call for practical and maintainable tiled finishes.",
+    "intro2": "We review washroom and floor tiling packages alongside surface preparation, site access arrangements and contractor programme requirements."
+  },
+  {
+    "slug": "medway-commercial-tiling",
+    "city": "Medway",
+    "region": "Kent",
+    "focus": "commercial estates, education, retail and hospitality across the Medway towns",
+    "risk": "multiple-site urban access and mixed refurbishment backgrounds",
+    "areas": "Chatham · Rochester · Gillingham · Strood",
+    "intro1": "The Medway towns form a connected commercial area with retail, education, hospitality and workplace buildings that have varied refurbishment needs.",
+    "intro2": "TileSPEC considers commercial tiling enquiries across Chatham, Rochester, Gillingham and Strood, with substrate condition, tile supply and programme assessed as part of the tender."
   }
 ] as const;
 export type CommercialLocation = (typeof commercialLocations)[number];
