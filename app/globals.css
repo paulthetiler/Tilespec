@@ -694,14 +694,13 @@ main#top .ts-about-accent{
 }
 
 
-/* Homepage-only editorial service section, inspired by the landing-page
-   "Built Around the Project" photo treatment. Landing pages are unchanged. */
+/* Compact, split-layout photographic services section — homepage only. */
 main#top .ts-home-services{
   position:relative;
   isolation:isolate;
   background:#0d2835;
   color:#fff;
-  padding:clamp(76px,7.5vw,120px) 0;
+  padding:clamp(46px,5vw,68px) 0;
   overflow:hidden;
 }
 main#top .ts-home-services-photo{
@@ -709,71 +708,79 @@ main#top .ts-home-services-photo{
   inset:0;
   z-index:-1;
   background:
-    linear-gradient(90deg,rgba(6,25,35,.95) 0%,rgba(6,25,35,.85) 48%,rgba(6,25,35,.55) 100%),
+    linear-gradient(90deg,rgba(6,25,35,.94) 0%,rgba(6,25,35,.85) 44%,rgba(6,25,35,.66) 100%),
     url('https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/bf52c74c-59fe-4cdd-9a44-4bfcad5063c4/73281.webp') center 54%/cover no-repeat;
 }
-main#top .ts-home-services-inner{position:relative}
-main#top .ts-home-services-heading{max-width:850px;margin-bottom:clamp(36px,4vw,58px)}
+main#top .ts-home-services-inner{
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  align-items:center;
+  column-gap:clamp(35px,5vw,85px);
+}
+main#top .ts-home-services-heading{min-width:0;max-width:520px;margin:0}
 main#top .ts-home-services-heading .eyebrow{color:#b5dad4}
 main#top .ts-home-services-heading h2{
   font-family:'Barlow Condensed',sans-serif;
-  font-size:clamp(60px,7.5vw,107px);
+  font-size:clamp(56px,6vw,88px);
   font-weight:800;
-  line-height:.93;
+  line-height:.96;
   letter-spacing:-.025em;
   text-transform:none;
   color:#fff;
-  margin:20px 0 20px;
+  margin:18px 0 16px;
 }
 main#top .ts-home-services-heading h2 em{font-style:normal;color:#86bfb6}
 main#top .ts-home-services-heading p{
-  font-size:clamp(15px,1.3vw,18px);
-  line-height:1.75;
+  font-size:clamp(14px,1.1vw,16px);
+  line-height:1.65;
   color:#d3e0e2;
-  max-width:600px;
+  max-width:360px;
   margin:0;
 }
 main#top .ts-home-services-list{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:0 56px;
+  grid-template-columns:minmax(0,1fr);
+  gap:0;
 }
 main#top .ts-home-service{
   background:transparent;
   border:0;
-  border-top:1px solid rgba(206,227,227,.42);
-  padding:30px 28px 38px 0;
-  min-height:0;
+  border-top:1px solid rgba(206,227,227,.38);
   min-width:0;
+  min-height:0;
+  padding:13px 0 14px;
 }
+main#top .ts-home-service:last-child{border-bottom:1px solid rgba(206,227,227,.38)}
 main#top .ts-home-service-rule{display:none}
 main#top .ts-home-service h3{
   font-family:'Barlow Condensed',sans-serif;
-  font-size:clamp(26px,2.35vw,36px);
+  font-size:clamp(25px,2.1vw,31px);
   font-weight:700;
   line-height:1.08;
-  letter-spacing:0;
   text-transform:none;
   color:#fff;
-  margin:0 0 15px;
+  margin:0 0 5px;
 }
 main#top .ts-home-service p{
   color:#d2dfe1;
-  font-size:14px;
-  line-height:1.7;
+  font-size:13px;
+  line-height:1.55;
   margin:0;
+  max-width:540px;
 }
-@media(max-width:1100px){
-  main#top .ts-home-services-list{column-gap:36px}
-  main#top .ts-home-service h3{font-size:clamp(29px,3.4vw,38px)}
+@media(max-width:1000px){
+  main#top .ts-home-services-inner{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);column-gap:30px}
+  main#top .ts-home-services-heading h2{font-size:clamp(50px,6.4vw,72px)}
 }
 @media(max-width:760px){
-  main#top .ts-home-services{padding:64px 0}
+  main#top .ts-home-services{padding:52px 0 55px}
   main#top .ts-home-services-photo{background-position:57% center}
-  main#top .ts-home-services-heading{margin-bottom:33px}
-  main#top .ts-home-services-heading h2{font-size:clamp(49px,10.8vw,73px)}
-  main#top .ts-home-services-list{grid-template-columns:1fr;gap:0}
-  main#top .ts-home-service{padding:22px 0 26px}
-  main#top .ts-home-service h3{font-size:32px;margin-bottom:10px}
-  main#top .ts-home-service p{font-size:14px}
+  main#top .ts-home-services-inner{grid-template-columns:1fr;gap:29px}
+  main#top .ts-home-services-heading{max-width:none}
+  main#top .ts-home-services-heading h2{font-size:clamp(49px,10.8vw,73px);margin:15px 0 12px}
+  main#top .ts-home-services-heading p{max-width:420px}
+  main#top .ts-home-service{padding:15px 0 16px}
+  main#top .ts-home-service h3{font-size:29px;margin-bottom:6px}
+  main#top .ts-home-service p{font-size:13px}
 }
