@@ -585,3 +585,62 @@ main#top .ts-photo-service-sequence .ts-photo-service-label{background:linear-gr
 
 /* Frame the pool basin rather than the far wall in the preparation panel. */
 main#top .ts-photo-service-preparation img{object-position:46% 54%}
+
+
+/* TileSpec: refined four-panel "How we work" presentation.
+   Keep original content and order; no step numbers or decorative icons. */
+main#top .approach .process-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  align-items:stretch;
+}
+main#top .approach .process-grid > div{
+  background:#102b38;
+  color:#fff;
+  border:0;
+  border-radius:7px;
+  padding:26px 22px 28px;
+  min-width:0;
+  min-height:218px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+}
+main#top .approach .process-grid > div::before{
+  content:"";
+  display:block;
+  width:44px;
+  height:3px;
+  flex:none;
+  background:#75b6aa;
+  border-radius:3px;
+  margin-bottom:23px;
+}
+main#top .approach .process-grid h3{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(24px,2.1vw,31px);
+  font-weight:700;
+  line-height:1.08;
+  text-transform:none;
+  color:#fff;
+  margin:0 0 14px;
+}
+main#top .approach .process-grid p{
+  font-size:13px;
+  line-height:1.65;
+  color:#c6d5db;
+  max-width:none;
+  margin:0;
+}
+@media(max-width:1100px){
+  main#top .approach .process-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  main#top .approach .process-grid > div{min-height:192px}
+}
+@media(max-width:600px){
+  main#top .approach .process-grid{grid-template-columns:1fr;gap:12px}
+  main#top .approach .process-grid > div{min-height:0;padding:23px 22px 25px}
+  main#top .approach .process-grid > div::before{margin-bottom:18px}
+  main#top .approach .process-grid h3{font-size:29px}
+  main#top .approach .process-grid p{font-size:14px}
+}
