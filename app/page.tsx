@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ArrowDown, ArrowRight, ArrowUpRight, Building2, CalendarCheck2, Check, ChevronDown, FileUp, HardHat, Layers3, Mail, MapPin, Menu, MoveUpRight, Phone, Ruler, ShieldCheck, X } from "lucide-react";
 
 const services = [
-  { title: "Commercial floor tiling", detail: "High-traffic commercial floors, large-format porcelain and detailed setting-out, delivered over properly prepared substrates.", icon: Ruler, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/ccc79a87-f50f-4d3e-9469-e77f2d2eca2d/sheff-2.webp" },
+  { title: "Commercial floor tiling", detail: "High-traffic commercial floors, large-format porcelain and detailed setting-out, delivered over properly prepared substrates.", icon: Ruler, image: "/images/sheffield-commercial-floor.png" },
   { title: "Wall tiling & finishes", detail: "Commercial wall finishes with careful setting-out, suitable backgrounds and consistent detailing in washrooms and public spaces.", icon: Layers3, image: "https://images.unsplash.com/photo-1758193017781-e3aee6c3e359?auto=format&fit=crop&w=1200&q=85" },
   { title: "Complete tiling packages", detail: "Tile procurement, substrate preparation, installation and handover coordinated under one specialist package.", icon: HardHat, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/8c08357d-656a-4995-9a99-14a4762fc56c/7ba3cf9c-a72f-46a9-8cf2-96f22c8431e2.webp" },
   { title: "Specialist preparation", detail: "Floor preparation, adhesive removal, repairs, levelling, screeding, boarding and waterproofing where specified.", icon: ShieldCheck, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/5d748bb5-6171-4754-af8e-dfd2515aaf69/sunlit-indoor-pool-with-skylights.webp" },
