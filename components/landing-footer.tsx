@@ -21,7 +21,7 @@ export default function LandingFooter() {
           <a href="mailto:info@tilespec.uk">info@tilespec.uk</a>
           <Link href="/privacy">Privacy policy</Link>
           <span style={{display:"block",marginTop:"12px"}}>Address</span>
-          <address style={{fontStyle:"normal",lineHeight:1.7}}>Unit 24, The Wharf Industrial Estate, Wharf Street, Warrington, WA1 2HT</address>
+          <address style={{fontStyle:"normal",lineHeight:1.7}}>Warrington, Cheshire, UK</address>
         </div>
       </div>
       <div className="footer-bottom">
