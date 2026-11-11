@@ -79,3 +79,27 @@
 @media(max-width:700px){.nw-page .nw-wrap{width:calc(100% - 40px)}.nw-page .nw-space{padding:64px 0}.nw-page .nw-header-row{min-height:78px;gap:12px}.nw-page .nw-brand{width:157px}.nw-page .nw-header-cta{font-size:10px;padding:12px;gap:7px}.nw-page .nw-header-cta svg{width:14px}.nw-page .nw-hero{min-height:650px}.nw-page .nw-hero-content{padding:75px 0 48px}.nw-page h1{font-size:clamp(57px,13vw,91px);margin:22px 0}.nw-page .nw-lead{font-size:16px;line-height:1.65}.nw-page .nw-hero-foot{margin-top:50px;line-height:1.5}.nw-page .nw-two-col{grid-template-columns:1fr;gap:28px}.nw-page h2{font-size:clamp(43px,10vw,62px)}.nw-page .nw-capabilities{grid-template-columns:1fr;gap:10px}.nw-page .nw-capability{padding:27px}.nw-page .nw-steps{grid-template-columns:1fr;gap:12px}.nw-page .nw-steps article{min-height:0;padding:25px}.nw-page .nw-photo-band{min-height:410px}.nw-page .nw-coverage-box{padding:30px 25px}.nw-page .nw-cta{padding:69px 0}.nw-page .nw-cta-inner{flex-direction:column;align-items:flex-start}.nw-page .nw-cta h2{font-size:65px}.nw-page .nw-footer-row{flex-direction:column;align-items:flex-start;gap:15px}.nw-page .nw-footer-row>div{gap:17px;flex-wrap:wrap}}
 @media(max-width:360px){.nw-page .nw-header-cta{font-size:9px}.nw-page .nw-hero-actions{gap:23px}.nw-page h1{font-size:54px}}
 @media(prefers-reduced-motion:reduce){.nw-page *{scroll-behavior:auto!important}}
+
+
+/* Match the homepage TileSPEC header wordmark on all public subpages.
+   Keep this in the shared regional-page stylesheet so guides, coverage,
+   regional and city landing pages cannot drift independently. */
+.nw-page .nw-header .nw-brand{display:inline-flex;align-items:center;flex:0 0 auto;max-width:100%}
+.nw-page .nw-header .nw-brand img{width:265px;height:auto;max-width:100%}
+@media (min-width:1101px){
+  .nw-page .nw-header .nw-brand img{width:350px;max-width:none}
+  .nw-page .nw-header-row{gap:26px}
+  .nw-page .nw-nav{gap:24px}
+}
+@media (min-width:761px) and (max-width:1100px){
+  .nw-page .nw-header .nw-brand img{width:clamp(170px,21vw,230px)}
+}
+@media (max-width:760px){
+  .nw-page .nw-header .nw-brand{width:auto;min-width:0;max-width:calc(100% - 116px)}
+  .nw-page .nw-header .nw-brand img{width:215px;max-width:100%}
+  .nw-page .nw-header-cta{max-width:104px;white-space:normal;text-align:center;padding:10px 7px;gap:4px}
+  .nw-page .nw-header-cta svg{flex-shrink:0}
+}
+@media (max-width:380px){
+  .nw-page .nw-header .nw-brand img{width:min(190px,56vw)}
+}
