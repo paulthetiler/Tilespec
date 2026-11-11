@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { commercialLocations } from "../lib/commercial-locations";
+import { regionalHubs } from "../lib/region-hubs";
 
 const origin = "https://tilespec.vercel.app";
 const establishedLocations = [
@@ -25,6 +26,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: origin, changeFrequency: "weekly", priority: 1 },
     { url: origin + "/contact", changeFrequency: "monthly", priority: 0.7 },
     { url: origin + "/privacy", changeFrequency: "yearly", priority: 0.2 },
+    { url: origin + "/coverage", changeFrequency: "monthly", priority: 0.85 },
+    ...regionalHubs.filter(hub => hub.id !== "north-west" && hub.id !== "london").map(hub => ({
+      url: origin + "/" + hub.path,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })),
     ...locations.map((slug) => ({
       url: origin + "/" + slug,
       changeFrequency: "monthly" as const,
