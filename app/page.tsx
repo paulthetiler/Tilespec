@@ -31,7 +31,7 @@ export default function Home() {
   return <main id="top">
     <header className="site-header">
       <div className="shell nav"><Logo/><nav className={menu ? "nav-links open" : "nav-links"} aria-label="Main navigation">
-        <a href="#expertise" onClick={() => setMenu(false)}>Expertise</a><a href="#approach" onClick={() => setMenu(false)}>Our approach</a><a href="#projects" onClick={() => setMenu(false)}>Projects</a><a href="#about" onClick={() => setMenu(false)}>About</a>
+        <a href="#expertise" onClick={() => setMenu(false)}>Expertise</a><a href="#approach" onClick={() => setMenu(false)}>Our approach</a><a href="#projects" onClick={() => setMenu(false)}>Projects</a><a href="/coverage" onClick={() => setMenu(false)}>Coverage</a><a href="#about" onClick={() => setMenu(false)}>About</a>
         <a className="mobile-cta" href="/contact" onClick={() => setMenu(false)}>Discuss a project <ArrowUpRight size={16}/></a>
       </nav><a className="nav-cta" href="/contact">DISCUSS A PROJECT <ArrowUpRight size={17}/></a><button className="menu-button" aria-label={menu ? "Close menu" : "Open menu"} aria-expanded={menu} onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button></div>
     </header>
