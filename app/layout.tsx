@@ -3,6 +3,8 @@ import "./globals.css";
 import ScrollReveal from "./scroll-reveal";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.tilespec.uk"),
+  alternates: { canonical: "/" },
   title: "TileSPEC | Commercial Tiling Contractors",
   description: "Commercial wall and floor tiling contractors delivering complete supply-and-install packages, substrate preparation and waterproofing across the North West and beyond.",
   icons: { icon: [{ url: "/icon.svg", type: "image/svg+xml" }], shortcut: "/icon.svg", apple: "/icon.svg" },

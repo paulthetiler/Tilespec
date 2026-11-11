@@ -1,5 +1,5 @@
 import Link from "next/link";
-export const metadata = { title: "Privacy Policy | TileSPEC" };
+export const metadata = { title: "Privacy Policy | TileSPEC", alternates: { canonical: "https://www.tilespec.uk/privacy" } };
 export default function PrivacyPage() {
  return <main style={{maxWidth:850,margin:"0 auto",padding:"48px 24px",lineHeight:1.75}}>
  <Link href="/">← TileSPEC home</Link><h1>Privacy policy</h1>
