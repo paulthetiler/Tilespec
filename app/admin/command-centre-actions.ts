@@ -181,7 +181,7 @@ export async function updateRecipientAction(_: DailyActionState, form: FormData)
 }
 export async function queueTestAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
   try { return await ownerCall("queue_test_notification", { p_recipient: uuid(form, "recipient_id") },
-    "Test message queued. It is sent at the next dispatch (within ten minutes) once the email service is configured."); } catch (error) { return failure(error); }
+    "Test message queued. It is sent at the next scheduled dispatch once the email service and its schedule are set up."); } catch (error) { return failure(error); }
 }
 export async function confirmRecipientAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
   try { return await ownerCall("confirm_notification_recipient", { p_recipient: uuid(form, "recipient_id") }, "Mailbox confirmed."); } catch (error) { return failure(error); }

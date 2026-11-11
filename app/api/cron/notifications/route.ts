@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const SUMMARY_FROM = "07:00";
 
 /**
- * The scheduled email dispatcher (Vercel Cron, every ten minutes). It has no user session: it proves
+ * The scheduled email dispatcher (a Vercel Cron entry, added when email is switched on). It has no user session: it proves
  * itself to Vercel with CRON_SECRET and to the database with the owner's dispatcher key, and the
  * database decides what may be sent. Nothing is sent unless the owner has switched delivery on and
  * the email service is configured; otherwise each message is logged as a dry run.

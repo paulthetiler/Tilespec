@@ -58,7 +58,7 @@ attempt is logged.
 
 Recipients are owners and contracts managers only, at the address they sign in with. Nothing is sent until the owner
 has a confirmed recipient (via a test message) and switches delivery on. Until then each message is logged as a dry
-run. The scheduled dispatcher (`/api/cron/notifications`, every ten minutes) has no user session: it proves itself
+run. The scheduled dispatcher (`/api/cron/notifications`, scheduled only when email is switched on) has no user session: it proves itself
 to Vercel with `CRON_SECRET` and to the database with the owner's dispatcher key, and no service key is used. See
 [command-centre-rollout.md](command-centre-rollout.md) for setting it up.
 

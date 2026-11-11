@@ -10,7 +10,7 @@ TileSpec project (`odwysybvncdfdrfnnnqt`). Every step that writes to it needs th
 | Database | `20261023090000_office_reviews_instruction_changes` (written in October, never applied) | Restore from backup |
 | Database | `20261114090000_office_command_centre` (customers, job stages, quotations, tender tracking, materials, site progress and photographs, message categories and decisions, search, debt ageing, cash flow, email outbox) | `supabase/rollback/20261114090000_office_command_centre_down.sql` (tested) |
 | App | The command centre homepage, office inbox, planner, materials, finance, customers, quotations, notifications, site diary, grouped navigation | Vercel instant rollback |
-| Hosting | A Vercel Cron entry every ten minutes (`vercel.json`) | Remove the entry |
+| Hosting | None in this release. The email schedule is added in step 6, when email is switched on | – |
 | Settings | New, optional: `RESEND_API_KEY`, `NOTIFICATIONS_FROM`, `CRON_SECRET`, `NOTIFICATIONS_DISPATCH_TOKEN`, `NOTIFICATIONS_BASE_URL` | Remove them |
 
 Neither migration rewrites an existing record. Existing jobs keep no stored stage (the app reads their stage from
@@ -80,9 +80,14 @@ rest of the app is unaffected; a supervisor's question or decision request is se
    for Production only.
 2. Add a long random `CRON_SECRET` in Vercel. Vercel sends it with each scheduled call.
 3. In TileSPEC → **Email notifications**, create the dispatcher key and add it to Vercel as
-   `NOTIFICATIONS_DISPATCH_TOKEN`, then redeploy.
-4. Add each recipient, send each a test message, check it arrives and confirm the mailbox.
-5. Switch delivery on. Until then, every alert and summary is prepared and logged as “Prepared, not sent”.
+   `NOTIFICATIONS_DISPATCH_TOKEN`.
+4. Add the schedule in `vercel.json` and deploy. The Vercel Hobby plan allows one run a day only, and Vercel
+   rejects a deployment with a more frequent schedule; Hobby is also for non-commercial use. On Pro, use
+   `{ "crons": [{ "path": "/api/cron/notifications", "schedule": "*/10 * * * *" }] }` (urgent alerts within ten
+   minutes). On Hobby, a single `"5 7 * * *"` run (07:05 UTC) sends the morning summary only; urgent alerts then
+   wait for the next morning.
+5. Add each recipient, send each a test message, check it arrives and confirm the mailbox.
+6. Switch delivery on. Until then, every alert and summary is prepared and logged as “Prepared, not sent”.
 
 ## Rollback
 
