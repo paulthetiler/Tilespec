@@ -105,7 +105,7 @@ export default async function ServicePage({ params }: Props) {
         {Object.entries(services).filter(([slug]) => slug !== service).map(([slug, item]) =>
           <Link key={slug} href={`/services/${slug}`} style={{color:"inherit",fontWeight:700,textDecoration:"underline"}}>{item.title}</Link>)}
       </div>
-      <p style={{marginTop:22}}><Link href="/coverage">Explore UK regional coverage</Link></p>
+      <p style={{marginTop:22}}><Link href="/coverage">Explore UK regional coverage</Link> · <Link href="/guides">Read technical guidance</Link></p>
     </div></section>
     <section className="nw-cta"><div className="nw-wrap nw-cta-inner">
       <div><div className="nw-kicker nw-kicker-light">TENDER & PROJECT ENQUIRIES</div><h2>HAVE A PROJECT<br/><em>TO PRICE?</em></h2><p>Send drawings, specifications and your working programme for review.</p></div>
