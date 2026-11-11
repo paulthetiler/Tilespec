@@ -59,6 +59,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <Link href="/admin/alerts">Site alerts</Link>
             {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/quality">Quality control</Link>}
             {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
+            {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/marketing">Marketing</Link>}
             {member.role === "owner" && <Link href="/admin/team">User access</Link>}
             {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
             {canReadFinancial(member) && <Link href="/admin/documents">Documents</Link>}
@@ -81,6 +82,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 <Link href="/admin/alerts">Site alerts</Link>
                 {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/quality">Quality control</Link>}
                 {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/tenders">Tenders</Link>}
+            {(member.role === "owner" || member.role === "contracts_manager") && <Link href="/admin/marketing">Marketing</Link>}
                 {member.role === "owner" && <Link href="/admin/team">User access</Link>}
                 {canReadFinancial(member) && <Link href="/admin/estimator">Estimator</Link>}
             {canReadFinancial(member) && <Link href="/admin/documents">Documents</Link>}
