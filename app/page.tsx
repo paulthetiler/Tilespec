@@ -54,9 +54,13 @@ export default function Home() {
       <div className="ts-live-proof-item"><CalendarCheck2 aria-hidden="true" strokeWidth={1.6}/><strong>Delivered on Programme</strong></div>
     </div></section>
     <section className="ts-live-intro"><div className="shell ts-live-intro-inner"><span className="ts-live-intro-kicker">The specialist package</span><h2>From preparation<br/><em>to the finishing detail.</em></h2><p>Commercial wall and floor tiling for contractors and developers. We coordinate tile supply, preparation and installation as one complete package.</p></div></section>
-    <section className="services ts-photo-services section-pad" id="expertise"><div className="shell"><div className="ts-photo-services-heading"><h2>Specialist<br/><span>tiling services.</span></h2></div>
-      <div className="ts-photo-services-grid">{services.map(s => <article className={"ts-photo-service" + (s.title === "Complete tiling packages" ? " ts-photo-service-sequence" : s.title === "Specialist preparation" ? " ts-photo-service-preparation" : "")} key={s.title}><img src={s.image} alt="" loading="lazy"/><div className="ts-photo-service-label"><h3>{s.title}</h3></div></article>)}</div>
-    </div></section>
+    <section className="ts-home-services" id="expertise" aria-labelledby="ts-home-services-title">
+      <div className="ts-home-services-photo" aria-hidden="true"/>
+      <div className="shell ts-home-services-inner">
+        <div className="ts-home-services-heading"><div className="eyebrow light"><span className="eyebrow-line"/> OUR EXPERTISE</div><h2 id="ts-home-services-title">Specialist<br/><em>tiling services.</em></h2><p>Complete commercial tiling packages, from the first substrate checks to finished installation.</p></div>
+        <div className="ts-home-services-list">{services.map(s => <article className="ts-home-service" key={s.title}><span className="ts-home-service-rule" aria-hidden="true"/><h3>{s.title}</h3><p>{s.detail}</p></article>)}</div>
+      </div>
+    </section>
     <section className="ts-about-section" id="about" aria-labelledby="ts-about-title"><div className="shell ts-about-inner">
       <div className="ts-about-heading"><div className="eyebrow"><span className="eyebrow-line"/> About TileSpec</div><h2 id="ts-about-title">Built on experience.<br/><em>Focused on delivery.</em></h2></div>
       <div className="ts-about-copy"><p>TileSpec delivers commercial wall and floor tiling packages, from substrate preparation through to final installation and handover.</p><p>Backed by over two decades of hands-on industry experience, we understand the demands of working on live construction sites — from programme coordination and quality control to getting the installation right first time.</p><span className="ts-about-accent" aria-hidden="true"/></div>
