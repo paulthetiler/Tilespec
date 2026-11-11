@@ -27,6 +27,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: origin + "/contact", changeFrequency: "monthly", priority: 0.7 },
     { url: origin + "/privacy", changeFrequency: "yearly", priority: 0.2 },
     { url: origin + "/coverage", changeFrequency: "monthly", priority: 0.85 },
+    ...["commercial-floor-tiling","commercial-wall-tiling","commercial-tiling-packages","commercial-substrate-preparation"].map(slug => ({ url: origin + "/services/" + slug, changeFrequency: "monthly" as const, priority: 0.85 })),
     ...regionalHubs.filter(hub => hub.id !== "north-west" && hub.id !== "london").map(hub => ({
       url: origin + "/" + hub.path,
       changeFrequency: "monthly" as const,
