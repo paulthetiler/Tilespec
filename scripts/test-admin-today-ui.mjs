@@ -134,7 +134,9 @@ try {
       const then = page.getByRole('region', { name: 'Then', exact: true });
       assert.deepEqual(await then.locator('[data-action-id]').evaluateAll(elements => elements.map(element => element.getAttribute('data-action-id'))), expected.then);
       await then.getByRole('heading', { name: `Then (${expected.then.length})`, exact: true }).waitFor();
-      assert.equal(await page.getByTestId('today-action-count').textContent(), `${expected.counts.actions} things need you.`);
+      const others = expected.counts.waiting + expected.counts.exceptions;
+      assert.equal(await page.getByTestId('today-action-count').textContent(),
+        `${expected.counts.actions} things need you.${others ? ` ${others === 1 ? '1 item is with someone else.' : `${others} items are with other people.`}` : ''}`);
       for (const [label, ids] of [['Waiting on others', expected.waiting], ['Outstanding problems', expected.exceptions]]) {
         const region = page.getByRole('region', { name: label, exact: true });
         assert.equal(await region.count(), ids.length ? 1 : 0, `${key} ${label} section`);

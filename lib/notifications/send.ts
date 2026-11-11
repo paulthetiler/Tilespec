@@ -13,13 +13,19 @@ export function publicBaseUrl(env: Record<string, string | undefined> = process.
   return host ? `https://${host}` : "https://tilespec.vercel.app";
 }
 
+/** The email service's address. Only an automated test points it at a local stand-in on this machine. */
+export function emailEndpoint(env: Record<string, string | undefined> = process.env) {
+  const override = env.NOTIFICATIONS_EMAIL_ENDPOINT?.trim();
+  if (override && (/^https:\/\//.test(override) || (env.NODE_ENV !== "production" && /^http:\/\/127\.0\.0\.1:\d+\//.test(override)))) return override;
+  return "https://api.resend.com/emails";
+}
 /** One email through Resend. The outbox id is the idempotency key, so a retried request is never sent twice. */
 export async function sendEmail(input: { id: string; to: string; subject: string; html: string; text: string }, fetcher: typeof fetch = fetch):
   Promise<{ ok: true; providerId: string } | { ok: false; error: string }> {
   const config = emailConfiguration();
   if (!config.configured) return { ok: false, error: "Email service is not configured" };
   try {
-    const response = await fetcher("https://api.resend.com/emails", {
+    const response = await fetcher(emailEndpoint(), {
       method: "POST",
       headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json", "Idempotency-Key": input.id },
       body: JSON.stringify({ from: config.from, to: [input.to], subject: input.subject, html: input.html, text: input.text, ...(config.replyTo ? { reply_to: config.replyTo } : {}) }),

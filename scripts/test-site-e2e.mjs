@@ -23,7 +23,13 @@ import { storageFixture } from './snags-storage-fixture.mjs';
 const repository = fileURLToPath(new URL('..', import.meta.url));
 const screenshots = process.env.SCREENSHOT_DIR;
 const postgrestBinary = process.env.POSTGREST_BIN || 'postgrest';
-const adminTodayOnly = process.env.E2E_ADMIN_TODAY_ONLY === '1';
+const commandCentreOnly = process.env.E2E_COMMAND_CENTRE_ONLY === '1';
+const adminTodayOnly = process.env.E2E_ADMIN_TODAY_ONLY === '1' || commandCentreOnly;
+// The command centre journey proves email delivery against a local stand-in for the email service: nothing leaves this machine.
+const cronSecret = 'e2e-cron-secret-0123456789abcdef0123456789';
+const dispatchToken = 'e2e0dispatch0token0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0';
+const emails = [];
+let emailPort = 0;
 const password = 'e2e-password-1';
 const users = {
   'sid.supervisor@e2e.invalid': 'e2e00000-0000-4000-8000-000000000001',
@@ -38,6 +44,7 @@ const users = {
   'dave.supervisor@e2e.invalid': 'e2e00000-0000-4000-8000-000000000010',
   'faye.finance@e2e.invalid': 'e2e00000-0000-4000-8000-000000000011',
   'otto.owner@e2e.invalid': 'e2e00000-0000-4000-8000-000000000012',
+  'cara.owner@e2e.invalid': 'e2e00000-0000-4000-8000-000000000013',
 };
 const contractId = 'e2e00000-0000-4000-8000-0000000000c1';
 const children = [];
@@ -77,6 +84,7 @@ async function startDatabase() {
   sql(await readFile(join(repository, 'tests/e2e/holds-seed.sql'), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/simple-seed.sql'), 'utf8'));
   if (adminTodayOnly) sql(await readFile(join(repository, 'tests/e2e/admin-today-seed.sql'), 'utf8'));
+  if (commandCentreOnly) sql(await readFile(join(repository, 'tests/e2e/command-centre-seed.sql'), 'utf8'));
 }
 
 // --- Tokens and the Supabase stand-in ------------------------------------------
@@ -165,6 +173,23 @@ async function startPostgrest() {
     await wait(200);
   }
 }
+// A local stand-in for the email service: records each message it is asked to send.
+async function startEmailStub() {
+  const server = http.createServer((request, response) => {
+    let body = '';
+    request.on('data', chunk => { body += chunk; });
+    request.on('end', () => {
+      if (request.method !== 'POST' || request.headers.authorization !== 'Bearer e2e-email-key') { response.writeHead(401); return response.end('{}'); }
+      const message = JSON.parse(body);
+      emails.push({ ...message, idempotencyKey: request.headers['idempotency-key'] });
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ id: `stub-${emails.length}` }));
+    });
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  children.push({ kill: async () => new Promise(resolve => server.close(resolve)) });
+  return server.address().port;
+}
 async function startNext(gatewayPort) {
   const port = await freePort();
   generatedConfiguration = await Promise.all(['tsconfig.json', 'next-env.d.ts'].map(async name => [name, await readFile(join(repository, name), 'utf8')]));
@@ -178,7 +203,9 @@ async function startNext(gatewayPort) {
       // The existing regression always proves the default admin. Phase 3 is a
       // separate invocation with an explicit office/owner-only opt-in.
       FEATURE_NEXT_ACTIONS: adminTodayOnly ? 'owner,contracts_manager' : '',
-      FEATURE_ROLE_SHELL: adminTodayOnly ? 'owner,contracts_manager' : '' } });
+      FEATURE_ROLE_SHELL: adminTodayOnly ? 'owner,contracts_manager' : '',
+      ...(commandCentreOnly ? { CRON_SECRET: cronSecret, NOTIFICATIONS_DISPATCH_TOKEN: dispatchToken, RESEND_API_KEY: 'e2e-email-key',
+        NOTIFICATIONS_FROM: 'TileSPEC <alerts@e2e.invalid>', NOTIFICATIONS_EMAIL_ENDPOINT: `http://127.0.0.1:${emailPort}/emails`, NOTIFICATIONS_BASE_URL: 'https://tilespec.example' } : {}) } });
   for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { log = (log + bytes).slice(-8000); });
   children.push({ kill: async () => {
     if (child.exitCode !== null || child.signalCode !== null) return;
@@ -282,11 +309,17 @@ async function main() {
   await startDatabase();
   const restPort = await startPostgrest();
   const gateway = await startGateway(restPort);
+  if (commandCentreOnly) emailPort = await startEmailStub();
   const next = await startNext(gateway.port);
   nextDiagnosticLog = next.log;
   await compileAuthenticatedRoutes(next.origin, gateway.port);
   browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, headless: true });
   await warm(next.origin);
+  if (commandCentreOnly) {
+    const { runCommandCentre } = await import('./command-centre-e2e-flows.mjs');
+    await runCommandCentre({ browser, origin: next.origin, sql, signIn, screenshots, pass, contractId, emails, cronSecret, dispatchToken });
+    return;
+  }
   if (adminTodayOnly) {
     const { runAdminToday } = await import('./admin-today-e2e-flows.mjs');
     await runAdminToday({ browser, origin: next.origin, sql, signIn, screenshots, pass,

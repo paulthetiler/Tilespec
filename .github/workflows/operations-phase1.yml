@@ -239,6 +239,10 @@ jobs:
       - run: npm run test:admin-today
         env:
           SCREENSHOT_DIR: ${{ runner.temp }}/admin-today-authenticated
+      # The office command centre's morning journey, with email delivered to a local stand-in only.
+      - run: npm run test:command-centre
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/command-centre
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -250,6 +254,12 @@ jobs:
         with:
           name: supervisor-site-screenshots
           path: ${{ runner.temp }}/site-screenshots
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: command-centre
+          path: ${{ runner.temp }}/command-centre
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: always()
