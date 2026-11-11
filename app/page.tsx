@@ -58,7 +58,7 @@ export default function Home() {
       <div className="ts-home-services-photo" aria-hidden="true"/>
       <div className="shell ts-home-services-inner">
         <div className="ts-home-services-heading"><div className="eyebrow light"><span className="eyebrow-line"/> OUR EXPERTISE</div><h2 id="ts-home-services-title">Specialist<br/><em>tiling services.</em></h2><p>Complete commercial tiling packages, from the first substrate checks to finished installation.</p></div>
-        <div className="ts-home-services-list">{services.map(s => <article className="ts-home-service" key={s.title}><span className="ts-home-service-rule" aria-hidden="true"/><h3>{s.title}</h3><p>{s.detail}</p></article>)}</div>
+        <div className="ts-home-services-list">{services.map((s,i) => <article className="ts-home-service" key={s.title}><span className="ts-home-service-rule" aria-hidden="true"/><h3><a href={["/services/commercial-floor-tiling","/services/commercial-wall-tiling","/services/commercial-tiling-packages","/services/commercial-substrate-preparation"][i]} style={{color:"inherit",textDecoration:"underline",textUnderlineOffset:5}}>{s.title}</a></h3><p>{s.detail}</p></article>)}</div>
       </div>
     </section>
     <section className="ts-about-section" id="about" aria-labelledby="ts-about-title"><div className="shell ts-about-inner">
