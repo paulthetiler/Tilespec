@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import LandingFooter from "../../components/landing-footer";
+import { RegionCityLinks } from "../../components/regional-links";
+import { regionById } from "../../lib/region-hubs";
 import { ArrowUpRight, Check, FileText, Layers3, MapPin, ShieldCheck } from "lucide-react";
 import "./north-west.css";
 
@@ -113,6 +115,7 @@ export default function NorthWestCommercialTiling() {
       </div>
     </section>
 
+    <RegionCityLinks hub={regionById("north-west")!}/>
     <section className="nw-faq nw-space">
       <div className="nw-wrap nw-two-col">
         <div><div className="nw-kicker">FREQUENT QUESTIONS</div><h2>THE PRACTICAL<br/><em>DETAILS.</em></h2></div>
