@@ -237,21 +237,24 @@ const serviceDetails: Record<keyof typeof services, {
 
 const relatedGuides: Record<keyof typeof services, {slug:string; title:string}[]> = {
   "commercial-floor-tiling": [
-    {slug:"movement-joints-and-setting-out",title:"Movement joints and setting-out on commercial floors"},
-    {slug:"substrate-readiness",title:"Checking substrate readiness before tiling"}
+    {slug:"large-format-porcelain-commercial-floors",title:"Planning large-format porcelain floors"},
+    {slug:"movement-joints-and-setting-out",title:"Movement joints and setting-out"},
+    {slug:"commercial-tiling-programme-and-phasing",title:"Planning commercial tiling programmes"}
   ],
   "commercial-wall-tiling": [
+    {slug:"commercial-washroom-tiling-specification",title:"Commercial washroom specification and interfaces"},
     {slug:"waterproofing-and-wet-areas",title:"Waterproofing and commercial wet areas"},
-    {slug:"substrate-readiness",title:"Preparing backgrounds for commercial tiling"}
+    {slug:"substrate-readiness",title:"Preparing suitable backgrounds"}
   ],
   "commercial-tiling-packages": [
-    {slug:"substrate-readiness",title:"Substrate checks before programme sign-off"},
-    {slug:"movement-joints-and-setting-out",title:"Movement joints and floor setting-out"},
-    {slug:"waterproofing-and-wet-areas",title:"Wet-area installation coordination"}
+    {slug:"commercial-tiling-tender-checklist",title:"Commercial tiling tender checklist"},
+    {slug:"commercial-tiling-programme-and-phasing",title:"Programmes, phasing and site coordination"},
+    {slug:"commercial-floor-moisture-and-levelling",title:"Moisture and levelling before tiling"}
   ],
   "commercial-substrate-preparation": [
+    {slug:"commercial-floor-moisture-and-levelling",title:"Moisture and levelling checks"},
     {slug:"substrate-readiness",title:"Substrate readiness checklist"},
-    {slug:"waterproofing-and-wet-areas",title:"Wet-area systems and coordination"}
+    {slug:"large-format-porcelain-commercial-floors",title:"Preparing for large-format porcelain"}
   ]
 };
 
