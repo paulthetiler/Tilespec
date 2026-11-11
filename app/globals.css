@@ -784,3 +784,25 @@ main#top .ts-home-service p{
   main#top .ts-home-service h3{font-size:29px;margin-bottom:6px}
   main#top .ts-home-service p{font-size:15px}
 }
+
+
+/* Homepage specialist services: one contained panel rather than loose rows. */
+main#top .ts-home-services-list{
+  background:rgba(4,19,27,.72);
+  border:1px solid rgba(174,215,211,.28);
+  border-radius:10px;
+  padding:10px 24px;
+  box-shadow:0 16px 36px rgba(0,0,0,.13);
+}
+main#top .ts-home-service{
+  border-top:0;
+  padding:14px 0 15px;
+}
+main#top .ts-home-service + .ts-home-service{
+  border-top:1px solid rgba(206,227,227,.22);
+}
+main#top .ts-home-service:last-child{border-bottom:0}
+@media(max-width:760px){
+  main#top .ts-home-services-list{padding:6px 19px;border-radius:9px}
+  main#top .ts-home-service{padding:15px 0 16px}
+}
