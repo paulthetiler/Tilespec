@@ -53,6 +53,26 @@ const services = {
   },
 } as const;
 
+const relatedGuides: Record<keyof typeof services, {slug:string; title:string}[]> = {
+  "commercial-floor-tiling": [
+    {slug:"movement-joints-and-setting-out",title:"Movement joints and setting-out on commercial floors"},
+    {slug:"substrate-readiness",title:"Checking substrate readiness before tiling"}
+  ],
+  "commercial-wall-tiling": [
+    {slug:"waterproofing-and-wet-areas",title:"Waterproofing and commercial wet areas"},
+    {slug:"substrate-readiness",title:"Preparing backgrounds for commercial tiling"}
+  ],
+  "commercial-tiling-packages": [
+    {slug:"substrate-readiness",title:"Substrate checks before programme sign-off"},
+    {slug:"movement-joints-and-setting-out",title:"Movement joints and floor setting-out"},
+    {slug:"waterproofing-and-wet-areas",title:"Wet-area installation coordination"}
+  ],
+  "commercial-substrate-preparation": [
+    {slug:"substrate-readiness",title:"Substrate readiness checklist"},
+    {slug:"waterproofing-and-wet-areas",title:"Wet-area systems and coordination"}
+  ]
+};
+
 type ServiceSlug = keyof typeof services;
 type Props = { params: Promise<{ service: string }> };
 export const dynamicParams = false;
@@ -104,6 +124,13 @@ export default async function ServicePage({ params }: Props) {
       <div style={{display:"flex",flexWrap:"wrap",gap:18,marginTop:18}}>
         {Object.entries(services).filter(([slug]) => slug !== service).map(([slug, item]) =>
           <Link key={slug} href={`/services/${slug}`} style={{color:"inherit",fontWeight:700,textDecoration:"underline"}}>{item.title}</Link>)}
+      </div>
+      <div style={{marginTop:32}}>
+        <div className="nw-kicker">RELATED TECHNICAL READING</div>
+        <h3 style={{fontSize:26,margin:"10px 0 16px"}}>Plan the tiling package with confidence.</h3>
+        <nav aria-label="Related technical guidance" style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+          {relatedGuides[service as ServiceSlug].map(guide => <Link href={`/guides/${guide.slug}`} key={guide.slug} style={{textDecoration:"underline",textUnderlineOffset:4}}>{guide.title} →</Link>)}
+        </nav>
       </div>
       <p style={{marginTop:22}}><Link href="/coverage">Explore UK regional coverage</Link> · <Link href="/guides">Read technical guidance</Link></p>
     </div></section>
