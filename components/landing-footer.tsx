@@ -13,6 +13,9 @@ export default function LandingFooter() {
           <Link href="/#expertise">Expertise</Link>
           <Link href="/#approach">Our approach</Link>
           <Link href="/#projects">Projects</Link>
+          <Link href="/coverage">UK coverage</Link>
+          <Link href="/guides">Technical guidance</Link>
+          <Link href="/services/commercial-tiling-packages">Complete tiling packages</Link>
           <Link href="/contact">Enquiries</Link>
         </div>
         <div>
