@@ -1,5 +1,16 @@
 -- Company setup costs separate from contract job costing. Deployed to TileSpec on 11 Nov 2026.
-create table if not exists public.startup_expenses (
+-- The hosted database already has these objects; this file records the schema for
+-- fresh installations and refuses reapplication without changing existing records.
+begin;
+do $ begin
+ if to_regprocedure('private.has_money_access()') is null or to_regprocedure('private.current_org()') is null then
+  raise exception 'Preflight failed: job costs and financial access must be installed first';
+ end if;
+ if to_regclass('public.startup_expenses') is not null then
+  raise exception 'Preflight failed: startup expenses already installed; review schema drift';
+ end if;
+end $;
+create table public.startup_expenses (
  id uuid primary key default gen_random_uuid(),
  organisation_id uuid not null references public.organisations(id),
  expense_date date not null,
@@ -21,13 +32,11 @@ create table if not exists public.startup_expenses (
  check(payment_source='personal' or reimbursed_gbp=0),
  check((reimbursed_gbp=0 and reimbursement_date is null) or (reimbursed_gbp>0 and reimbursement_date is not null))
 );
-create index if not exists startup_expenses_org_date on public.startup_expenses(organisation_id,expense_date desc);
+create index startup_expenses_org_date on public.startup_expenses(organisation_id,expense_date desc);
 alter table public.startup_expenses enable row level security;
 revoke all on public.startup_expenses from anon,authenticated;
 grant select,insert,update on public.startup_expenses to authenticated;
-drop policy if exists startup_expenses_select on public.startup_expenses;
-drop policy if exists startup_expenses_insert on public.startup_expenses;
-drop policy if exists startup_expenses_update on public.startup_expenses;
 create policy startup_expenses_select on public.startup_expenses for select to authenticated using(organisation_id=private.current_org() and private.has_money_access());
 create policy startup_expenses_insert on public.startup_expenses for insert to authenticated with check(organisation_id=private.current_org() and private.has_money_access());
 create policy startup_expenses_update on public.startup_expenses for update to authenticated using(organisation_id=private.current_org() and private.has_money_access()) with check(organisation_id=private.current_org() and private.has_money_access());
+commit;
