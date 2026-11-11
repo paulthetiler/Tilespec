@@ -19,6 +19,7 @@ async function main() {
   if(urls.length<90)errors.push("Sitemap contains only "+urls.length+" URLs");
   if(new Set(urls).size!==urls.length)errors.push("Duplicate sitemap URLs");
   if(urls.some(url=>new URL(url).origin!==base.origin))errors.push("Sitemap links to another origin");
+  const sitemapPaths=new Set(urls.map(url=>new URL(url).pathname));
   let cursor=0;
   async function worker(){
     while(cursor<urls.length){
@@ -32,6 +33,19 @@ async function main() {
         if(!/<title>[^<]+<\/title>/i.test(html))errors.push("Missing title: "+url);
         if(!/<h1[\s>]/i.test(html))errors.push("Missing H1: "+url);
         if(/<meta[^>]*name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html))errors.push("Unexpected noindex: "+url);
+        // Verify relative internal page links and same-page anchor targets.
+        const hrefs=[...html.matchAll(/href="([^"]+)"/g)].map(match=>match[1].replaceAll("&amp;","&"));
+        for(const href of new Set(hrefs)){
+          if(href.startsWith("#") && href.length>1){
+            const fragment=decodeURIComponent(href.slice(1));
+            if(!html.includes('id="'+fragment+'"'))errors.push("Missing in-page anchor: "+url+" -> "+href);
+          } else if(href.startsWith("/") && !href.startsWith("//") && !href.startsWith("/_next/")){
+            const target=new URL(href,url);
+            if(/\.(svg|png|jpe?g|webp|gif|ico|woff2?|pdf)$/i.test(target.pathname))continue;
+            if(["/admin","/auth","/login","/api","/subcontractors"].some(prefix=>target.pathname.startsWith(prefix)))continue;
+            if(!sitemapPaths.has(target.pathname))errors.push("Internal target not found in sitemap: "+url+" -> "+href);
+          }
+        }
         checked.push(url);
       }catch(error){errors.push("Unable to fetch "+url+": "+String(error));}
     }
