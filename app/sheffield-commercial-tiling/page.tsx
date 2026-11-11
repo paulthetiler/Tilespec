@@ -1,3 +1,4 @@
+import { RegionalConnections } from "../../components/regional-links";
 import type { Metadata } from "next";
 import Link from "next/link";
 import LandingFooter from "../../components/landing-footer";
@@ -113,6 +114,7 @@ export default function SheffieldCommercialTiling() {
       </div>
     </section>
 
+    <RegionalConnections slug="sheffield-commercial-tiling"/>
     <section className="nw-faq nw-space">
       <div className="nw-wrap nw-two-col">
         <div><div className="nw-kicker">FREQUENT QUESTIONS</div><h2>THE PRACTICAL<br/><em>DETAILS.</em></h2></div>
