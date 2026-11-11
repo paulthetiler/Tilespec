@@ -42,3 +42,22 @@ export function AllRegionLinks(){
     {regionalHubs.map(hub=><Link key={hub.id} href={"/"+hub.path} style={item}>{hub.name} →</Link>)}
   </nav>;
 }
+
+export function LondonConnections(){
+  const nearby = [
+    {name:"Watford",slug:"watford-commercial-tiling"},
+    {name:"Slough",slug:"slough-commercial-tiling"},
+    {name:"Crawley / Gatwick",slug:"crawley-commercial-tiling"},
+    {name:"Stevenage",slug:"stevenage-commercial-tiling"},
+    {name:"Reading",slug:"reading-commercial-tiling"},
+  ];
+  return <section id="regional-locations" aria-label="London commercial tiling coverage" style={block}>
+    <div style={width}>
+      <div style={{color:"#98cdc4",fontSize:12,fontWeight:700,letterSpacing:2}}>LONDON & SURROUNDING MARKETS</div>
+      <h2 style={headings}>Commercial projects across London.</h2>
+      <p style={{fontSize:16,lineHeight:1.7,maxWidth:770,color:"#d7e3e5"}}>This London page is our London regional hub. We consider suitable tenders across the capital and neighbouring business centres, assessing travel, labour, access, scope and programme from our Warrington base.</p>
+      <nav aria-label="Nearby commercial tiling locations" style={links}>{nearby.map(place=><Link key={place.slug} href={"/"+place.slug} style={item}>{place.name} →</Link>)}</nav>
+      <p style={{marginTop:24}}><Link href="/coverage" style={{color:"#a7ddd3"}}>Explore all UK commercial tiling regions →</Link></p>
+    </div>
+  </section>;
+}
