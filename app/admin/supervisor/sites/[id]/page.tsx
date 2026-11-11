@@ -90,6 +90,7 @@ export default async function SiteDashboard({ params }: { params: Promise<{ id: 
   const actions = [
     { label: "Drawings & RAMS", href: `${base}/documents`, detail: "Current site drawings, RAMS and specifications" },
     { label: "Who's on site?", href: `${base}/workforce`, detail: `${site.summary.presentNow} ${site.summary.presentNow === 1 ? "person" : "people"} recorded here` },
+    { label: "Site diary", href: `${base}/diary`, detail: "Work done, quantities, photographs and materials needed" },
     { label: "Check workmanship", href: `${base}/inspections`, detail: "Choose an area and check work" },
     { label: "Verify gang progress", href: `${base}/progress`, count: gangChecks ?? 0, detail: gangChecks ? `${gangChecks} gang ${gangChecks === 1 ? "invoice" : "invoices"} awaiting check` : "Record measured metres and quality checks" },
     { label: "Report a site issue", href: `/admin/snags/new?contract=${id}`, detail: "Workmanship issue, photo and what needs correcting" },

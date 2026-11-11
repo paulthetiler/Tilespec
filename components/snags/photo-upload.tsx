@@ -4,10 +4,11 @@ import { useRouter } from "next/navigation";
 import styles from "@/app/admin/admin.module.css";
 import css from "./snags.module.css";
 export type PhotoUpload={file:File;key:string;preview:string;percent:number;verifiedId?:string;error?:string};
-export function uploadPhoto(issue:string,purpose:string,entry:PhotoUpload,onProgress:(percent:number)=>void,resource:"snags"|"holds"|"dayworks"="snags"):Promise<string> {
+export function uploadPhoto(issue:string,purpose:string,entry:PhotoUpload,onProgress:(percent:number)=>void,resource:"snags"|"holds"|"dayworks"|"sites"="snags",extra:Record<string,string>={}):Promise<string> {
  return new Promise((resolve,reject)=>{
   const xhr=new XMLHttpRequest(), form=new FormData();
   form.set("request_key",entry.key);form.set("purpose",purpose);form.set("file",entry.file);
+  for(const [key,value] of Object.entries(extra)) if(value) form.set(key,value);
   xhr.open("POST",`/api/supervisor/${resource}/${issue}/photos`);
   xhr.upload.onprogress=event=>{if(event.lengthComputable) onProgress(Math.round(event.loaded/event.total*100));};
   xhr.onerror=()=>reject(new Error("We could not confirm this photograph was saved. Retry with the same file."));

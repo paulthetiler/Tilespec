@@ -80,8 +80,8 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
     <header className={styles.header}>
       <div>
         <p className={styles.eyebrow}>Command centre</p>
-        <h1>Good morning, {firstName}</h1>
-        <p className={styles.muted}>{dayLabel(data.today, "long")} · {plural(data.jobs.length, "live job")}</p>
+        <h1>Today</h1>
+        <p className={styles.muted}>Good morning, {firstName}. {dayLabel(data.today, "long")} · {plural(data.jobs.length, "live job")}</p>
       </div>
       <div className={styles.headerTools}>
         <form action="/admin/search" method="get" role="search" className={styles.search}>

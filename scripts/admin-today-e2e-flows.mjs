@@ -78,7 +78,7 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
     await office.goto(`${origin}/admin`);
     await office.getByRole('heading', { name: 'Today', exact: true }).waitFor();
     const nav = office.getByRole('navigation', { name: 'Main', exact: true });
-    assert.deepEqual(await nav.getByRole('link').allTextContents(), ['Today', 'Jobs', 'People', 'Paperwork']);
+    assert.deepEqual(await nav.getByRole('link').allTextContents(), ['Today', 'Inbox', 'Jobs', 'People']);
     await nav.getByRole('link', { name: 'Jobs', exact: true }).click();
     await office.getByRole('link', { name: 'New contract', exact: true }).click();
     const newJob = office.locator('form').filter({ has: office.getByRole('button', { name: 'Create draft contract', exact: true }) });
@@ -277,7 +277,7 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
     const then = office.getByRole('region', { name: 'Then', exact: true });
     const thenCount = await then.locator('[data-action-id]').count();
     assert.ok(thenCount >= 36); await then.getByRole('heading', { name: `Then (${thenCount})`, exact: true }).waitFor();
-    assert.equal(await office.getByTestId('today-action-count').innerText(), `${thenCount + 1} things need you.`);
+    assert.match(await office.getByTestId('today-action-count').innerText(), new RegExp(`^${thenCount + 1} things need you\\.( \\d+ items? (is|are) with (someone else|other people)\\.)?$`));
     assert.equal(await office.getByRole('region', { name: 'Do this next', exact: true }).count(), 1);
     assert.ok(await office.getByRole('region', { name: 'Do this next', exact: true }).getAttribute('data-action-id'));
     const actionIds = await office.locator('main [data-action-id]').evaluateAll(nodes => nodes.map(node => node.dataset.actionId));
@@ -395,16 +395,16 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
         caret: 'initial', style: 'nextjs-portal { display: none !important; }' });
       const mainNav = target.getByRole('navigation', { name: 'Main', exact: true });
       assert.ok(await mainNav.getByRole('link').count() <= 4);
-      await target.getByText('Everything else', { exact: true }).click();
-      for (const label of ['Workforce', 'Site dashboards', 'Snag register', 'Holds and releases', 'Site alerts', 'Quality control', 'Tenders']) {
+      await target.getByText('Menu and search', { exact: true }).click();
+      for (const label of ['Workforce and gangs', 'Site dashboards', 'Snag register', 'Holds and releases', 'Site alerts', 'Quality control', 'Tenders']) {
         await target.getByRole('link', { name: label, exact: true }).first().waitFor();
       }
       assert.equal(await target.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${role} expanded menu does not overflow at ${width}px`);
       if (screenshots) await target.screenshot({ path: join(screenshots, `phase3-${role}-today-${width}.png`), fullPage: true,
         caret: 'initial', style: 'nextjs-portal { display: none !important; }' });
-      if (role === 'owner') assert.deepEqual(await mainNav.getByRole('link').allTextContents(), ['Today', 'Jobs', 'Money']);
+      if (role === 'owner') assert.deepEqual(await mainNav.getByRole('link').allTextContents(), ['Today', 'Inbox', 'Jobs', 'Money']);
       const ready = await target.locator('main [data-action-state="ready"]').count();
-      assert.equal(await target.getByTestId('today-action-count').innerText(), ready === 1 ? '1 thing needs you.' : `${ready} things need you.`);
+      assert.match(await target.getByTestId('today-action-count').innerText(), new RegExp(`^${ready === 1 ? '1 thing needs you\\.' : `${ready} things need you\\.`}( \\d+ items? (is|are) with (someone else|other people)\\.)?$`));
       for (const path of [`/admin/paperwork?contract_id=${contract}`, `/admin/messages?contract_id=${contract}`]) {
         await target.goto(`${origin}${path}`);
         await target.getByRole('main').waitFor();

@@ -163,11 +163,11 @@ try {
       pass(`${key} at ${viewport.width}px retains all ${expected.holds.length} active restrictions with exact location, activity, stage and package`);
 
       const nav = page.getByRole('navigation', { name: 'Main', exact: true });
-      assert.deepEqual(await nav.getByRole('link').allTextContents(), key === 'owner' ? ['Today', 'Jobs', 'Money'] : ['Today', 'Jobs', 'People', 'Paperwork']);
+      assert.deepEqual(await nav.getByRole('link').allTextContents(), key === 'owner' ? ['Today', 'Inbox', 'Jobs', 'Money'] : ['Today', 'Inbox', 'Jobs', 'People']);
       assert.ok(await nav.getByRole('link').count() <= 4);
       assert.equal(await nav.getByRole('link', { name: 'Today', exact: true }).getAttribute('aria-current'), 'page');
-      await page.getByText('Everything else', { exact: true }).click();
-      for (const label of ['Contracts', 'Workforce', 'Site dashboards', 'Snag register', 'Holds and releases', 'Site alerts', 'Paperwork', 'Messages and handovers', 'Quality control', 'Tenders']) await page.getByRole('link', { name: label, exact: true }).last().waitFor({ state: 'visible' });
+      await page.getByText('Menu and search', { exact: true }).click();
+      for (const label of ['Jobs', 'Workforce and gangs', 'Site dashboards', 'Snag register', 'Holds and releases', 'Site alerts', 'Paperwork', 'Messages and handovers', 'Quality control', 'Tenders']) await page.getByRole('link', { name: label, exact: true }).last().waitFor({ state: 'visible' });
       assert.equal(await page.getByRole('link', { name: 'User access', exact: true }).count(), key === 'owner' ? 1 : 0);
       const financialLinks = await page.locator('a[href="/admin/money"], a[href="/admin/estimator"]').count();
       assert.equal(financialLinks > 0, key !== 'office', `${key} financial menu permission`);
@@ -197,7 +197,7 @@ try {
         assert.ok(routes.some(route => route.test(path)), `${key} link ${target} must name a real application page`);
       }
       if (screenshots) {
-        await page.getByText('Everything else', { exact: true }).click();
+        await page.getByText('Menu and search', { exact: true }).click();
         await page.screenshot({ path: join(screenshots, `admin-today-${key}-${viewport.width}.png`), fullPage: true });
         // Replace the early diagnostic capture after the complete journey, when
         // the existing finite brand animation has finished. Restore initial
@@ -205,7 +205,7 @@ try {
         await page.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; window.scrollTo(0, 0); });
         await page.screenshot({ path: join(screenshots, `admin-today-${key}-${viewport.width}-first-screen.png`) });
       }
-      pass(`${key} at ${viewport.width}px keeps four-or-fewer useful main links, preserves Everything else, hides financial figures and fits 44px touch controls`);
+      pass(`${key} at ${viewport.width}px keeps four-or-fewer useful main links, keeps the complete grouped menu, hides financial figures and fits 44px touch controls`);
       if (viewport.width <= 390 && key !== 'office-finance') {
         await visit(page, origin + '/admin?ordinary=1');
         const cta = await page.getByRole('region', { name: 'Do this next', exact: true }).getByRole('link').boundingBox();

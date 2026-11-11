@@ -155,7 +155,7 @@ try {
       await visit(page, origin + '/admin/fixture-navigation');
       const nav = page.getByRole('navigation', { name: 'Main', exact: true });
       assert.ok(await nav.getByRole('link').count() <= 4);
-      await page.getByText('Everything else', { exact: true }).click();
+      await page.getByText(['owner', 'contracts_manager'].includes(role) ? 'Menu and search' : 'Everything else', { exact: true }).click();
       const money = await page.getByRole('link', { name: /^(Money|Estimator)$/ }).count();
       assert.equal(money > 0, role === 'owner', `${role} financial navigation`);
       assert.deepEqual(await measure(page), [], `${role} navigation at ${viewport.width}px`);
