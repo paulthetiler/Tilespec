@@ -320,6 +320,126 @@ export const commercialLocations = [
     "areas": "City centre · St Dunstan's · Wincheap · University area",
     "intro1": "Canterbury's education and visitor-related properties need commercial tiling suited to public-facing interiors.",
     "intro2": "We review background suitability, durability, wet-area details and phasing in a single scoped package."
+  },
+  {
+    "slug": "york-commercial-tiling",
+    "city": "York",
+    "region": "North Yorkshire",
+    "focus": "hospitality, university facilities, retail and visitor-facing commercial interiors",
+    "risk": "older building substrates and visitor-area refurbishment access",
+    "areas": "York city centre · Clifton · Fulford · University area",
+    "intro1": "York's hospitality and visitor economy includes established properties where access, levels and existing backgrounds can affect wall and floor tiling.",
+    "intro2": "We consider commercial refurbishment packages around specified finishes, suitable substrate preparation and practical sequencing with other trades."
+  },
+  {
+    "slug": "bradford-commercial-tiling",
+    "city": "Bradford",
+    "region": "West Yorkshire",
+    "focus": "education buildings, retail refurbishments, office interiors and civic facilities",
+    "risk": "existing floor conditions and coordinated public-building programmes",
+    "areas": "Bradford city centre · Manningham · Shipley · Thornbury",
+    "intro1": "Bradford's commercial and civic buildings bring together modern fit-outs and refurbishments where the condition of existing walls and floors needs proper assessment.",
+    "intro2": "TileSPEC reviews procurement, preparation, installation access and finishing details as part of an agreed commercial tiling scope."
+  },
+  {
+    "slug": "wakefield-commercial-tiling",
+    "city": "Wakefield",
+    "region": "West Yorkshire",
+    "focus": "commercial workplaces, leisure facilities, retail and education",
+    "risk": "high-use floor finishes and phased refurbishment work",
+    "areas": "Wakefield city centre · Ossett · Horbury · Castleford",
+    "intro1": "Wakefield commercial properties include retail, leisure and business interiors that may need durable flooring and practical installation programmes.",
+    "intro2": "We assess floor backgrounds, material supply and washroom finishes alongside access and coordination with the wider project team."
+  },
+  {
+    "slug": "kingston-upon-hull-commercial-tiling",
+    "city": "Kingston upon Hull",
+    "region": "East Yorkshire",
+    "focus": "port-related workplaces, offices, education and retail interiors",
+    "risk": "commercial floor durability and access to operating buildings",
+    "areas": "Hull city centre · Marina · Hessle Road · Sutton Fields",
+    "intro1": "Hull's port-linked business premises, offices and public-use buildings can call for robust, easily maintained tiled finishes.",
+    "intro2": "We consider the practical preparation and installation requirements for large floor areas, washrooms and commercial refurbishment work."
+  },
+  {
+    "slug": "newcastle-upon-tyne-commercial-tiling",
+    "city": "Newcastle upon Tyne",
+    "region": "Tyne and Wear",
+    "focus": "office fit-outs, hospitality, retail, university buildings and mixed-use developments",
+    "risk": "city-centre logistics, multi-trade sequencing and public-area finishes",
+    "areas": "Newcastle city centre · Quayside · Jesmond · Gosforth",
+    "intro1": "Newcastle's commercial and university environments can involve phased fit-outs, high-traffic finishes and a range of existing building conditions.",
+    "intro2": "TileSPEC reviews the specification, substrate requirements and contractor programme before coordinating tiling materials, preparation and installation."
+  },
+  {
+    "slug": "sunderland-commercial-tiling",
+    "city": "Sunderland",
+    "region": "Tyne and Wear",
+    "focus": "commercial offices, education, leisure and business premises",
+    "risk": "refurbishment backgrounds and high-footfall circulation areas",
+    "areas": "Sunderland city centre · Riverside · Hylton · Doxford Park",
+    "intro1": "Sunderland's business, education and leisure premises have varied floor and wall finishing requirements, including busy public-facing interiors.",
+    "intro2": "We assess tiling systems, preparatory work and access arrangements against the project scope and agreed site programme."
+  },
+  {
+    "slug": "durham-commercial-tiling",
+    "city": "Durham",
+    "region": "County Durham",
+    "focus": "university facilities, hospitality, offices and institutional buildings",
+    "risk": "historic building interfaces and controlled access arrangements",
+    "areas": "Durham city centre · Framwellgate Moor · Belmont · Gilesgate",
+    "intro1": "Durham's educational, hospitality and established commercial buildings can require careful preparation and detailing around existing construction.",
+    "intro2": "TileSPEC considers wall and floor tiling tenders from drawing review through to preparation, procurement, installation and handover checks."
+  },
+  {
+    "slug": "middlesbrough-commercial-tiling",
+    "city": "Middlesbrough",
+    "region": "Teesside",
+    "focus": "industrial workplaces, offices, education and commercial refurbishment",
+    "risk": "hard-wearing business interiors and varied substrates",
+    "areas": "Middlesbrough centre · Riverside Park · Linthorpe · Acklam",
+    "intro1": "Middlesbrough is a major Teesside commercial centre, with workplaces, institutional buildings and refurbishments needing practical, durable finishes.",
+    "intro2": "We review substrate condition, specified tiles, access and installation sequencing for contractors seeking a coordinated commercial package."
+  },
+  {
+    "slug": "lancaster-commercial-tiling",
+    "city": "Lancaster",
+    "region": "Lancashire",
+    "focus": "education facilities, hotels, retail and commercial refurbishment",
+    "risk": "older property substrates and phased interior works",
+    "areas": "Lancaster city centre · Bowerham · White Lund · Lancaster University area",
+    "intro1": "Lancaster's university, hospitality and established commercial properties create a range of washroom, floor and wall tiling requirements.",
+    "intro2": "We consider existing background conditions, material selection and programme coordination before planning installation."
+  },
+  {
+    "slug": "carlisle-commercial-tiling",
+    "city": "Carlisle",
+    "region": "Cumbria",
+    "focus": "retail, hospitality, business premises and civic facilities",
+    "risk": "regional logistics and refurbishment site conditions",
+    "areas": "Carlisle city centre · Kingstown · Denton Holme · Botcherby",
+    "intro1": "Carlisle serves commercial properties across northern Cumbria, with retail, hospitality and business interiors requiring suitable tiling systems.",
+    "intro2": "TileSPEC considers project scale, access and material logistics as well as preparation, installation and the specified finish."
+  },
+  {
+    "slug": "glasgow-commercial-tiling",
+    "city": "Glasgow",
+    "region": "Scotland",
+    "focus": "commercial office fit-outs, retail, hotels, leisure and public buildings",
+    "risk": "multi-trade site logistics and phased commercial refurbishments",
+    "areas": "Glasgow city centre · Finnieston · Merchant City · Southside",
+    "intro1": "Glasgow is a major Scottish commercial market with offices, hospitality interiors, retail and public-use premises needing coordinated finishing packages.",
+    "intro2": "For suitable tenders, we review drawings, substrate conditions, travel and site logistics alongside procurement and installation requirements."
+  },
+  {
+    "slug": "edinburgh-commercial-tiling",
+    "city": "Edinburgh",
+    "region": "Scotland",
+    "focus": "hotels, offices, university facilities, retail and commercial redevelopment",
+    "risk": "heritage refurbishment interfaces and city-centre access constraints",
+    "areas": "Edinburgh city centre · Leith · Haymarket · Edinburgh Park",
+    "intro1": "Edinburgh's hospitality, office and institutional properties include established buildings where finish detailing and substrate suitability can be critical.",
+    "intro2": "We assess tiling packages around specifications, site access, material supply and programme, including the practical requirements of working from our Warrington base."
   }
 ] as const;
 export type CommercialLocation = (typeof commercialLocations)[number];
