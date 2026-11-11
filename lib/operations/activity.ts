@@ -4,6 +4,7 @@
  * handovers, questions and replies, dayworks, morning checks, inspections, plans and documents). Pure: no I/O, no writes.
  * Each line says who did what, in plain English, and links to the saved record.
  */
+import { meaningfulText } from "./text";
 import { eventLine } from "./dayworks";
 
 export type ActivityEntry = {
@@ -150,7 +151,7 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
     entries.push({ id: `handover:${h.id}`, at: h.created_at, who: person(h.actor_id, h.actor_name), what: "sent the end-of-day handover",
       detail: note ? brief(`${note[0]}: ${note[1]}`) : undefined,
       href: office ? `/admin/messages?contract_id=${options.contractId}#handover-${h.id}` : `${siteBase}/finish`,
-      tone: h.outstanding_problems.trim() || h.office_notes.trim() ? "problem" : undefined });
+      tone: meaningfulText(h.outstanding_problems) || meaningfulText(h.areas_awaiting_attention) || meaningfulText(h.office_notes) ? "problem" : undefined });
   }
   for (const c of src.morningChecks) {
     entries.push({ id: `morning:${c.id}`, at: c.created_at, who: person(c.actor_id, null, "A supervisor"), what: "completed the morning checks",

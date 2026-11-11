@@ -86,7 +86,10 @@ test("owner Today separates an independent decision from blocked problems and ne
   assert.deepEqual(actionIds(html).sort(), expected.map(action => action.id).sort());
   assert.match(html, /Your attention today/);
   assert.match(html, /Do this next/);
-  assert.match(html, /Outstanding problems \(1\)/);
+  // The owner sees the whole company: the gang's unfinished safety fix is an outstanding problem too.
+  assert.match(html, /Outstanding problems \(2\)/);
+  assert.match(html, /data-action-id="hold-fix:safety" data-action-state="waiting"/);
+  assert.match(html, /Waiting on Assigned gang/);
   assert.ok(html.includes('href="#today-problems"'));
   assert.ok(html.includes('id="today-problems"'));
   assert.match(html, /You cannot take this decision/);
@@ -139,7 +142,9 @@ test("a remaining restriction is never described as cleared when there are no ow
   const s = snapshot();
   s.work_holds = [s.work_holds[0]];
   const html = await render(s, owner);
-  assert.match(html, /Nothing needs you right now/);
+  // The gang's fix and the manager's setup work are still with other people, so the header never says everything is clear.
+  assert.match(html, /Nothing needs your action right now\. \d+ items are with other people\./);
+  assert.ok(!html.includes("Nothing needs you right now"));
   assert.match(html, /Work is still restricted/);
   assert.match(html, /Affected work stays stopped/);
   assert.ok(!html.includes("Do this next"));

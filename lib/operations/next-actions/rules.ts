@@ -1,6 +1,7 @@
 import { addDays, dayDiff, isoDate, STAGE_LABEL, type Lookups } from "./lookups";
 import type { NextActionConfig } from "./config";
 import { budgetOf, pounds } from "./budget";
+import { meaningfulText } from "../text";
 import type { ActualAllocationRow, InsuranceRow, NextAction, NextActionSnapshot, PlannedAllocationRow, WorkingTimes } from "./types";
 
 /*
@@ -396,8 +397,8 @@ rule("R18_review_result", ({ s, L, cfg }) => !s.office_reviews ? [] : (s.qa_resu
   source: { table: "supervisor_qa_submissions", id: r.submission_id ?? null }, route: { screen: "inspect", qa: r.item_id },
 })));
 rule("R19_review_handover", ({ s, L, cfg }) => !s.office_reviews ? [] : (s.handover_notes ?? []).filter(h => h.work_date >= reviewSince(s, cfg)
-  && [h.office_notes, h.outstanding_problems, h.areas_awaiting_attention].some(text => (text ?? "").trim()) && !s.office_reviews!.some(v => v.handover_id === h.id)).map(h => {
-  const [label, text] = ([["For the office", h.office_notes], ["Problems", h.outstanding_problems], ["Needs attention", h.areas_awaiting_attention]] as const).find(([, value]) => (value ?? "").trim())!;
+  && [h.office_notes, h.outstanding_problems, h.areas_awaiting_attention].some(meaningfulText) && !s.office_reviews!.some(v => v.handover_id === h.id)).map(h => {
+  const [label, text] = ([["Problems", h.outstanding_problems], ["Needs attention", h.areas_awaiting_attention], ["For the office", h.office_notes]] as const).find(([, value]) => meaningfulText(value))!;
   return {
     id: `review-handover:${h.id}`, rule: "R19", process: "daily-site", kind: "reminder", priority: 2, order: 15.5, job: L.job(h.contract_id), location: null,
     responsible: OFFICE, title: `Read ${h.actor_name}’s handover`, why: briefly(`${h.work_date === s.today ? "Today" : h.work_date}. ${label}: ${text.trim()}`),
@@ -527,14 +528,27 @@ rule("R08_job_setup", ({ s, L, cfg }) => {
 // Existing morning-check findings use their original workflow, not a made-up
 // snag severity/repair assignment. They need office attention but stop no work
 // by themselves; deliberate holds remain separate saved controls.
+// A morning finding is expected to be dealt with within two days; after that it shows as overdue.
 rule("R17_morning_finding", ({ s, L }) => (s.readiness_issues ?? []).filter(issue => issue.state !== "closed").map(issue => ({
   id: `readiness:${issue.id}`, rule: "R17", process: "daily-site", kind: "reminder", priority: 2, order: 10,
   job: L.job(issue.contract_id), location: null, responsible: OFFICE,
-  title: `Review the morning finding: ${issue.check_label}`, why: `${issue.description} This finding does not release or stop work by itself. Existing restrictions still apply.`,
-  due: null, requires: ["Review the saved finding", "Record the follow-up in its existing workflow"],
+  title: `Review the morning finding: ${issue.check_label}`, why: `${issue.description} Raised ${isoDate(issue.created_at)}. This finding does not release or stop work by itself. Existing restrictions still apply.`,
+  due: issue.created_at ? addDays(isoDate(issue.created_at), 2) : null, requires: ["Review the saved finding", "Record the follow-up in its existing workflow"],
   doneWhen: "The original finding is closed through its existing workflow", next: null,
   audience: { office: "act", owner: "see", supervisor: "see" }, blocks: null, enforcedByBackend: false,
   source: { table: "supervisor_issues", id: issue.id }, route: { screen: "snag", id: issue.id },
+})));
+
+// R29: a snag saved as a draft and never sent reaches nobody. The supervisor finishes and sends it;
+// the office can chase it or mark it as entered in error. Drafts from today are still being written.
+rule("R29_draft_snag", ({ s, L }) => (s.draft_snags ?? []).filter(d => isoDate(d.created_at) < s.today).map(d => ({
+  id: `snag-draft:${d.id}`, rule: "R29", process: "snag", kind: "reminder", priority: 2, order: 8.5, job: L.job(d.contract_id), location: L.path(d.work_area_id),
+  responsible: { role: "supervisor", who: d.inspector_id ? L.person(d.inspector_id) : null, label: "Site supervisor who started it" },
+  title: "Snag saved but never sent", why: `${d.check_label}. Started ${isoDate(d.created_at)} and not sent, so nobody has been asked to fix it.`,
+  due: addDays(isoDate(d.created_at), 1), requires: ["Check the details and photographs", "Send it, or mark it as entered in error"],
+  doneWhen: "The snag is sent or marked as entered in error", next: "The office says who will fix it",
+  audience: { supervisor: "act", office: "act" }, blocks: null, enforcedByBackend: false,
+  source: { table: "supervisor_issues", id: d.id }, route: { screen: "snag", id: d.id },
 })));
 
 rule("R09_missing_checklist", ({ s, L, cfg }) => s.planned_allocations.filter(p => p.planned_end >= s.today && p.planned_start <= addDays(s.today, cfg.planHorizonDays)

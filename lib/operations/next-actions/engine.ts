@@ -8,10 +8,44 @@ import type { NextAction, NextActionSnapshot, Viewer, ViewerAction, RoleKey } fr
  * There is deliberately no second implementation anywhere (the supervisor dashboard included).
  */
 
+/**
+ * Contracts managers who are currently responsible for office work on a job: active, assigned to the job
+ * today (the snapshot holds current assignments only) and, for money work, with money access. Work that
+ * belongs to no job is covered by any active contracts manager.
+ */
+export function coveringManagers(s: NextActionSnapshot, jobId: string | null, financial: boolean) {
+  const managers = s.members.filter(m => m.role === "contracts_manager" && m.active !== false && (!financial || m.financial_access));
+  if (!jobId) return managers;
+  const assigned = new Set(s.contract_assignments.filter(a => a.contract_id === jobId).map(a => a.user_id));
+  return managers.filter(m => assigned.has(m.user_id));
+}
+
+/**
+ * The owner always has the whole company in view. Office work is the owner's own to do unless an active
+ * contracts manager is responsible for that job, when the owner sees it waiting on that named person.
+ * Site and gang work the office has no part in is shown to the owner as waiting on others. Work that is
+ * hidden from the office until a set time (for example a missing handover) is hidden from the owner too.
+ */
+export function ownerAudience(raw: NextAction, s: NextActionSnapshot): { mode: "act" | "see" | null; coveredBy: string | null } {
+  const a = raw.audience;
+  if (a.owner === "act") return { mode: "act", coveredBy: null };
+  if (a.office === "act") {
+    const cover = coveringManagers(s, raw.job.id, !!raw.financial);
+    if (cover.length) return { mode: "see", coveredBy: cover.map(m => m.display_name).join(", ") };
+    return { mode: "act", coveredBy: null };
+  }
+  if (a.office === "see") return { mode: "see", coveredBy: null };
+  if (a.owner === "see") return { mode: "see", coveredBy: null };
+  if ("office" in a) return { mode: null, coveredBy: null };
+  return { mode: "see", coveredBy: null };
+}
+
 function forViewer(raw: NextAction, viewer: Viewer, s: NextActionSnapshot, L: ReturnType<typeof makeLookups>): ViewerAction | null {
   const key = roleKey(viewer);
-  const mode = raw.audience[key];
+  const owner = key === "owner" ? ownerAudience(raw, s) : null;
+  const mode = owner ? owner.mode : raw.audience[key];
   if (!mode) return null;
+  if (owner?.coveredBy) raw = { ...raw, responsible: { role: "office", who: owner.coveredBy, label: "Contracts manager" } };
   if (mode === "act" && raw.completedUsers?.includes(viewer.user_id)) return null;
   if (raw.financial && key === "office" && !viewer.financial_access) return null;
   if (key === "subcontractor") {

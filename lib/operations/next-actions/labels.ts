@@ -48,8 +48,14 @@ export function idleCopy(opts: { activeRestrictions: boolean; waitingOnOthers: b
 }
 
 /** Owner/office Today count: actions to take are never mixed with informational alerts. */
-export function todayCountCopy(actions: number, informational = 0): string {
-  const need = actions === 0 ? "Nothing needs you right now." : actions === 1 ? "1 thing needs you." : `${actions} things need you.`;
+/**
+ * The header line. "Nothing needs you" is said only when it is true of the whole company: work that is
+ * with other people is counted, so an empty queue never reads as an all-clear.
+ */
+export function todayCountCopy(actions: number, informational = 0, withOthers = 0): string {
+  const others = withOthers === 1 ? "1 item is with someone else." : `${withOthers} items are with other people.`;
+  const need = actions === 0 ? (withOthers ? `Nothing needs your action right now. ${others}` : "Nothing needs you right now.")
+    : `${actions === 1 ? "1 thing needs you." : `${actions} things need you.`}${withOthers ? ` ${others}` : ""}`;
   if (!informational) return need;
   const info = informational === 1 ? "1 informational alert." : `${informational} informational alerts.`;
   return `${need} ${info}`;

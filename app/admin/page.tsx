@@ -5,9 +5,10 @@ import { checkDatabase, contractsFor } from "@/lib/operations/data";
 import { budgetSummary, contractWarnings } from "@/lib/operations/summary";
 import type { Commercial } from "@/lib/operations/types";
 import { calendarDate, money } from "@/components/operations/format";
-import { configFromEnv, flagEnabled } from "@/lib/operations/next-actions";
+import { buildQueue, compute, configFromEnv, flagEnabled, queueCounts, withoutFigures } from "@/lib/operations/next-actions";
 import { loadOfficeSnapshot } from "@/lib/operations/next-actions/office-snapshot";
-import { AdminToday } from "@/components/admin/admin-today";
+import { CommandCentre } from "@/components/admin/command-centre";
+import { loadCommandCentre } from "@/lib/operations/command-centre-data";
 import { GangOfficeStrip } from "@/components/gang/office-strip";
 import styles from "./admin.module.css";
 
@@ -19,10 +20,16 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   if ((member.role === "owner" || member.role === "contracts_manager") && flagEnabled("nextActions", member.role)) {
     const config = configFromEnv(process.env);
     const { snapshot, viewer } = await loadOfficeSnapshot(supabase, member, config);
+    // One command centre: the shared engine's queue plus live jobs, yesterday on site, money, planning and administration.
+    const actions = withoutFigures(compute(snapshot, viewer, config));
+    const queue = buildQueue(actions, { groupExceptions: member.role === "owner" });
+    const data = await loadCommandCentre(supabase, member, snapshot, actions);
+    const holds = snapshot.work_holds.filter(hold => ["active", "correction_submitted", "awaiting_release"].includes(hold.status));
+    const safety = holds.filter(hold => hold.hold_type === "safety").length;
     return <>
       {params.error === "permission" && <p className={styles.error} role="alert">Your account does not have permission to access that page.</p>}
-      {canReadFinancial(member) && <GangOfficeStrip supabase={supabase} />}
-      <AdminToday snapshot={snapshot} viewer={viewer} member={member} config={config} />
+      <CommandCentre snapshot={snapshot} viewer={viewer} member={member} config={config} data={data}
+        queueCount={queueCounts(queue).actions} stops={{ safety, quality: holds.length - safety }} />
     </>;
   }
   const financial = canReadFinancial(member);

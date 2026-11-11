@@ -19,11 +19,12 @@ const ICONS: Record<Destination["icon"], string> = {
 };
 
 // Primary destinations (never more than four) plus the original menu tucked under "Everything else".
-export function RoleTabs({ role, financial }: { role: MemberRole; financial: boolean }) {
+/** `menu={false}`: the office's grouped menu is shown separately, so no "Everything else" list here. */
+export function RoleTabs({ role, financial, menu = true }: { role: MemberRole; financial: boolean; menu?: boolean }) {
   const pathname = usePathname() ?? "";
   const items = destinationsFor(role, pathname, financial);
   const current = currentDestination(items, pathname);
-  const rest = everythingElse(role, financial);
+  const rest = menu ? everythingElse(role, financial) : [];
   return <>
     <nav className={styles.tabs} aria-label="Main">
       {items.map(item => <Link key={item.key} href={item.href} className={styles.tab} aria-current={item.key === current ? "page" : undefined}>
