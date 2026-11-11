@@ -58,6 +58,6 @@ export default function ContactPage(){
     <button className="button button-dark contact-submit" type="submit" disabled={stage==="sending"}>{stage==="sending"?"UPLOADING — PLEASE WAIT":type==="tender"?"SUBMIT TENDER ENQUIRY":"SEND ENQUIRY"} <ArrowUpRight size={18}/></button>
     <small className="contact-help">Don't close this page while uploading. You'll receive an on-screen reference only after submission is confirmed.</small>
     </form></>}</div></div></section>
-  <footer className="contact-footer"><div className="shell"><span>© {new Date().getFullYear()} TileSPEC · Commercial Tiling Contractors</span><Link href="/">RETURN TO HOMEPAGE ↑</Link></div></footer>
+  <footer className="contact-footer"><div className="shell"><span>© {new Date().getFullYear()} TileSPEC · A trading name of SPEC CONTRACTING LTD · Registered in England and Wales · Company no. 17574891</span><Link href="/">RETURN TO HOMEPAGE ↑</Link></div></footer>
  </main>;
 }
