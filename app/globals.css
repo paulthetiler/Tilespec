@@ -692,3 +692,96 @@ main#top .ts-about-accent{
   main#top .ts-about-heading h2{font-size:clamp(44px,10vw,68px)}
   main#top .ts-about-copy p{font-size:15px}
 }
+
+
+/* Homepage-only editorial service section, inspired by the landing-page
+   "Built Around the Project" photo treatment. Landing pages are unchanged. */
+main#top .ts-home-services{
+  position:relative;
+  isolation:isolate;
+  background:#0d2835;
+  color:#fff;
+  padding:clamp(76px,7.5vw,120px) 0;
+  overflow:hidden;
+}
+main#top .ts-home-services-photo{
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:
+    linear-gradient(90deg,rgba(6,25,35,.95) 0%,rgba(6,25,35,.85) 48%,rgba(6,25,35,.55) 100%),
+    url('https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/bf52c74c-59fe-4cdd-9a44-4bfcad5063c4/73281.webp') center 54%/cover no-repeat;
+}
+main#top .ts-home-services-inner{position:relative}
+main#top .ts-home-services-heading{max-width:850px;margin-bottom:clamp(36px,4vw,58px)}
+main#top .ts-home-services-heading .eyebrow{color:#b5dad4}
+main#top .ts-home-services-heading h2{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(60px,7.5vw,107px);
+  font-weight:800;
+  line-height:.93;
+  letter-spacing:-.025em;
+  text-transform:none;
+  color:#fff;
+  margin:20px 0 20px;
+}
+main#top .ts-home-services-heading h2 em{font-style:normal;color:#86bfb6}
+main#top .ts-home-services-heading p{
+  font-size:clamp(15px,1.3vw,18px);
+  line-height:1.75;
+  color:#d3e0e2;
+  max-width:600px;
+  margin:0;
+}
+main#top .ts-home-services-list{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+}
+main#top .ts-home-service{
+  background:rgba(10,32,43,.74);
+  border:1px solid rgba(189,219,218,.22);
+  padding:27px 22px 30px;
+  min-height:220px;
+  min-width:0;
+}
+main#top .ts-home-service-rule{
+  display:block;
+  width:44px;
+  height:3px;
+  margin-bottom:24px;
+  background:#86bfb6;
+  border-radius:2px;
+}
+main#top .ts-home-service h3{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(26px,2.35vw,36px);
+  font-weight:700;
+  line-height:1.08;
+  letter-spacing:0;
+  text-transform:none;
+  color:#fff;
+  margin:0 0 15px;
+}
+main#top .ts-home-service p{
+  color:#d2dfe1;
+  font-size:14px;
+  line-height:1.7;
+  margin:0;
+}
+@media(max-width:1100px){
+  main#top .ts-home-services-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  main#top .ts-home-service{min-height:190px}
+  main#top .ts-home-service h3{font-size:clamp(29px,3.4vw,38px)}
+}
+@media(max-width:760px){
+  main#top .ts-home-services{padding:64px 0}
+  main#top .ts-home-services-photo{background-position:57% center}
+  main#top .ts-home-services-heading{margin-bottom:33px}
+  main#top .ts-home-services-heading h2{font-size:clamp(49px,10.8vw,73px)}
+  main#top .ts-home-services-list{grid-template-columns:1fr;gap:11px}
+  main#top .ts-home-service{min-height:0;padding:22px 23px 24px}
+  main#top .ts-home-service-rule{margin-bottom:16px}
+  main#top .ts-home-service h3{font-size:32px;margin-bottom:10px}
+  main#top .ts-home-service p{font-size:14px}
+}
