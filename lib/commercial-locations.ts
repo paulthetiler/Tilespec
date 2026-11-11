@@ -352,8 +352,8 @@ export const commercialLocations = [
     "intro2": "We assess floor backgrounds, material supply and washroom finishes alongside access and coordination with the wider project team."
   },
   {
-    "slug": "kingston-upon-hull-commercial-tiling",
-    "city": "Kingston upon Hull",
+    "slug": "hull-commercial-tiling",
+    "city": "Hull",
     "region": "East Yorkshire",
     "focus": "port-related workplaces, offices, education and retail interiors",
     "risk": "commercial floor durability and access to operating buildings",
