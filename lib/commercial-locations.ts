@@ -440,6 +440,106 @@ export const commercialLocations = [
     "areas": "Edinburgh city centre · Leith · Haymarket · Edinburgh Park",
     "intro1": "Edinburgh's hospitality, office and institutional properties include established buildings where finish detailing and substrate suitability can be critical.",
     "intro2": "We assess tiling packages around specifications, site access, material supply and programme, including the practical requirements of working from our Warrington base."
+  },
+  {
+    "slug": "slough-commercial-tiling",
+    "city": "Slough",
+    "region": "Berkshire",
+    "focus": "business parks, headquarters offices, hotels and commercial refurbishment",
+    "risk": "occupied workplace phasing and coordinated contractor access",
+    "areas": "Slough Trading Estate · Town centre · Langley · Cippenham",
+    "intro1": "Slough has a substantial concentration of business premises and commercial estates, including office and workplace facilities requiring durable interior floor and wall finishes.",
+    "intro2": "TileSPEC considers commercial tiling tenders covering receptions, washrooms and shared areas, with preparation and installation planned around the building's operational requirements."
+  },
+  {
+    "slug": "crawley-commercial-tiling",
+    "city": "Crawley",
+    "region": "West Sussex",
+    "focus": "Gatwick-area hospitality, business parks, offices and leisure facilities",
+    "risk": "airport-linked site logistics and live hospitality environments",
+    "areas": "Manor Royal · Crawley town centre · Three Bridges · Gatwick area",
+    "intro1": "Crawley and the Gatwick area have significant hotel, workplace and business-park premises, where commercial refurbishment frequently involves demanding access and finish requirements.",
+    "intro2": "We review specification, existing substrates, delivery constraints and phased working arrangements when scoping floor and wall tiling packages."
+  },
+  {
+    "slug": "basingstoke-commercial-tiling",
+    "city": "Basingstoke",
+    "region": "Hampshire",
+    "focus": "business parks, commercial offices, retail and hospitality",
+    "risk": "phased office refurbishment and high-use circulation flooring",
+    "areas": "Basing View · Chineham Business Park · Town centre · Houndmills",
+    "intro1": "Basingstoke's business districts and commercial estates include offices, retail units and hospitality spaces with varied tiling and refurbishment requirements.",
+    "intro2": "TileSPEC assesses reception floors, washrooms and other specified finishes alongside existing backgrounds, preparation and the contractor's site programme."
+  },
+  {
+    "slug": "stockport-commercial-tiling",
+    "city": "Stockport",
+    "region": "Greater Manchester",
+    "focus": "office refurbishments, retail, hospitality and commercial property redevelopment",
+    "risk": "existing building backgrounds and sequencing with multiple trades",
+    "areas": "Stockport town centre · Stockport Exchange · Cheadle · Bredbury",
+    "intro1": "Stockport has a mix of established commercial premises, business areas and town-centre refurbishment sites needing practical finishing solutions.",
+    "intro2": "We consider porcelain floors, commercial washrooms and wall finishes within clearly defined preparation, procurement and installation packages."
+  },
+  {
+    "slug": "telford-commercial-tiling",
+    "city": "Telford",
+    "region": "Shropshire",
+    "focus": "manufacturing support offices, retail parks, leisure and commercial estates",
+    "risk": "high-traffic staff facilities and mixed industrial-office interiors",
+    "areas": "Telford Town Centre · Hortonwood · Stafford Park · Halesfield",
+    "intro1": "Telford's commercial estates and business premises combine workplaces, retail and leisure environments with different floor and washroom demands.",
+    "intro2": "TileSPEC reviews tile suitability, subfloor preparation and coordinated access when assessing commercial refurbishment and fit-out tenders."
+  },
+  {
+    "slug": "doncaster-commercial-tiling",
+    "city": "Doncaster",
+    "region": "South Yorkshire",
+    "focus": "business and logistics office facilities, education, retail and leisure",
+    "risk": "durable staff areas and programme coordination around operating sites",
+    "areas": "Doncaster city centre · Lakeside · Balby Carr · Doncaster Sheffield corridor",
+    "intro1": "Doncaster's commercial property mix includes business estates, education facilities, retail and high-use staff amenities requiring maintainable floor and wall finishes.",
+    "intro2": "We assess commercial packages against specified flooring systems, substrate condition, material supply and the project's working programme."
+  },
+  {
+    "slug": "watford-commercial-tiling",
+    "city": "Watford",
+    "region": "Hertfordshire",
+    "focus": "office complexes, retail centres, hospitality and commercial refurbishments",
+    "risk": "live-workplace access and detailed washroom finishing",
+    "areas": "Watford town centre · Clarendon Road · Croxley Park · Watford Business Park",
+    "intro1": "Watford's offices, retail spaces and hospitality premises can involve phased refurbishment in buildings that remain in use.",
+    "intro2": "TileSPEC considers preparation and installation for specified commercial floors and washrooms with careful attention to access, junctions and programme."
+  },
+  {
+    "slug": "bracknell-commercial-tiling",
+    "city": "Bracknell",
+    "region": "Berkshire",
+    "focus": "corporate offices, technology workplaces, retail and business parks",
+    "risk": "office fit-out scheduling and occupied commercial premises",
+    "areas": "Bracknell town centre · The Lexicon · Arlington Square · Western Business Area",
+    "intro1": "Bracknell has a concentration of corporate workplaces, business premises and retail areas where professional interior finishes and predictable programmes matter.",
+    "intro2": "We review tile procurement, suitable substrate preparation and installation against drawings and the agreed office or commercial fit-out sequence."
+  },
+  {
+    "slug": "rugby-commercial-tiling",
+    "city": "Rugby",
+    "region": "Warwickshire",
+    "focus": "logistics office accommodation, industrial staff amenities, retail and business premises",
+    "risk": "staff washroom durability and site access around active operations",
+    "areas": "Rugby town centre · Rugby Gateway · Central Park · Swift Valley",
+    "intro1": "Rugby's industrial and logistics corridors include business accommodation, welfare areas and associated commercial facilities requiring robust tile finishes.",
+    "intro2": "TileSPEC considers tiling to offices, washrooms and circulation spaces, assessing substrate readiness and working arrangements around site operations."
+  },
+  {
+    "slug": "huddersfield-commercial-tiling",
+    "city": "Huddersfield",
+    "region": "West Yorkshire",
+    "focus": "commercial offices, education, healthcare-related interiors and retail refurbishments",
+    "risk": "established building substrates and high-use public interiors",
+    "areas": "Huddersfield town centre · University area · Lindley · Bradley",
+    "intro1": "Huddersfield's university, commercial and retail buildings include established premises where floor and wall backgrounds need careful inspection before tiling.",
+    "intro2": "We review preparation, tile specifications and finishing details against the scope and programme for each commercial refurbishment or fit-out."
   }
 ] as const;
 export type CommercialLocation = (typeof commercialLocations)[number];
