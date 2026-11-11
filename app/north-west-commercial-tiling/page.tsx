@@ -90,7 +90,6 @@ export default function NorthWestCommercialTiling() {
             <h3>{item.title}</h3><p>{item.detail}</p>
           </article>)}
         </div>
-        <p className="nw-qualifier">Work is assessed and priced to suit the project specification, substrates and programme.</p>
       </div>
     </section>
 
