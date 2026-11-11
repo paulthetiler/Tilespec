@@ -732,7 +732,7 @@ main#top .ts-home-services-heading h2{
 }
 main#top .ts-home-services-heading h2 em{font-style:normal;color:#86bfb6}
 main#top .ts-home-services-heading p{
-  font-size:clamp(14px,1.1vw,16px);
+  font-size:clamp(16px,1.2vw,17px);
   line-height:1.65;
   color:#d3e0e2;
   max-width:360px;
@@ -764,8 +764,8 @@ main#top .ts-home-service h3{
 }
 main#top .ts-home-service p{
   color:#d2dfe1;
-  font-size:13px;
-  line-height:1.55;
+  font-size:15px;
+  line-height:1.6;
   margin:0;
   max-width:540px;
 }
@@ -782,5 +782,5 @@ main#top .ts-home-service p{
   main#top .ts-home-services-heading p{max-width:420px}
   main#top .ts-home-service{padding:15px 0 16px}
   main#top .ts-home-service h3{font-size:29px;margin-bottom:6px}
-  main#top .ts-home-service p{font-size:13px}
+  main#top .ts-home-service p{font-size:15px}
 }
