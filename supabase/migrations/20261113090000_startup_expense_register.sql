@@ -2,14 +2,14 @@
 -- The hosted database already has these objects; this file records the schema for
 -- fresh installations and refuses reapplication without changing existing records.
 begin;
-do $ begin
+do $preflight$ begin
  if to_regprocedure('private.has_money_access()') is null or to_regprocedure('private.current_org()') is null then
   raise exception 'Preflight failed: job costs and financial access must be installed first';
  end if;
  if to_regclass('public.startup_expenses') is not null then
   raise exception 'Preflight failed: startup expenses already installed; review schema drift';
  end if;
-end $;
+end $preflight$;
 create table public.startup_expenses (
  id uuid primary key default gen_random_uuid(),
  organisation_id uuid not null references public.organisations(id),
