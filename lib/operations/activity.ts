@@ -4,6 +4,7 @@
  * handovers, questions and replies, dayworks, morning checks, inspections, plans and documents). Pure: no I/O, no writes.
  * Each line says who did what, in plain English, and links to the saved record.
  */
+import { meaningfulText } from "./text";
 import { eventLine } from "./dayworks";
 
 export type ActivityEntry = {
@@ -41,7 +42,19 @@ export type ActivitySources = {
   plans: { id: string; team: string; location: string; planned_start: string; planned_end: string; instructions: string; created_by: string | null; created_at: string;
     supersedes_id: string | null; cancelled_at: string | null; cancelled_by: string | null }[];
   documents: { id: string; title: string; revision: number; created_by: string; uploaded_at: string }[];
+  /** Empty until the office command centre is installed. */
+  diary?: {
+    progress: { id: string; at: string; actor_id: string; actor_name: string; description: string; quantity: number | null; unit: string | null; location: string; voided: boolean }[];
+    photos: { id: string; at: string; actor_id: string; actor_name: string; caption: string | null; location: string }[];
+    materials: { id: string; at: string; actor_id: string; actor_name: string; to_status: string; note: string | null; item: string }[];
+    stages: { id: string; at: string; actor_id: string | null; actor_name: string; from: string; to: string; note: string | null }[];
+    outcomes: { id: string; at: string; actor_id: string; actor_name: string; thread_id: string; outcome: string; note: string | null }[];
+  };
 };
+const STAGE_WORDS: Record<string, string> = { tender: "tender", won: "won", mobilising: "mobilising", live: "live", on_hold: "on hold", practical_completion: "practical completion",
+  defects: "defects period", final_account: "final account", closed: "closed", lost: "lost" };
+const MATERIAL_VERBS: Record<string, string> = { requested: "requested", ordered: "recorded the order for", delivered: "confirmed delivery of", cancelled: "cancelled the request for" };
+const OUTCOME_VERBS: Record<string, string> = { answered: "answered a question from site", approved: "approved a decision request", rejected: "did not approve a decision request", resolved: "marked a site conversation resolved" };
 
 export type ActivityOptions = {
   viewerId: string;
@@ -150,7 +163,7 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
     entries.push({ id: `handover:${h.id}`, at: h.created_at, who: person(h.actor_id, h.actor_name), what: "sent the end-of-day handover",
       detail: note ? brief(`${note[0]}: ${note[1]}`) : undefined,
       href: office ? `/admin/messages?contract_id=${options.contractId}#handover-${h.id}` : `${siteBase}/finish`,
-      tone: h.outstanding_problems.trim() || h.office_notes.trim() ? "problem" : undefined });
+      tone: meaningfulText(h.outstanding_problems) || meaningfulText(h.areas_awaiting_attention) || meaningfulText(h.office_notes) ? "problem" : undefined });
   }
   for (const c of src.morningChecks) {
     entries.push({ id: `morning:${c.id}`, at: c.created_at, who: person(c.actor_id, null, "A supervisor"), what: "completed the morning checks",
@@ -173,5 +186,18 @@ export function buildActivity(src: ActivitySources, options: ActivityOptions): A
     entries.push({ id: `document:${d.id}`, at: d.uploaded_at, who: person(d.created_by, null, "Office"), what: `uploaded ${d.title} (revision ${d.revision})`,
       href: `/admin/documents/${d.id}` });
   }
+  const diary = src.diary;
+  for (const p of diary?.progress ?? []) entries.push({ id: `progress:${p.id}`, at: p.at, who: person(p.actor_id, p.actor_name),
+    what: `${p.voided ? "recorded (later marked entered in error)" : "recorded progress"}: ${p.description}${p.quantity !== null ? `, ${p.quantity} ${p.unit}` : ""}${at(p.location)}`,
+    href: `${siteBase}/diary`, tone: p.voided ? undefined : "done" });
+  for (const p of diary?.photos ?? []) entries.push({ id: `photo:${p.id}`, at: p.at, who: person(p.actor_id, p.actor_name), what: `added a site photograph${at(p.location)}`,
+    detail: p.caption ?? undefined, href: `${siteBase}/diary` });
+  for (const m of diary?.materials ?? []) entries.push({ id: `material:${m.id}`, at: m.at, who: person(m.actor_id, m.actor_name), what: `${MATERIAL_VERBS[m.to_status] ?? "updated"} ${m.item}`,
+    detail: m.note ? brief(m.note) : undefined, href: options.office ? "/admin/materials" : `${siteBase}/diary` });
+  for (const g of diary?.stages ?? []) entries.push({ id: `stage:${g.id}`, at: g.at, who: person(g.actor_id, g.actor_name, "Office"),
+    what: g.from === g.to ? `confirmed the job is ${STAGE_WORDS[g.to] ?? g.to}` : `moved the job from ${STAGE_WORDS[g.from] ?? g.from} to ${STAGE_WORDS[g.to] ?? g.to}`,
+    detail: g.note ?? undefined });
+  for (const o of diary?.outcomes ?? []) entries.push({ id: `outcome:${o.id}`, at: o.at, who: person(o.actor_id, o.actor_name, "Office"), what: OUTCOME_VERBS[o.outcome] ?? "recorded a decision",
+    detail: o.note ? brief(o.note) : undefined, href: `${siteBase}/messages?thread=${o.thread_id}#thread-${o.thread_id}`, tone: "done" });
   return entries.sort((a, b) => b.at.localeCompare(a.at) || a.id.localeCompare(b.id));
 }

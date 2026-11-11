@@ -50,10 +50,11 @@ export default async function Subcontractors() {
   return <>
     <div className={styles.pageHeader}><div><p className={styles.eyebrow}>Money</p><h1 className={styles.title}>Subcontractors</h1>
       <p className={styles.description}>Onboarding, agreements, portal links, rates, invoices, CIS, retention and payments for every subcontractor, in one place. Subcontractors send invoices from their personal link at <code>/subcontractors</code>; nothing is approved or paid automatically.</p></div>
-      <div className={styles.actions}><Link className={styles.secondaryButton} href="/admin/subcontractors/agreement">Agreement versions</Link>
+      <div className={styles.actions}><Link className={styles.button} href="/admin/subcontractors/new">Add or onboard a gang</Link>
+        <Link className={styles.secondaryButton} href="/admin/subcontractors/agreement">Agreement versions</Link>
         <Link className={styles.secondaryButton} href="/admin/gang-invoices">Invoice approvals</Link></div></div>
     {!published && <p className={styles.warning}><strong>No subcontractor agreement is published yet.</strong> The standard draft must be reviewed by your solicitor before use. The owner then records the review and publishes it in <Link href="/admin/subcontractors/agreement">Agreement versions</Link>. Until then no agreement can be issued, and subcontractors cannot invoice through the portal.</p>}
-    {rows.length === 0 ? <p className={styles.empty}>No subcontractors or gangs are recorded yet. Add them in <Link href="/admin/workforce">Workforce</Link>.</p>
+    {rows.length === 0 ? <p className={styles.empty}>No subcontractors or gangs are recorded yet. <Link href="/admin/subcontractors/new">Add the first gang</Link>.</p>
       : <ul className={css.cards}>{rows.map(r => <li key={r.team.id}><Link className={css.card} href={`/admin/subcontractors/${r.team.id}`}>
         <div className={css.cardHead}><h3>{r.profile?.legal_name ?? r.team.name}{r.profile && r.profile.legal_name !== r.team.name ? ` · ${r.team.name}` : ""}{r.team.active ? "" : " (inactive)"}</h3>
           <span>{badge(r.signed, "Agreement signed", r.issued ? "Agreement not signed" : "No agreement")} {badge(r.live > 0, "Link live", "No live link")}</span></div>

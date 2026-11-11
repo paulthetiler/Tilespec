@@ -11,7 +11,8 @@ export type RoleKey = "owner" | "office" | "supervisor" | "subcontractor";
 
 export type InstallationStageKey = "preparation" | "waterproofing" | "installation" | "grouting" | "sealant" | "protection" | "remedial";
 
-export interface MemberRow { user_id: string; display_name: string; role: MemberRole; financial_access: boolean }
+/** `active` is absent in older fixtures; absent means active. Inactive members never cover office work. */
+export interface MemberRow { user_id: string; display_name: string; role: MemberRole; financial_access: boolean; active?: boolean }
 export interface ContractRow {
   id: string; reference: string; name: string; start_date: string | null; end_date: string | null;
   working_hours: string; tile_specification: string;
@@ -88,6 +89,8 @@ export interface HandoverNoteRow {
 }
 export interface AcknowledgementRow { item_id: string; user_id: string }
 export interface QaSubmissionRow { item_id: string }
+/** A snag saved as a draft and never sent: nobody has been asked to fix it yet. */
+export interface DraftSnagRow { id: string; contract_id: string; work_area_id: string | null; check_label: string; inspector_id: string | null; created_at: string }
 export interface ReadinessIssueRow {
   id: string; contract_id: string; inspection_id: string; check_label: string; description: string; state: string; created_at: string;
 }
@@ -118,6 +121,7 @@ export interface NextActionSnapshot {
   supervisor_issues: SnagRow[];
   /** Existing morning findings retain their original state/history, separately from the snag lifecycle. */
   readiness_issues?: ReadinessIssueRow[];
+  draft_snags?: DraftSnagRow[];
   work_holds: HoldRow[];
   supervisor_office_items: OfficeItemRow[];
   supervisor_office_acknowledgements: AcknowledgementRow[];

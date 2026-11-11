@@ -94,13 +94,26 @@ export async function recordOfficeReviewAction(_: DailyActionState, form: FormDa
   } catch (error) { return failure(error, attempted); }
 }
 
+/** The database from before the command centre update refused a message's kind or urgency. */
+function legacyMessageFields(error: { code?: string; message?: string }) {
+  return error.code === "22023" && /^Unsupported fields: (?:category|urgent)(?:, (?:category|urgent))?$/.test(error.message ?? "");
+}
+
 export async function postJobMessageAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
   const { supabase, member } = await requireActor();
   let attempted = false;
   try {
-    const data = messageInput(form), key = uuid(form, "request_key");
+    let data = messageInput(form);
+    const key = uuid(form, "request_key");
     attempted = true;
-    const result = await supabase.rpc("post_job_message", { p_request_key: key, p_data: data });
+    let result = await supabase.rpc("post_job_message", { p_request_key: key, p_data: data });
+    // Until the command centre database update is applied, the database does not know a message's kind or urgency
+    // and refuses them, saving nothing. The message is then sent as before: it still waits for the office's answer.
+    if (result.error && ("category" in data || "urgent" in data) && legacyMessageFields(result.error)) {
+      const { category: _category, urgent: _urgent, ...plain } = data as typeof data & { category?: string; urgent?: boolean };
+      data = plain;
+      result = await supabase.rpc("post_job_message", { p_request_key: key, p_data: data });
+    }
     if (result.error) return declined(result.error);
     if (!isRecordId(result.data)) throw new Error("Unconfirmed response");
     const saved = await supabase.from("job_messages").select("*").eq("id", result.data).single();

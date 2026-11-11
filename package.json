@@ -18,6 +18,8 @@
     "test:e2e": "node scripts/test-site-e2e.mjs",
     "test:portal": "node scripts/test-portal-e2e.mjs",
     "test:admin-today": "E2E_ADMIN_TODAY_ONLY=1 node scripts/test-site-e2e.mjs",
+    "test:command-centre": "E2E_COMMAND_CENTRE_ONLY=1 node scripts/test-site-e2e.mjs",
+    "test:pre-migration": "E2E_PRE_MIGRATION=1 node scripts/test-site-e2e.mjs",
     "preview:build": "node scripts/build-preview-engine.mjs",
     "preview:check": "node scripts/build-preview-engine.mjs --check",
     "preview:smoke": "node docs/redesign/prototype/smoke.mjs",

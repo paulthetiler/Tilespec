@@ -9,7 +9,7 @@ import { dayworksFor } from "../daywork-data";
 import { londonClock, londonDate } from "../planning";
 import { applicableChecks, type InspectionTemplate, type LocationInspection } from "../inspections";
 import { addDays } from "./lookups";
-import { currentRows, toHold, toInspection, toRequirement, toSnag } from "./snapshot-map";
+import { currentRows, toDraftSnag, toHold, toInspection, toRequirement, toSnag } from "./snapshot-map";
 import type {
   InspectionRequirementRow, InstallationStageKey, MemberRole, NextActionSnapshot, SnagRow, Viewer,
 } from "./types";
@@ -38,7 +38,7 @@ export async function loadSiteSnapshot(
     for (let start = 0; ; start += 500) {
       let query = supabase.from(table).select(columns).eq("contract_id", contractId).order("id");
       if (table === "planned_allocations") query = query.lte("planned_start", horizon).gte("planned_end", today).is("cancelled_at", null).is("superseded_by", null);
-      if (table === "supervisor_issues") query = query.in("snag_status", ["open", "assigned", "rectification_submitted", "reinspection"]);
+      if (table === "supervisor_issues") query = query.in("snag_status", ["draft", "open", "assigned", "rectification_submitted", "reinspection"]);
       if (table === "work_holds") query = query.in("status", ["active", "correction_submitted", "awaiting_release"]);
       if (table === "document_revisions") query = query.not("uploaded_at", "is", null);
       const result = await query.range(start, start + 499);
@@ -115,7 +115,8 @@ export async function loadSiteSnapshot(
       mandatory: applicableChecks(t).some(check => check.mandatory || check.hold_point) })),
     location_inspection_requirements: requirements,
     location_inspections: inspections,
-    supervisor_issues: ((snagRows.data ?? []) as Record<string, unknown>[]).map(toSnag).filter((s): s is SnagRow => !!s),
+    supervisor_issues: ((snagRows.data ?? []) as Record<string, unknown>[]).filter(row => row.snag_status !== "draft").map(toSnag).filter((s): s is SnagRow => !!s),
+    draft_snags: ((snagRows.data ?? []) as Record<string, unknown>[]).filter(row => row.snag_status === "draft").map(toDraftSnag),
     work_holds: ((holdRows.data ?? []) as Record<string, unknown>[]).map(toHold),
     supervisor_office_items: items.map(i => ({ id: i.id, contract_id: i.contract_id, kind: i.kind, title: i.title, body: i.body, recipient_id: i.recipient_id,
       acknowledgement_required: i.acknowledgement_required, work_area_id: i.work_area_id, stage: i.stage, created_by: i.created_by, created_at: i.created_at, due_on: i.due_on,

@@ -29,8 +29,10 @@ select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.
       'portal_session(text)', 'portal_preview_invoice(text,jsonb)', 'portal_prepare_invoice(text,uuid,jsonb)',
       'portal_reserve_file(text,uuid,uuid,text,jsonb)', 'portal_complete_file(text,uuid)', 'portal_invoice(text,uuid)',
       'portal_cancel_invoice(text,uuid,text)', 'portal_answer_query(text,uuid,text)', 'portal_agreement(text)',
-      'portal_sign_agreement(text,uuid,jsonb)', 'private.can_upload_portal_file(text)')),
-  'anonymous visitors can call only the enquiry form, shared-link and subcontractor portal functions, and no other application function');
+      'portal_sign_agreement(text,uuid,jsonb)', 'private.can_upload_portal_file(text)',
+      -- The scheduled email dispatcher: each refuses without the owner's dispatcher key.
+      'dispatch_queue_summaries(text,date)', 'dispatch_claim(text,integer)', 'dispatch_report(text,uuid,text,text,text)')),
+  'anonymous visitors can call only the enquiry form, shared-link, subcontractor portal and key-guarded email dispatcher functions, and no other application function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'private' and has_function_privilege('authenticated', p.oid, 'execute')
     and p.proname not in ('current_org', 'current_role', 'is_owner', 'can_manage_contract', 'can_access_contract',
@@ -39,7 +41,8 @@ select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.
       'is_site_staff', 'my_team_ids', 'is_current_teammate', 'can_supervise_contract', 'installation_stages', 'is_snag_party', 'can_read_snag', 'can_upload_snag_photo', 'can_insert_issue_object', 'can_read_issue_object',
       'can_read_work_hold', 'is_hold_corrector', 'can_upload_hold_photo', 'can_insert_hold_object', 'can_read_hold_object',
       'can_read_daywork', 'can_upload_daywork_photo', 'can_insert_daywork_object', 'can_read_daywork_object', 'has_money_access',
-      'is_gang_member', 'can_see_gang_invoice', 'can_read_gang_file', 'can_upload_gang_file')),
+      'is_gang_member', 'can_see_gang_invoice', 'can_read_gang_file', 'can_upload_gang_file',
+      'can_insert_site_photo_object', 'can_read_site_photo_object', 'job_stage')),
   'signed-in users can execute only the read-only permission helpers that row-level security policies call');
 select test.assert((select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity),

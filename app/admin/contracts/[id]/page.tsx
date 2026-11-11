@@ -3,6 +3,7 @@ import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageContracts, canReadFinancial, requireActor } from "@/lib/auth";
+import { JobStagePanel } from "@/components/office/job-stage";
 import { checkDatabase, contractDetails, teamFor } from "@/lib/operations/data";
 import { budgetSummary, contractWarnings } from "@/lib/operations/summary";
 import { roleLabels, type Contract, type Location } from "@/lib/operations/types";
@@ -57,6 +58,9 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
     installerRole ? Promise.resolve(false) : variationsAvailable(supabase),
     financial ? positionsFor(supabase, [id]) : Promise.resolve(null),
   ]);
+  // Customers arrive with the office command centre migration; until then the panel is not shown.
+  const customerList = manage ? await supabase.from("customers").select("id,name").eq("active", true).order("name") : null;
+  const customers = customerList && !customerList.error ? (customerList.data ?? []) as { id: string; name: string }[] : null;
   checkDatabase(contractAssignmentResult.error);
   checkDatabase(packageAssignmentResult.error);
   const contractAssignments = (contractAssignmentResult.data ?? []) as ContractAllocation[];
@@ -102,6 +106,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       {financial && <Link href={`/admin/contracts/${id}/money`}>Job money</Link>}
       {financial && <Link href={`/admin/contracts/${id}/accounts`}>Accounts and invoicing</Link>}
     </nav>}
+    {!installerRole && <JobStagePanel contract={contract as unknown as Parameters<typeof JobStagePanel>[0]["contract"]} customers={customers} today={londonDate()} manage={manage} />}
     <section className={styles.warning} aria-label="Contract release status"><span className={styles.warningBadge}>Draft · unreleased</span><h2>Installation is not authorised</h2><ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><p className={styles.small}>No inspection, approval or signature has been recorded by this setup workflow. Quality gates must be implemented and completed before release.</p></section>
 
     <section className={styles.panel} id="contract-information"><h2>Contract information</h2><ContractReadout contract={contract} />

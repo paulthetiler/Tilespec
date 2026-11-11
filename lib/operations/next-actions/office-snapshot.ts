@@ -9,7 +9,7 @@ import { canReadFinancial } from "../permissions";
 import { londonClock, londonDate, londonTimeToIso, membershipOnDay } from "../planning";
 import { DEFAULT_CONFIG, type NextActionConfig } from "./config";
 import { addDays } from "./lookups";
-import { currentRows, toHold, toInspection, toRequirement, toSnag } from "./snapshot-map";
+import { currentRows, toDraftSnag, toHold, toInspection, toRequirement, toSnag } from "./snapshot-map";
 import type { InspectionRequirementRow, InstallationStageKey, NextActionSnapshot, SnagRow, Viewer } from "./types";
 
 type Row = Record<string, unknown>;
@@ -114,7 +114,7 @@ export async function loadOfficeSnapshot(
   const scope = { contractIds };
   const updatesSince = addDays(today, -(config.siteUpdateDays - 1));
   const [areas, packages, packageAssignments, companies, insurance, teams, operatives, memberships,
-    plans, actualToday, actualEarlier, absences, checks, templates, requirements, inspections, snags, readinessIssues, holds,
+    plans, actualToday, actualEarlier, absences, checks, templates, requirements, inspections, snags, readinessIssues, draftSnags, holds,
     items, acknowledgements, submissions, handovers, documents, handoverNotes, reviews, withdrawals, messages, messageReads, dayworks, dayworkSubmissions] = await Promise.all([
     rows("work_areas", "id,contract_id,name,parent_id,path_ids", scope),
     rows("work_packages", "id,contract_id,name", scope),
@@ -136,6 +136,7 @@ export async function loadOfficeSnapshot(
     rows("location_inspections", "id,contract_id,work_area_id,work_package_id,template_id,issues_count,answers,created_at", scope),
     rows("supervisor_issues", "id,contract_id,work_area_id,check_label,description,severity,snag_status,assigned_team_id,target_date,inspector_id,rectified_by,escalated,responsibility_state,responsibility_team_id,assigned_action", { ...scope, oneOf: { snag_status: ["open", "assigned", "rectification_submitted", "reinspection"] } }),
     rows("supervisor_issues", "id,contract_id,inspection_id,check_label,description,state,created_at", { ...scope, isNull: ["snag_status"], neq: { state: "closed" } }),
+    rows("supervisor_issues", "id,contract_id,work_area_id,check_label,inspector_id,created_at", { ...scope, eq: { snag_status: "draft" } }),
     rows("work_holds", "id,contract_id,work_area_id,work_package_id,stage,activity,location_path,hold_type,category,status,reason,required_action,raised_by,corrected_by,assigned_team_id,assigned_operative_id,target_date", { ...scope, oneOf: { status: ["active", "correction_submitted", "awaiting_release"] } }),
     // Every column, so instruction changes (replaces_id, urgent) appear once their migration is applied.
     rows("supervisor_office_items", "*", scope),
@@ -194,7 +195,7 @@ export async function loadOfficeSnapshot(
   const currentOperativeIds = new Set(currentOperatives.map(row => String(row.id)));
   const snapshot: NextActionSnapshot = {
     today, now,
-    members: memberRows.map(row => ({ user_id: String(row.user_id), display_name: String(row.display_name), role: row.role as Member["role"], financial_access: row.financial_access === true })),
+    members: memberRows.map(row => ({ user_id: String(row.user_id), display_name: String(row.display_name), role: row.role as Member["role"], financial_access: row.financial_access === true, active: row.active === true })),
     contracts: contracts as unknown as NextActionSnapshot["contracts"],
     // Money has its own authenticated page and financial read boundary. Today
     // never fetches commercial numbers, even for an authorised owner.
@@ -223,6 +224,7 @@ export async function loadOfficeSnapshot(
       .map(row => toInspection(row, stageByTemplate)).filter((row): row is NonNullable<typeof row> => !!row),
     supervisor_issues: snags.map(toSnag).filter((row): row is SnagRow => !!row),
     readiness_issues: readinessIssues as unknown as NonNullable<NextActionSnapshot["readiness_issues"]>,
+    draft_snags: draftSnags.map(toDraftSnag),
     work_holds: holds.map(row => toHold({ ...row, work_package_name: packageNames.get(String(row.work_package_id)) ?? null })),
     supervisor_office_items: items as unknown as NextActionSnapshot["supervisor_office_items"],
     supervisor_office_acknowledgements: acknowledgements.map(row => ({ item_id: String(row.item_id), user_id: String(row.actor_id) })),

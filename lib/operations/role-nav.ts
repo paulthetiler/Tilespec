@@ -19,15 +19,16 @@ export function destinationsFor(role: MemberRole, pathname: string, financial = 
     case "owner":
       return [
         { key: "today", label: "Today", href: "/admin", icon: "home" },
+        { key: "inbox", label: "Inbox", href: "/admin/inbox", icon: "inbox" },
         { key: "jobs", label: "Jobs", href: "/admin/contracts", icon: "briefcase" },
-        ...(financial ? [{ key: "money", label: "Money", href: "/admin/money", icon: "pound" } as Destination] : []),
+        ...(financial ? [{ key: "money", label: "Money", href: "/admin/finance", icon: "pound" } as Destination] : []),
       ];
     case "contracts_manager":
       return [
         { key: "today", label: "Today", href: "/admin", icon: "home" },
+        { key: "inbox", label: "Inbox", href: "/admin/inbox", icon: "inbox" },
         { key: "jobs", label: "Jobs", href: "/admin/contracts", icon: "briefcase" },
         { key: "people", label: "People", href: "/admin/workforce", icon: "users" },
-        { key: "paperwork", label: "Paperwork", href: "/admin/paperwork", icon: "file" },
       ];
     case "supervisor": {
       const base = siteBaseOf(pathname);
@@ -63,14 +64,55 @@ export function currentDestination(items: Destination[], pathname: string): stri
 export function everythingElse(role: MemberRole, financial: boolean): { label: string; href: string }[] {
   if (role === "supervisor") return [];
   if (role === "lead_installer" || role === "subcontract_installer") return [{ label: "Your invoices", href: "/admin/gang" }, { label: "Assigned holds", href: "/admin/holds" }];
-  const office = role === "owner" || role === "contracts_manager";
-  return [
-    { label: "Overview", href: "/admin" }, { label: "Contracts", href: "/admin/contracts" },
-    ...(office ? [{ label: "Workforce", href: "/admin/workforce" }] : []),
-    { label: "Site dashboards", href: "/admin/supervisor" }, { label: "Snag register", href: "/admin/snags" }, { label: "Holds and releases", href: "/admin/holds" },
-    { label: "Site alerts", href: "/admin/alerts" },
-    ...(office ? [{ label: "Paperwork", href: "/admin/paperwork" }, { label: "Messages and handovers", href: "/admin/messages" }, { label: "Quality control", href: "/admin/quality" }, { label: "Tenders", href: "/admin/tenders" }, { label: "Marketing & SEO readiness", href: "/admin/marketing" }] : []),
-    ...(role === "owner" ? [{ label: "User access", href: "/admin/team" }] : []),
-    ...(financial ? [{ label: "Estimator", href: "/admin/estimator" }, { label: "Money", href: "/admin/money" }, { label: "Invoices", href: "/admin/invoices" }, { label: "Gang invoices", href: "/admin/gang-invoices" }, { label: "Subcontractors", href: "/admin/subcontractors" }] : []),
+  return officeMenu(role, financial).flatMap(section => section.links);
+}
+
+export type MenuSection = { title: string; links: { label: string; href: string }[] };
+/**
+ * The office's complete menu, grouped. Shown as the sidebar on a desk and as "Menu" on a phone, the same
+ * on every page. Money, quotations and business settings appear only with money access; user access and
+ * email notifications only for the owner.
+ */
+export function officeMenu(role: MemberRole, financial: boolean): MenuSection[] {
+  if (role !== "owner" && role !== "contracts_manager") return [];
+  const owner = role === "owner";
+  const sections: MenuSection[] = [
+    { title: "Command centre", links: [{ label: "Today", href: "/admin" }, { label: "Inbox", href: "/admin/inbox" }, { label: "Search", href: "/admin/search" }] },
+    { title: "Operations", links: [
+      { label: "Jobs", href: "/admin/contracts" }, { label: "Planner", href: "/admin/planner" }, { label: "Site dashboards", href: "/admin/supervisor" },
+      { label: "Materials", href: "/admin/materials" }, { label: "Quality control", href: "/admin/quality" }, { label: "Snag register", href: "/admin/snags" },
+      { label: "Holds and releases", href: "/admin/holds" }, { label: "Site alerts", href: "/admin/alerts" },
+      { label: "Messages and handovers", href: "/admin/messages" }, { label: "Paperwork", href: "/admin/paperwork" },
+    ] },
+    { title: "People", links: [
+      { label: "Workforce and gangs", href: "/admin/workforce" },
+      ...(financial ? [{ label: "Subcontractors", href: "/admin/subcontractors" }] : []),
+      ...(owner ? [{ label: "User access", href: "/admin/team" }] : []),
+    ] },
+    ...(financial ? [{ title: "Money", links: [
+      { label: "Debtors and cash flow", href: "/admin/finance" }, { label: "Job money", href: "/admin/money" },
+      { label: "Client invoices", href: "/admin/invoices" }, { label: "Gang invoices", href: "/admin/gang-invoices" },
+      { label: "Startup expenses", href: "/admin/startup-expenses" },
+    ] }] : []),
+    { title: "Sales", links: [
+      { label: "Customers", href: "/admin/customers" },
+      ...(financial ? [{ label: "Quotations", href: "/admin/quotes" }] : []),
+      { label: "Tenders", href: "/admin/tenders" },
+      ...(financial ? [{ label: "Estimator", href: "/admin/estimator" }] : []),
+    ] },
+    { title: "Administration", links: [
+      { label: "Marketing & SEO readiness", href: "/admin/marketing" },
+      ...(financial ? [{ label: "Documents and compliance", href: "/admin/documents" }, { label: "Business settings", href: "/admin/accounts/settings" }] : []),
+      ...(owner ? [{ label: "Email notifications", href: "/admin/notifications" }] : []),
+    ] },
   ];
+  return sections.filter(section => section.links.length);
+}
+
+/** The menu entry for a path: the longest matching link. */
+export function currentMenuHref(sections: MenuSection[], pathname: string): string | null {
+  const links = sections.flatMap(section => section.links);
+  const hits = links.filter(link => pathname === link.href || (link.href !== "/admin" && pathname.startsWith(`${link.href}/`)));
+  hits.sort((a, b) => b.href.length - a.href.length);
+  return hits[0]?.href ?? null;
 }

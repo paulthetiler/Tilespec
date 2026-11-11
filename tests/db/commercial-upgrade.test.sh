@@ -22,11 +22,16 @@ outstanding=(20261013210000_tender_enquiries.sql 20261023090000_office_reviews_i
 # the office, so it is applied with the outstanding migrations, after the "existing values are
 # unchanged" comparison.
 intake=20261110112916_public_intake_without_service_key.sql
+# Migrations written after the enquiry form exists on the hosted project (the office command centre
+# onwards) are applied last, in the order the hosted rollout uses.
+command_centre=20261114
 commercial=()
+later=()
 for migration in "$repository_root"/supabase/migrations/*.sql; do
   name="$(basename "$migration")"
   [[ "$name" != "$intake" ]] || continue
-  if [[ "$name" > 20261104 ]]; then commercial+=("$migration")
+  if [[ ! "$name" < "$command_centre" ]]; then later+=("$migration")
+  elif [[ "$name" > 20261104 ]]; then commercial+=("$migration")
   elif [[ " ${outstanding[*]} " != *" $name "* ]]; then "${psql[@]}" -f "$migration" >/dev/null; fi
 done
 (( ${#commercial[@]} > 0 )) || { echo 'FAIL: no commercial migrations found' >&2; exit 1; }
@@ -81,11 +86,13 @@ snapshot() {
   "${psql[@]}" <<'SQL'
 select schema_name||'.'||table_name||':'||(xpath('/row/hash/text()',query_to_xml(format(
  'select md5(coalesce(string_agg((to_jsonb(x)-%L::text[])::text,''|'' order by (to_jsonb(x)-%L::text[])::text),'''')) hash from %I.%I x',
- case when table_name='contracts' then '{daywork_client_authorisation,variation_client_authorisation}'
+ case when table_name='contracts' then '{daywork_client_authorisation,variation_client_authorisation,customer_id,lifecycle_stage}'
+      when table_name='job_messages' then '{category,urgent}'
       when table_name='dayworks' then '{kind}' when table_name='daywork_pricings' then '{method,note}'
       when table_name='daywork_pricing_lines' then '{markup_percent,markup}'
       when table_name='audit_events' then '{commercial}' else '{}' end,
- case when table_name='contracts' then '{daywork_client_authorisation,variation_client_authorisation}'
+ case when table_name='contracts' then '{daywork_client_authorisation,variation_client_authorisation,customer_id,lifecycle_stage}'
+      when table_name='job_messages' then '{category,urgent}'
       when table_name='dayworks' then '{kind}' when table_name='daywork_pricings' then '{method,note}'
       when table_name='daywork_pricing_lines' then '{markup_percent,markup}'
       when table_name='audit_events' then '{commercial}' else '{}' end,
@@ -150,6 +157,13 @@ if "${psql[@]}" -f "$repository_root/supabase/migrations/$intake" >"$test_socket
 fi
 "${psql[@]}" -c "select test.assert(to_regclass('public.office_reviews') is not null and to_regclass('public.tender_enquiries') is not null,
   'tender enquiries and office reviews still install after the commercial migrations')" >/dev/null
+
+# The rehearsal of the hosted rollout: the office command centre installs last without changing any existing value.
+before_later="$(snapshot)"
+for migration in "${later[@]}"; do "${psql[@]}" -f "$migration" >/dev/null; done
+[[ "$before_later" == "$(snapshot)" ]] || { echo 'FAIL: the office command centre changed existing commercial records.' >&2; exit 1; }
+"${psql[@]}" -c "select test.assert(to_regclass('public.notification_outbox') is not null and to_regclass('public.quotes') is not null,
+  'the office command centre installs on the hosted shape after the outstanding migrations')" >/dev/null
 
 # A second application is refused and changes nothing.
 after="$(snapshot)"

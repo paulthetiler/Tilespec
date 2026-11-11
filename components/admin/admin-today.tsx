@@ -10,7 +10,8 @@ import { holdScope, holdStatusLabels, holdTypes } from "@/lib/operations/holds";
 import { dayLabel } from "@/lib/operations/planning";
 import styles from "./admin-today.module.css";
 
-type Props = { snapshot: NextActionSnapshot; viewer: Viewer; member: Member; config?: NextActionConfig };
+/** `embedded`: shown inside the command centre, which supplies the page heading, search and shortcuts. */
+type Props = { snapshot: NextActionSnapshot; viewer: Viewer; member: Member; config?: NextActionConfig; embedded?: boolean };
 
 function ActionChips({ action, today }: { action: ViewerAction; today: string }) {
   const chip = classChip(action);
@@ -37,6 +38,18 @@ function ActionRow({ action, today }: { action: ViewerAction; today: string }) {
   </article>;
 }
 
+/**
+ * A queue section. In the command centre (embedded) on a desk, long lists of work that is with other
+ * people scroll within a capped height, so live jobs, money and planning stay near the top. Nothing is
+ * removed, folded away or left out of the counts.
+ */
+function Fold({ embedded, label, id, count, note, children }: { embedded: boolean; label: string; id?: string; count: number; note?: string; children: React.ReactNode }) {
+  return <section className={styles.section} aria-label={label} id={id}>
+    <h2>{label} ({count})</h2>{note && <p className={styles.note}>{note}</p>}
+    <div className={`${styles.list} ${embedded ? styles.capped : ""}`} tabIndex={embedded ? 0 : undefined} aria-label={embedded ? `${label}, scrollable list` : undefined}>{children}</div>
+  </section>;
+}
+
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 function SiteUpdateRow({ update }: { update: SiteUpdate }) {
@@ -53,7 +66,7 @@ function SiteUpdateRow({ update }: { update: SiteUpdate }) {
 }
 
 /** Real saved records, presented by the shared engine. This component never writes or makes an approval. */
-export function AdminToday({ snapshot, viewer, member, config }: Props) {
+export function AdminToday({ snapshot, viewer, member, config, embedded = false }: Props) {
   if (!member.active || !["owner", "contracts_manager"].includes(member.role) || viewer.user_id !== member.user_id || viewer.role !== member.role) {
     throw new Error("Office Today requires the authenticated office or owner.");
   }
@@ -64,8 +77,8 @@ export function AdminToday({ snapshot, viewer, member, config }: Props) {
   const queue = buildQueue(actions, { groupExceptions: owner });
   const settings = config ?? DEFAULT_CONFIG;
   const updates = siteUpdates(snapshot, viewer, settings);
-  // With the role shell on, Jobs, People and Paperwork are already in the tab bar.
-  const tabs = flagEnabled("roleShell", member.role);
+  // With the role shell on, these shortcuts are hidden only when the role's own tabs or menu already offer them.
+  const tabs = flagEnabled("roleShell", member.role) && member.role === "contracts_manager";
   const counts = queueCounts(queue);
   const holds = snapshot.work_holds.filter(hold => ["active", "correction_submitted", "awaiting_release"].includes(hold.status));
   const safetyCount = holds.filter(hold => hold.hold_type === "safety").length;
@@ -77,15 +90,16 @@ export function AdminToday({ snapshot, viewer, member, config }: Props) {
   const row = (action: ViewerAction) => <ActionRow key={action.id} action={action} today={snapshot.today} />;
 
   return <div className={styles.today} data-today-role={owner ? "owner" : "office"}>
-    <header className={styles.header}>
+    {embedded ? <p className={styles.count} data-testid="today-action-count">{todayCountCopy(counts.actions, counts.informational, counts.waiting + counts.exceptions)}</p>
+    : <header className={styles.header}>
       <div>
         <p className={styles.eyebrow}>{owner ? "Your attention today" : "Your working day"}</p>
         <h1>Today</h1>
         <p>Hello, {firstName}. {dayLabel(snapshot.today, "long")}</p>
-        <p className={styles.count} data-testid="today-action-count">{todayCountCopy(counts.actions, counts.informational)}</p>
+        <p className={styles.count} data-testid="today-action-count">{todayCountCopy(counts.actions, counts.informational, counts.waiting + counts.exceptions)}</p>
       </div>
       <Link className={styles.secondaryLink} href="/admin/snags/new">Report an issue</Link>
-    </header>
+    </header>}
 
     {holds.length > 0 && <aside className={styles.restrictionAlert} aria-label="Active work restrictions">
       <a href="#today-stopped"><strong>{safetyCount} safety {safetyCount === 1 ? "stop" : "stops"} · {qualityCount} quality {qualityCount === 1 ? "hold" : "holds"}</strong><span>Affected work stays stopped. View restrictions<span aria-hidden="true"> →</span></span></a>
@@ -137,22 +151,15 @@ export function AdminToday({ snapshot, viewer, member, config }: Props) {
           <h2>Then ({queue.then.length})</h2><div className={styles.list}>{queue.then.map(row)}</div>
         </section>}
 
-        {queue.exceptions.length > 0 && <section className={styles.section} aria-label="Outstanding problems" id="today-problems">
-          <h2>Outstanding problems ({queue.exceptions.length})</h2>
-          <p className={styles.note}>These still need attention. The person responsible, or an independent reviewer, must act.</p>
-          <div className={styles.list}>{queue.exceptions.map(row)}</div>
-        </section>}
+        {queue.exceptions.length > 0 && <Fold embedded={embedded} label="Outstanding problems" id="today-problems" count={queue.exceptions.length}
+          note="These still need attention. The person responsible, or an independent reviewer, must act.">{queue.exceptions.map(row)}</Fold>}
       </div>
 
       <div className={styles.stack}>
-        {queue.waiting.length > 0 && <section className={styles.section} aria-label="Waiting on others" id="today-waiting">
-          <h2>Waiting on others ({queue.waiting.length})</h2><div className={styles.list}>{queue.waiting.map(row)}</div>
-        </section>}
-        {queue.info.length > 0 && <section className={styles.section} aria-label="For your information">
-          <h2>For your information ({queue.info.length})</h2><div className={styles.list}>{queue.info.map(row)}</div>
-        </section>}
+        {queue.waiting.length > 0 && <Fold embedded={embedded} label="Waiting on others" id="today-waiting" count={queue.waiting.length}>{queue.waiting.map(row)}</Fold>}
+        {queue.info.length > 0 && <Fold embedded={embedded} label="For your information" count={queue.info.length}>{queue.info.map(row)}</Fold>}
 
-        <section className={styles.section} aria-label="Open a record">
+        {!embedded && <section className={styles.section} aria-label="Open a record">
           <h2>Open a record</h2>
           <div className={styles.shortcuts}>
             {!tabs && <>
@@ -163,8 +170,8 @@ export function AdminToday({ snapshot, viewer, member, config }: Props) {
             <Link href="/admin/quality"><strong>Quality checks and requests</strong><span>Inspection checks, QA requests and restrictions</span></Link>
             <Link href="/admin/messages"><strong>Site messages and handovers</strong><span>Choose a job to read or send an instruction</span></Link>
           </div>
-        </section>
-        {canReadFinancial(member) && <aside className={styles.money}><h2>Money</h2><p>Financial records have their own page.</p><Link className={styles.rowLink} href="/admin/money">Open Money<span aria-hidden="true"> →</span></Link></aside>}
+        </section>}
+        {!embedded && canReadFinancial(member) && <aside className={styles.money}><h2>Money</h2><p>Financial records have their own page.</p><Link className={styles.rowLink} href="/admin/money">Open Money<span aria-hidden="true"> →</span></Link></aside>}
       </div>
     </div>
   </div>;

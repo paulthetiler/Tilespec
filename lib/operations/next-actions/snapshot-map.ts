@@ -57,3 +57,8 @@ export function toHold(row: Record<string, unknown>): HoldRow {
     work_package_name: (row.work_package_name as string | null) ?? null, location_path: (row.location_path as string[]) ?? [],
   };
 }
+
+export function toDraftSnag(row: Record<string, unknown>) {
+  return { id: String(row.id), contract_id: String(row.contract_id), work_area_id: (row.work_area_id as string | null) ?? null,
+    check_label: String(row.check_label ?? "Snag"), inspector_id: (row.inspector_id as string | null) ?? null, created_at: String(row.created_at) };
+}

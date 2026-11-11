@@ -1,5 +1,6 @@
 import { DEFAULT_CONFIG, type NextActionConfig } from "./config";
 import { addDays, isoDate } from "./lookups";
+import { meaningfulText } from "../text";
 import type { NextActionSnapshot, Viewer } from "./types";
 
 /*
@@ -38,7 +39,7 @@ export function siteUpdates(s: NextActionSnapshot, viewer: Viewer, cfg: NextActi
   const handovers = (s.handover_notes ?? []).filter(h => h.work_date >= since).flatMap((h): SiteUpdate[] => {
     const parts: [string, string, string][] = [["notes for the office", "For the office", h.office_notes], ["problems", "Problems", h.outstanding_problems],
       ["areas needing attention", "Needs attention", h.areas_awaiting_attention]];
-    const filled = parts.filter(([, , text]) => text.trim());
+    const filled = parts.filter(([, , text]) => meaningfulText(text));
     if (!filled.length) return [];
     return [{
       id: `handover:${h.id}`, kind: "handover", contractId: h.contract_id, job: job(h.contract_id),

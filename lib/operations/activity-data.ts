@@ -83,6 +83,15 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
     // Each step of a daywork. Its money lives in separate tables that are never read here.
     optionalPage("daywork_events", "id,daywork_id,actor_id,actor_name,action,note,owner_override,created_at", "created_at"),
   ]);
+  // The office command centre's records: progress, photographs, materials, job stages and recorded decisions.
+  const [progressRows, photoRows, materialEvents, stageRows, outcomeRows] = await Promise.all([
+    optionalPage("site_progress_entries", "id,work_date,description,quantity,unit,location_path,recorded_by,recorded_by_name,recorded_at,voided_at", "recorded_at"),
+    optionalPage("site_photos", "id,caption,location_path,actor_id,actor_name,uploaded_at", "created_at"),
+    optionalPage("material_request_events", "id,request_id,action,from_status,to_status,note,actor_id,actor_name,created_at", "created_at"),
+    optionalPage("contract_stage_events", "id,from_stage,to_stage,note,actor_id,actor_name,created_at", "created_at"),
+    optionalPage("job_thread_outcomes", "id,thread_id,outcome,note,decided_by,decided_by_name,decided_at", "decided_at"),
+  ]);
+  const materialItems = materialEvents?.rows.length ? await byIds("material_requests", "id,item,quantity,unit", [...new Set(materialEvents.rows.map(row => String(row.request_id)))]) : [];
   const snagEvents = (await Promise.all(snagList.map(async snag => {
     const result = await supabase.rpc("snag_events", { p_issue: snag.id });
     checkDatabase(result.error);
@@ -163,9 +172,24 @@ export async function activityFor(supabase: SupabaseClient, member: Member, cont
       created_by: (row.created_by as string | null) ?? null, created_at: String(row.created_at), supersedes_id: (row.supersedes_id as string | null) ?? null,
       cancelled_at: (row.cancelled_at as string | null) ?? null, cancelled_by: (row.cancelled_by as string | null) ?? null })),
     documents: documents.rows as unknown as ActivitySources["documents"],
+    diary: {
+      progress: (progressRows?.rows ?? []).map(row => ({ id: String(row.id), at: String(row.recorded_at), actor_id: String(row.recorded_by), actor_name: String(row.recorded_by_name),
+        description: String(row.description), quantity: row.quantity === null ? null : Number(row.quantity), unit: (row.unit as string | null) ?? null,
+        location: ((row.location_path as string[] | null) ?? []).join(" › "), voided: !!row.voided_at })),
+      photos: (photoRows?.rows ?? []).filter(row => row.uploaded_at).map(row => ({ id: String(row.id), at: String(row.uploaded_at), actor_id: String(row.actor_id), actor_name: String(row.actor_name),
+        caption: (row.caption as string | null) ?? null, location: ((row.location_path as string[] | null) ?? []).join(" › ") })),
+      materials: (materialEvents?.rows ?? []).map(row => { const item = materialItems.find(m => m.id === row.request_id);
+        return { id: String(row.id), at: String(row.created_at), actor_id: String(row.actor_id), actor_name: String(row.actor_name), to_status: String(row.to_status),
+          note: (row.note as string | null) ?? null, item: item ? `${item.quantity} ${item.unit} ${item.item}` : "materials" }; }),
+      stages: (stageRows?.rows ?? []).map(row => ({ id: String(row.id), at: String(row.created_at), actor_id: (row.actor_id as string | null) ?? null, actor_name: String(row.actor_name),
+        from: String(row.from_stage), to: String(row.to_stage), note: (row.note as string | null) ?? null })),
+      outcomes: (outcomeRows?.rows ?? []).map(row => ({ id: String(row.id), at: String(row.decided_at), actor_id: String(row.decided_by), actor_name: String(row.decided_by_name),
+        thread_id: String(row.thread_id), outcome: String(row.outcome), note: (row.note as string | null) ?? null })),
+    },
   };
   // The page stops at the oldest record of any source that reached its limit.
-  const cuts = [holdEvents, messages, acknowledgements, results, handovers, morningChecks, inspections, plans, documents, withdrawals, reviews, jobMessages, dayworkEvents]
+  const cuts = [holdEvents, messages, acknowledgements, results, handovers, morningChecks, inspections, plans, documents, withdrawals, reviews, jobMessages, dayworkEvents,
+    progressRows, photoRows, materialEvents, stageRows, outcomeRows]
     .filter((source): source is Source => !!source?.full).map(source => String(source.rows.at(-1)![source.time]));
   if (snagList.length === SNAG_LIMIT) cuts.push(String(snagList.at(-1)!.updated_at));
   const cut = cuts.sort().at(-1) ?? null;

@@ -423,16 +423,16 @@ const routeExists = (href: string) => {
     || existsSync(path.join(root, "app", clean.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/, "[id]"), "page.tsx"));
 };
 
-test("each role has at most four destinations: owner 3, office 4, supervisor 4, subcontractor 3", () => {
+test("each role has at most four destinations: owner 4, office 4, supervisor 4, subcontractor 3", () => {
   const counts = { owner: destinationsFor("owner", "/admin").length, office: destinationsFor("contracts_manager", "/admin").length,
     supervisor: destinationsFor("supervisor", SITE).length, lead: destinationsFor("lead_installer", "/admin").length, sub: destinationsFor("subcontract_installer", "/admin").length };
-  assert.deepEqual(counts, { owner: 3, office: 4, supervisor: 4, lead: 3, sub: 3 });
+  assert.deepEqual(counts, { owner: 4, office: 4, supervisor: 4, lead: 3, sub: 3 });
   for (const role of ["owner", "contracts_manager", "supervisor", "lead_installer", "subcontract_installer"] as const) assert.ok(destinationsFor(role, SITE).length <= MAX_DESTINATIONS);
 });
 
 test("risks are not an owner destination and money stays separate", () => {
   const owner = destinationsFor("owner", "/admin").map(d => d.label);
-  assert.deepEqual(owner, ["Today", "Jobs", "Money"]);
+  assert.deepEqual(owner, ["Today", "Inbox", "Jobs", "Money"]);
   assert.ok(!owner.includes("Risks"));
 });
 

@@ -34,6 +34,7 @@ var TSEngine = (() => {
     classNote: () => classNote,
     compute: () => compute,
     configFromEnv: () => configFromEnv,
+    coveringManagers: () => coveringManagers,
     ctaLabel: () => ctaLabel,
     dayDiff: () => dayDiff,
     flagEnabled: () => flagEnabled,
@@ -43,6 +44,7 @@ var TSEngine = (() => {
     latestCover: () => latestCover,
     makeLookups: () => makeLookups,
     nextAction: () => nextAction,
+    ownerAudience: () => ownerAudience,
     parseWorkingHours: () => parseWorkingHours,
     pounds: () => pounds,
     queueCounts: () => queueCounts,
@@ -227,6 +229,14 @@ var TSEngine = (() => {
     return { value: b.value, cost: b.originalCost, reserve: b.reserve, profit: b.riskAdjustedProfit, margin: b.margin };
   }
   var pounds = (n) => "\xA3" + Math.round(n).toLocaleString("en-GB");
+
+  // lib/operations/text.ts
+  var NOTHING = /^ *(none|no|nil|nothing|n a|na|ok|okay|all good|all ok|fine|good|none good day|none all good|nothing to report|no issues|no problems|none today|not applicable)? *$/;
+  function meaningfulText(text) {
+    const value = (text != null ? text : "").toLowerCase();
+    if (!value.replace(/[^a-z0-9]+/g, "")) return false;
+    return !NOTHING.test(value.trim().replace(/[\s\p{P}\p{S}]+/gu, " "));
+  }
 
   // lib/operations/next-actions/rules.ts
   var rules = [];
@@ -868,8 +878,8 @@ var TSEngine = (() => {
   });
   rule("R19_review_handover", ({ s, L, cfg }) => {
     var _a;
-    return !s.office_reviews ? [] : ((_a = s.handover_notes) != null ? _a : []).filter((h) => h.work_date >= reviewSince(s, cfg) && [h.office_notes, h.outstanding_problems, h.areas_awaiting_attention].some((text) => (text != null ? text : "").trim()) && !s.office_reviews.some((v) => v.handover_id === h.id)).map((h) => {
-      const [label, text] = [["For the office", h.office_notes], ["Problems", h.outstanding_problems], ["Needs attention", h.areas_awaiting_attention]].find(([, value]) => (value != null ? value : "").trim());
+    return !s.office_reviews ? [] : ((_a = s.handover_notes) != null ? _a : []).filter((h) => h.work_date >= reviewSince(s, cfg) && [h.office_notes, h.outstanding_problems, h.areas_awaiting_attention].some(meaningfulText) && !s.office_reviews.some((v) => v.handover_id === h.id)).map((h) => {
+      const [label, text] = [["Problems", h.outstanding_problems], ["Needs attention", h.areas_awaiting_attention], ["For the office", h.office_notes]].find(([, value]) => meaningfulText(value));
       return {
         id: `review-handover:${h.id}`,
         rule: "R19",
@@ -1171,8 +1181,8 @@ var TSEngine = (() => {
       location: null,
       responsible: OFFICE,
       title: `Review the morning finding: ${issue.check_label}`,
-      why: `${issue.description} This finding does not release or stop work by itself. Existing restrictions still apply.`,
-      due: null,
+      why: `${issue.description} Raised ${isoDate(issue.created_at)}. This finding does not release or stop work by itself. Existing restrictions still apply.`,
+      due: issue.created_at ? addDays(isoDate(issue.created_at), 2) : null,
       requires: ["Review the saved finding", "Record the follow-up in its existing workflow"],
       doneWhen: "The original finding is closed through its existing workflow",
       next: null,
@@ -1181,6 +1191,31 @@ var TSEngine = (() => {
       enforcedByBackend: false,
       source: { table: "supervisor_issues", id: issue.id },
       route: { screen: "snag", id: issue.id }
+    }));
+  });
+  rule("R29_draft_snag", ({ s, L }) => {
+    var _a;
+    return ((_a = s.draft_snags) != null ? _a : []).filter((d) => isoDate(d.created_at) < s.today).map((d) => ({
+      id: `snag-draft:${d.id}`,
+      rule: "R29",
+      process: "snag",
+      kind: "reminder",
+      priority: 2,
+      order: 8.5,
+      job: L.job(d.contract_id),
+      location: L.path(d.work_area_id),
+      responsible: { role: "supervisor", who: d.inspector_id ? L.person(d.inspector_id) : null, label: "Site supervisor who started it" },
+      title: "Snag saved but never sent",
+      why: `${d.check_label}. Started ${isoDate(d.created_at)} and not sent, so nobody has been asked to fix it.`,
+      due: addDays(isoDate(d.created_at), 1),
+      requires: ["Check the details and photographs", "Send it, or mark it as entered in error"],
+      doneWhen: "The snag is sent or marked as entered in error",
+      next: "The office says who will fix it",
+      audience: { supervisor: "act", office: "act" },
+      blocks: null,
+      enforcedByBackend: false,
+      source: { table: "supervisor_issues", id: d.id },
+      route: { screen: "snag", id: d.id }
     }));
   });
   rule("R09_missing_checklist", ({ s, L, cfg }) => s.planned_allocations.filter((p) => p.planned_end >= s.today && p.planned_start <= addDays(s.today, cfg.planHorizonDays) && !s.location_inspection_templates.some((t) => t.contract_id === p.contract_id && t.stage === p.stage && L.under(p.work_area_id, t.work_area_id))).map((p) => ({
@@ -1292,11 +1327,32 @@ var TSEngine = (() => {
   })));
 
   // lib/operations/next-actions/engine.ts
+  function coveringManagers(s, jobId, financial) {
+    const managers = s.members.filter((m) => m.role === "contracts_manager" && m.active !== false && (!financial || m.financial_access));
+    if (!jobId) return managers;
+    const assigned = new Set(s.contract_assignments.filter((a) => a.contract_id === jobId).map((a) => a.user_id));
+    return managers.filter((m) => assigned.has(m.user_id));
+  }
+  function ownerAudience(raw, s) {
+    const a = raw.audience;
+    if (a.owner === "act") return { mode: "act", coveredBy: null };
+    if (a.office === "act") {
+      const cover = coveringManagers(s, raw.job.id, !!raw.financial);
+      if (cover.length) return { mode: "see", coveredBy: cover.map((m) => m.display_name).join(", ") };
+      return { mode: "act", coveredBy: null };
+    }
+    if (a.office === "see") return { mode: "see", coveredBy: null };
+    if (a.owner === "see") return { mode: "see", coveredBy: null };
+    if ("office" in a) return { mode: null, coveredBy: null };
+    return { mode: "see", coveredBy: null };
+  }
   function forViewer(raw, viewer, s, L) {
     var _a, _b, _c;
     const key = roleKey(viewer);
-    const mode = raw.audience[key];
+    const owner = key === "owner" ? ownerAudience(raw, s) : null;
+    const mode = owner ? owner.mode : raw.audience[key];
     if (!mode) return null;
+    if (owner == null ? void 0 : owner.coveredBy) raw = { ...raw, responsible: { role: "office", who: owner.coveredBy, label: "Contracts manager" } };
     if (mode === "act" && ((_a = raw.completedUsers) == null ? void 0 : _a.includes(viewer.user_id))) return null;
     if (raw.financial && key === "office" && !viewer.financial_access) return null;
     if (key === "subcontractor") {
@@ -1460,8 +1516,9 @@ var TSEngine = (() => {
     }
     return { title: "Nothing needs you right now", text: "New work appears here as soon as something is saved that needs you." };
   }
-  function todayCountCopy(actions, informational = 0) {
-    const need = actions === 0 ? "Nothing needs you right now." : actions === 1 ? "1 thing needs you." : `${actions} things need you.`;
+  function todayCountCopy(actions, informational = 0, withOthers = 0) {
+    const others = withOthers === 1 ? "1 item is with someone else." : `${withOthers} items are with other people.`;
+    const need = actions === 0 ? withOthers ? `Nothing needs your action right now. ${others}` : "Nothing needs you right now." : `${actions === 1 ? "1 thing needs you." : `${actions} things need you.`}${withOthers ? ` ${others}` : ""}`;
     if (!informational) return need;
     const info = informational === 1 ? "1 informational alert." : `${informational} informational alerts.`;
     return `${need} ${info}`;
@@ -1498,7 +1555,7 @@ var TSEngine = (() => {
         ["problems", "Problems", h.outstanding_problems],
         ["areas needing attention", "Needs attention", h.areas_awaiting_attention]
       ];
-      const filled = parts.filter(([, , text]) => text.trim());
+      const filled = parts.filter(([, , text]) => meaningfulText(text));
       if (!filled.length) return [];
       return [{
         id: `handover:${h.id}`,

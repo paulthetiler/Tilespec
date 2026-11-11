@@ -8,7 +8,7 @@ import { roles } from "../lib/operations/types";
 
 test("office navigation offers the four practical destinations", () => {
   assert.deepEqual(destinationsFor("contracts_manager", "/admin", false).map(({ label, href }) => [label, href]), [
-    ["Today", "/admin"], ["Jobs", "/admin/contracts"], ["People", "/admin/workforce"], ["Paperwork", "/admin/paperwork"],
+    ["Today", "/admin"], ["Inbox", "/admin/inbox"], ["Jobs", "/admin/contracts"], ["People", "/admin/workforce"],
   ]);
 });
 
@@ -19,11 +19,11 @@ test("Money stays separate and never enters non-financial role navigation", () =
       const primary = destinationsFor(role, "/admin", financial);
       const all = [...primary, ...everythingElse(role, financial)];
       assert.ok(primary.length <= MAX_DESTINATIONS);
-      if (!financial) assert.ok(!all.some(item => ["/admin/money", "/admin/estimator"].includes(item.href)), `${role}: financial access ${financial_access}`);
+      if (!financial) assert.ok(!all.some(item => ["/admin/money", "/admin/finance", "/admin/estimator", "/admin/quotes", "/admin/startup-expenses", "/admin/accounts/settings"].includes(item.href)), `${role}: financial access ${financial_access}`);
     }
   }
-  assert.deepEqual(destinationsFor("owner", "/admin", true).map(item => item.label), ["Today", "Jobs", "Money"]);
-  assert.deepEqual(destinationsFor("owner", "/admin", false).map(item => item.label), ["Today", "Jobs"]);
+  assert.deepEqual(destinationsFor("owner", "/admin", true).map(item => item.label), ["Today", "Inbox", "Jobs", "Money"]);
+  assert.deepEqual(destinationsFor("owner", "/admin", false).map(item => item.label), ["Today", "Inbox", "Jobs"]);
 });
 
 test("Everything else preserves original office features and useful paperwork routes", () => {
@@ -52,7 +52,19 @@ test("office tabs identify the actual destination without labelling every second
   assert.equal(currentDestination(tabs, "/admin"), "today");
   assert.equal(currentDestination(tabs, "/admin/contracts/08c5ba2d-0000-4000-8000-000000000001/locations"), "jobs");
   assert.equal(currentDestination(tabs, "/admin/workforce"), "people");
-  assert.equal(currentDestination(tabs, "/admin/paperwork"), "paperwork");
+  assert.equal(currentDestination(tabs, "/admin/inbox"), "inbox");
+  assert.equal(currentDestination(tabs, "/admin/paperwork"), null, "paperwork is in the grouped menu");
   assert.equal(currentDestination(tabs, "/admin/tenders"), null);
   assert.equal(currentDestination(tabs, "/admin/messages"), null);
+});
+
+test("the grouped office menu reaches every administration area, including the sections the audit found hidden", () => {
+  const owner = everythingElse("owner", true).map(item => item.href);
+  for (const href of ["/admin/inbox", "/admin/search", "/admin/planner", "/admin/materials", "/admin/finance", "/admin/customers", "/admin/quotes",
+    "/admin/startup-expenses", "/admin/documents", "/admin/accounts/settings", "/admin/notifications", "/admin/subcontractors", "/admin/gang-invoices", "/admin/invoices"]) {
+    assert.ok(owner.includes(href), href);
+    assert.ok(existsSync(resolve(__dirname, "..", "app", href.slice(1), "page.tsx")), `existing real route: ${href}`);
+  }
+  const manager = everythingElse("contracts_manager", false).map(item => item.href);
+  assert.ok(!manager.includes("/admin/notifications") && !manager.includes("/admin/team"), "owner-only settings stay with the owner");
 });

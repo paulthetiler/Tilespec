@@ -6,6 +6,9 @@ import { roleLabels } from "@/lib/operations/types";
 import { signOut } from "@/app/auth/actions";
 import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import { RoleTabs } from "@/components/admin/role-tabs";
+import { OfficeMenu, OfficeSidebar } from "@/components/admin/office-nav";
+import { officeMenu } from "@/lib/operations/role-nav";
+import nav from "@/components/admin/office-nav.module.css";
 import styles from "./admin.module.css";
 
 export const metadata: Metadata = {
@@ -21,6 +24,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const gang = member.role === "lead_installer" || member.role === "subcontract_installer";
   // Behind FEATURE_ROLE_SHELL: at most four destinations for this role. Off by default.
   const roleShell = flagEnabled("roleShell", member.role);
+  const office = member.role === "owner" || member.role === "contracts_manager";
+  // The office's grouped menu: a sidebar on a desk, "Menu and search" on a phone. Same on every page.
+  const sections = roleShell && office ? officeMenu(member.role, canReadFinancial(member)) : [];
 
   return (
     <div className={styles.admin}>
@@ -41,7 +47,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </div>
         </div>
       </header>
-      {roleShell && <div className={styles.shell}><RoleTabs role={member.role} financial={canReadFinancial(member)} /></div>}
+      {roleShell && !office && <div className={styles.shell}><RoleTabs role={member.role} financial={canReadFinancial(member)} /></div>}
+      {roleShell && office && <div className={`${styles.shell} ${nav.tabsWrap}`}>
+        <RoleTabs role={member.role} financial={canReadFinancial(member)} menu={false} />
+        <OfficeMenu sections={sections} />
+      </div>}
       {!supervisor && !roleShell && (
         <>
           <nav className={`${styles.shell} ${styles.nav} ${styles.desktopNav}`} aria-label="Admin navigation">
@@ -91,9 +101,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </nav>
         </>
       )}
-      <main id="admin-main" className={`${styles.shell} ${styles.main}`} tabIndex={-1} style={roleShell ? { paddingBottom: "96px" } : undefined}>
+      {roleShell && office ? <div className={`${styles.shell} ${nav.frame}`}>
+        <OfficeSidebar sections={sections} />
+        <main id="admin-main" className={styles.main} tabIndex={-1} style={{ paddingBottom: "96px", minWidth: 0 }}>
+          {children}
+        </main>
+      </div> : <main id="admin-main" className={`${styles.shell} ${styles.main}`} tabIndex={-1} style={roleShell ? { paddingBottom: "96px" } : undefined}>
         {children}
-      </main>
+      </main>}
     </div>
   );
 }
