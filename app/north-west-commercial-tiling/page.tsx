@@ -6,7 +6,7 @@ import { regionById } from "../../lib/region-hubs";
 import { ArrowUpRight, Check, FileText, Layers3, MapPin, ShieldCheck } from "lucide-react";
 import "./north-west.css";
 
-const origin = "https://tilespec.vercel.app";
+const origin = "https://www.tilespec.uk";
 const pagePath = "/north-west-commercial-tiling";
 
 export const metadata: Metadata = {
