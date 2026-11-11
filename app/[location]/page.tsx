@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, Check, FileText, Layers3, MapPin, ShieldCheck } from "lucide-react";
 import LandingFooter from "../../components/landing-footer";
+import { RegionalConnections, RegionCityLinks } from "../../components/regional-links";
+import { regionById } from "../../lib/region-hubs";
 import { commercialLocations, type CommercialLocation } from "../../lib/commercial-locations";
 import "../north-west-commercial-tiling/north-west.css";
 
@@ -141,6 +143,8 @@ export default async function RegionalCommercialTiling({ params }: Params) {
       </div>
     </section>
 
+    {market.slug === "london-commercial-tiling" && <RegionCityLinks hub={regionById("london")!} />}
+    <RegionalConnections slug={market.slug}/>
     <section className="nw-faq nw-space">
       <div className="nw-wrap nw-two-col">
         <div><div className="nw-kicker">FREQUENT QUESTIONS</div><h2>THE PRACTICAL<br/><em>DETAILS.</em></h2></div>
