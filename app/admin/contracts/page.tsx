@@ -2,10 +2,13 @@ import Link from "next/link";
 import { canManageContracts, requireActor } from "@/lib/auth";
 import { contractsFor } from "@/lib/operations/data";
 import { calendarDate } from "@/components/operations/format";
+import { jobStage, stageLabels } from "@/lib/operations/command-centre";
+import { londonDate } from "@/lib/operations/planning";
 import styles from "../admin.module.css";
 
 export default async function ContractsPage({ searchParams }: { searchParams: Promise<{ q?: string | string[]; invoice?: string | string[] }> }) {
   const { supabase, member } = await requireActor();
+  const today = londonDate();
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 160) : "";
   const invoiceMode = params.invoice === "1";
@@ -26,7 +29,8 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
       <p className={styles.small}>{filtered.length} {filtered.length === 1 ? "contract" : "contracts"}{q ? " matching your search" : " available"}</p>
       <div className={styles.contractList}>
         {filtered.map(c => <Link key={c.id} href={invoiceMode ? `/admin/contracts/${c.id}/accounts` : `/admin/contracts/${c.id}`} className={styles.contractCard}>
-          <div className={styles.cardTop}><span className={styles.eyebrow}>{c.reference}</span>{!invoiceMode && <span className={styles.warningBadge}>Draft · unreleased</span>}</div>
+          <div className={styles.cardTop}><span className={styles.eyebrow}>{c.reference}</span>{!invoiceMode && (() => { const { stage, confirmed } = jobStage((c as { lifecycle_stage?: string | null }).lifecycle_stage, c.start_date, c.end_date, today);
+            return <span className={["on_hold", "lost"].includes(stage) ? styles.warningBadge : styles.badge}>{stageLabels[stage]}{confirmed ? "" : " (by dates)"}</span>; })()}</div>
           <h2>{c.name}</h2><p>{c.client}</p><p className={styles.muted}>{c.address}</p>
           <div className={styles.meta}><span>Start: {calendarDate(c.start_date)}</span><span>End: {calendarDate(c.end_date)}</span></div>
         </Link>)}

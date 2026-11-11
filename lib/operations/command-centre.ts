@@ -128,6 +128,9 @@ export function onboardingSteps(g: OnboardingInput): OnboardingStep[] {
   ];
 }
 
+/** The units a materials requirement may use (the same list as the database). */
+export const materialUnits = ["bag", "box", "tub", "each", "m2", "m", "lm", "kg", "litre", "tonne", "roll", "pack", "sheet", "length", "tube", "tile", "pallet"] as const;
+
 export type Metric = { key: string; label: string; value: string; detail: string; href: string; tone: "alert" | "warning" | "ok" | "neutral" };
 export const money = (value: number | null | undefined) => value === null || value === undefined ? "—"
   : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: Math.abs(value) >= 1000 ? 0 : 2 }).format(value);

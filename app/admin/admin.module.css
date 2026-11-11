@@ -365,3 +365,4 @@ details[open] > summary .treeToggle::before { content: "▾"; }
 .checkboxRow > input[type="checkbox"] {
   align-self: center;
 }
+.secondaryButton[aria-current="page"] { background: var(--admin-ink); border-color: var(--admin-ink); color: #fff; }

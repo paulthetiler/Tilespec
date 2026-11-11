@@ -1,4 +1,8 @@
 import { aboutTypes, reviewOutcomes } from "./daily";
+export const messageCategories = ["message", "question", "decision", "problem"] as const;
+export const messageCategoryLabels: Record<(typeof messageCategories)[number], string> = {
+  message: "Message", question: "Question", decision: "Decision needed", problem: "Problem",
+};
 import { installationStages } from "./types";
 import { isCalendarDate } from "./planning";
 import { finishDayInput, text, uuid, ValidationError } from "./validation";
@@ -70,7 +74,12 @@ export function messageInput(form: FormData) {
   if (thread) return { contract_id, thread_id: thread, body, needs_answer };
   const about_type = text(form, "about_type", 20) || "job";
   if (!aboutTypes.some(value => value === about_type)) throw new ValidationError("Choose what the message is about.");
-  return { contract_id, about_type, ...(about_type === "job" ? {} : { about_id: uuid(form, "about_id") }), body, needs_answer };
+  // A question, decision request or problem always waits for the office; urgent ones are emailed to the office.
+  const category = text(form, "category", 20) || "message";
+  if (!messageCategories.some(value => value === category)) throw new ValidationError("Choose what kind of message this is.");
+  const urgent = form.get("urgent") === "on";
+  return { contract_id, about_type, ...(about_type === "job" ? {} : { about_id: uuid(form, "about_id") }), body, needs_answer: needs_answer || category !== "message",
+    ...(category !== "message" ? { category } : {}), ...(urgent ? { urgent: true } : {}) };
 }
 
 /** "about=snag:<id>" from an "Ask the office about this" link, or nothing. */

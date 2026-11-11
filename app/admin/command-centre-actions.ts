@@ -202,3 +202,25 @@ export async function rotateDispatcherKeyAction(_: DailyActionState): Promise<Da
 export async function retryNotificationAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
   try { return await ownerCall("retry_notification", { p_outbox: uuid(form, "outbox_id") }, "Queued again."); } catch (error) { return failure(error); }
 }
+
+// ---- Subcontractor onboarding: create a gang (and its company) and go straight to its onboarding page ----
+export async function createGangAction(_: DailyActionState, form: FormData): Promise<DailyActionState> {
+  const { supabase } = await requireActor();
+  try {
+    const name = text(form, "name", 160, true).replace(/\s+/g, " ");
+    const kind = text(form, "kind", 40) || "subcontract_gang";
+    if (!["subcontract_gang", "individual_subcontractor"].includes(kind)) throw new ValidationError("Choose a gang or an individual subcontractor.");
+    let company = optionalId(form, "company_id");
+    const companyName = text(form, "company_name", 160).replace(/\s+/g, " ");
+    if (!company && companyName) {
+      const created = await supabase.rpc("create_company", { p_request_key: uuid(form, "company_request_key"), p_data: { name: companyName, company_number: "", contact_name: text(form, "contact_name", 160),
+        contact_phone: text(form, "contact_phone", 40), contact_email: text(form, "contact_email", 254), address: "", notes: "" } });
+      if (created.error) return declined(created.error);
+      company = String(created.data);
+    }
+    const team = await supabase.rpc("create_team", { p_request_key: uuid(form, "request_key"), p_data: { name, kind, company_id: company } });
+    if (team.error) return declined(team.error);
+    revalidatePath("/admin/subcontractors"); revalidatePath("/admin/workforce");
+    return { id: String(team.data), success: `${name} added. Next: business and tax details, the agreement and a portal link.`, href: `/admin/subcontractors/${team.data}` };
+  } catch (error) { return failure(error); }
+}

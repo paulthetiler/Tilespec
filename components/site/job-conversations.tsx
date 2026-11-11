@@ -25,8 +25,12 @@ export function JobConversations({ threads, viewer, contractId, siteBase, lookup
       <DailyForm action={postJobMessageAction} label="Send to the office" nextHref={`${siteBase}/messages#conversations`} nextLabel="View your messages">
         <input type="hidden" name="contract_id" value={contractId} /><input type="hidden" name="request_key" value={randomUUID()} />
         {about && <><input type="hidden" name="about_type" value={about.about_type} /><input type="hidden" name="about_id" value={about.about_id} /></>}
+        <label className={styles.field}>What is it?<select name="category" defaultValue="question">
+          <option value="question">A question</option><option value="decision">I need a decision</option><option value="problem">A problem to report</option><option value="message">Just letting you know</option>
+        </select></label>
         <label className={styles.field}>Your message<textarea name="body" required maxLength={2000} rows={3} /></label>
         <label className={styles.checkboxRow}><input type="checkbox" name="needs_answer" defaultChecked />I need an answer</label>
+        <label className={styles.checkboxRow}><input type="checkbox" name="urgent" />Urgent: email the office now</label>
       </DailyForm>
     </div>}
     <div className={styles.cardList}>{threads.map(thread => {
