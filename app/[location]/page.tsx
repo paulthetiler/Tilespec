@@ -7,7 +7,7 @@ import { RegionalConnections, LondonConnections } from "../../components/regiona
 import { commercialLocations, type CommercialLocation } from "../../lib/commercial-locations";
 import "../north-west-commercial-tiling/north-west.css";
 
-const origin = "https://tilespec.vercel.app";
+const origin = "https://www.tilespec.uk";
 export const dynamicParams = false;
 
 type Params = { params: Promise<{ location: string }> };
