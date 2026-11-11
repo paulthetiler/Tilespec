@@ -70,7 +70,8 @@ Then sign in as the owner on production and check:
 Merge the pull request. Vercel deploys `main`; the existing production flags (`FEATURE_NEXT_ACTIONS` and
 `FEATURE_ROLE_SHELL` for `supervisor,owner,contracts_manager`) already turn the command centre on. If the
 database steps above have not been applied, every new page says that the database update is not applied and the
-rest of the app is unaffected.
+rest of the app is unaffected; a supervisor's question or decision request is sent as an ordinary question until then.
+`npm run test:pre-migration` proves this on every CI run against the hosted project's current shape.
 
 ## 6. Switch on email (owner, when ready)
 

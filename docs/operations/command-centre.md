@@ -70,3 +70,5 @@ to Vercel with `CRON_SECRET` and to the database with the owner's dispatcher key
 - `tests/db/command-centre-rollback.test.sh`: the migration rolls back and installs again.
 - `npm run test:command-centre`: the morning journey in a real browser against the migrated database, with email
   delivered to a local stand-in.
+- `npm run test:pre-migration`: the new app against a database shaped like the hosted project before the update:
+  every page opens, new pages explain the update, and site questions still reach the office.

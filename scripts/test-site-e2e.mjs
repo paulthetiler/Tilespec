@@ -24,7 +24,10 @@ const repository = fileURLToPath(new URL('..', import.meta.url));
 const screenshots = process.env.SCREENSHOT_DIR;
 const postgrestBinary = process.env.POSTGREST_BIN || 'postgrest';
 const commandCentreOnly = process.env.E2E_COMMAND_CENTRE_ONLY === '1';
-const adminTodayOnly = process.env.E2E_ADMIN_TODAY_ONLY === '1' || commandCentreOnly;
+// Before the database update: the hosted project's shape (no office reviews, no command centre) with the new app.
+const preMigration = process.env.E2E_PRE_MIGRATION === '1';
+const adminTodayOnly = process.env.E2E_ADMIN_TODAY_ONLY === '1' || commandCentreOnly || preMigration;
+const notYetApplied = name => preMigration && (name.startsWith('20261023090000_') || name >= '20261114');
 // The command centre journey proves email delivery against a local stand-in for the email service: nothing leaves this machine.
 const cronSecret = 'e2e-cron-secret-0123456789abcdef0123456789';
 const dispatchToken = 'e2e0dispatch0token0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0';
@@ -78,7 +81,7 @@ async function startDatabase() {
   // A private socket and no TCP listener: nothing outside this test can connect.
   run('pg_ctl', ['-D', join(work, 'data'), '-o', `-p ${pgPort} -k ${work} -c listen_addresses=''`, '-l', join(work, 'postgres.log'), '-w', 'start']);
   sql(await readFile(join(repository, 'tests/db/platform.sql'), 'utf8'));
-  for (const migration of readdirSync(join(repository, 'supabase/migrations')).sort()) sql(await readFile(join(repository, 'supabase/migrations', migration), 'utf8'));
+  for (const migration of readdirSync(join(repository, 'supabase/migrations')).sort()) if (!notYetApplied(migration)) sql(await readFile(join(repository, 'supabase/migrations', migration), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/seed.sql'), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/snags-seed.sql'), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/holds-seed.sql'), 'utf8'));
@@ -315,6 +318,11 @@ async function main() {
   await compileAuthenticatedRoutes(next.origin, gateway.port);
   browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, headless: true });
   await warm(next.origin);
+  if (preMigration) {
+    const { runPreMigration } = await import('./pre-migration-e2e-flows.mjs');
+    await runPreMigration({ browser, origin: next.origin, sql, signIn, pass, contractId });
+    return;
+  }
   if (commandCentreOnly) {
     const { runCommandCentre } = await import('./command-centre-e2e-flows.mjs');
     await runCommandCentre({ browser, origin: next.origin, sql, signIn, screenshots, pass, contractId, emails, cronSecret, dispatchToken });
