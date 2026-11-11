@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin/", "/api/", "/auth/", "/login", "/subcontractors/"],
       },
     ],
-    sitemap: "https://tilespec.vercel.app/sitemap.xml",
-    host: "https://tilespec.vercel.app",
+    sitemap: "https://www.tilespec.uk/sitemap.xml",
+    host: "https://www.tilespec.uk",
   };
 }
