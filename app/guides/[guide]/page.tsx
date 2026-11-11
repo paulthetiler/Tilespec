@@ -19,6 +19,9 @@ export default async function GuidePage({params}:Props){
   const {guide}=await params;
   if(!(guide in guides))notFound();
   const data=guides[guide as GuideSlug];
+  const related = Object.entries(guides)
+    .filter(([slug,item]) => slug !== guide && (item.related === data.related || slug === "commercial-tiling-tender-checklist"))
+    .slice(0,3);
   return <main className="nw-page" id="top">
     <header className="nw-header"><div className="nw-wrap nw-header-row">
       <Link className="nw-brand" href="/"><img src="/tilespec-logo-animated.svg" width={230} height={62} alt="TileSPEC"/></Link>
@@ -43,7 +46,7 @@ export default async function GuidePage({params}:Props){
       <div style={{marginTop:34,paddingTop:22,borderTop:"1px solid #ccd6d8"}}>
         <h2 style={{fontSize:28,marginBottom:14}}>Related technical guidance</h2>
         <nav aria-label="Related articles" style={{display:"flex",flexDirection:"column",gap:12}}>
-          {Object.entries(guides).filter(([slug])=>slug!==guide).map(([slug,item])=><Link href={`/guides/${slug}`} key={slug}>{item.title} →</Link>)}
+          {related.map(([slug,item])=><Link href={`/guides/${slug}`} key={slug}>{item.title} →</Link>)}
         </nav>
       </div>
     </div></section>
