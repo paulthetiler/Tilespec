@@ -7,7 +7,7 @@ const services = [
   { title: "Commercial floor tiling", detail: "High-traffic commercial floors, large-format porcelain and detailed setting-out, delivered over properly prepared substrates.", icon: Ruler, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/403ce48c-0290-43e5-8239-bf239757a9cc/sheff-2.webp" },
   { title: "Wall tiling & finishes", detail: "Commercial wall finishes with careful setting-out, suitable backgrounds and consistent detailing in washrooms and public spaces.", icon: Layers3, image: "https://images.unsplash.com/photo-1758193017781-e3aee6c3e359?auto=format&fit=crop&w=1200&q=85" },
   { title: "Complete tiling packages", detail: "Tile procurement, substrate preparation, installation and handover coordinated under one specialist package.", icon: HardHat, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/6ca1f877-9abc-4db9-8f69-230cfc4ba360/7ba3cf9c-a72f-46a9-8cf2-96f22c8431e2.webp" },
-  { title: "Specialist preparation", detail: "Floor preparation, adhesive removal, repairs, levelling, screeding, boarding and waterproofing where specified.", icon: ShieldCheck, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/9a2e49fd-0b10-43f2-8e5a-af226647a35f/pool-prep.webp" },
+  { title: "Specialist preparation", detail: "Floor preparation, adhesive removal, repairs, levelling, screeding, boarding and waterproofing where specified.", icon: ShieldCheck, image: "https://o2cm9cmazm2kibri.public.blob.vercel-storage.com/image-hub/5d748bb5-6171-4754-af8e-dfd2515aaf69/sunlit-indoor-pool-with-skylights.webp" },
 ];
 const sectors = ["Retail & showrooms", "Commercial developments", "Hospitality & leisure", "Public & communal spaces"];
 const projects = [
