@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { commercialLocations } from "../lib/commercial-locations";
 import { regionalHubs } from "../lib/region-hubs";
 
-const origin = "https://tilespec.vercel.app";
+const origin = "https://www.tilespec.uk";
 const establishedLocations = [
   "north-west-commercial-tiling",
   "manchester-commercial-tiling",
