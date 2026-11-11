@@ -8,8 +8,8 @@ import "../north-west-commercial-tiling/north-west.css";
 export const metadata:Metadata={
  title:"UK Commercial Tiling Coverage | TileSPEC",
  description:"Explore TileSPEC commercial wall and floor tiling coverage across UK regions and 75 major city and town markets. Warrington-based, nationwide commercial project enquiries.",
- alternates:{canonical:"https://tilespec.vercel.app/coverage"},
- openGraph:{title:"UK Commercial Tiling Coverage | TileSPEC",description:"Commercial tiling coverage across the UK, from the North West to the South Coast, Wales and central Scotland.",url:"https://tilespec.vercel.app/coverage",type:"website"},
+ alternates:{canonical:"https://www.tilespec.uk/coverage"},
+ openGraph:{title:"UK Commercial Tiling Coverage | TileSPEC",description:"Commercial tiling coverage across the UK, from the North West to the South Coast, Wales and central Scotland.",url:"https://www.tilespec.uk/coverage",type:"website"},
 };
 export default function CoveragePage(){
  return <main className="nw-page" id="top">
