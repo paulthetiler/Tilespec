@@ -535,6 +535,17 @@ main#top .ts-live-proof-item{min-width:0}
   main#top .ts-photo-service-label h3{font-size:clamp(20px,2.2vw,27px)}
 }
 
+/* Subtle image-only hover zoom for the service cards; content stays fixed. */
+@media (hover:hover) and (prefers-reduced-motion:no-preference){
+  main#top .ts-photo-service img{
+    transition:transform .45s cubic-bezier(.2,.75,.25,1);
+    transform-origin:center center;
+  }
+  main#top .ts-photo-service:hover img{
+    transform:scale(1.065);
+  }
+}
+
 /* Keep the full three-stage preparation/levelling/tiling sequence visible. */
 main#top .ts-photo-service-sequence{background:#182f3b}
 main#top .ts-photo-service-sequence img{object-fit:contain;object-position:center center}
