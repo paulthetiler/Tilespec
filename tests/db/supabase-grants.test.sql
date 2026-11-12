@@ -31,8 +31,11 @@ select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.
       'portal_cancel_invoice(text,uuid,text)', 'portal_answer_query(text,uuid,text)', 'portal_agreement(text)',
       'portal_sign_agreement(text,uuid,jsonb)', 'private.can_upload_portal_file(text)',
       -- The scheduled email dispatcher: each refuses without the owner's dispatcher key.
-      'dispatch_queue_summaries(text,date)', 'dispatch_claim(text,integer)', 'dispatch_report(text,uuid,text,text,text)')),
-  'anonymous visitors can call only the enquiry form, shared-link, subcontractor portal and key-guarded email dispatcher functions, and no other application function');
+      'dispatch_queue_summaries(text,date)', 'dispatch_claim(text,integer)', 'dispatch_report(text,uuid,text,text,text)',
+      -- Enquiry email alerts: the visitor's one-time token, the owner's retry key, or the random id of a claimed attempt.
+      'claim_submitted_enquiry_notification(uuid,text)', 'claim_due_enquiry_notifications(text,integer)',
+      'report_enquiry_notification(uuid,text,text,text,text)')),
+  'anonymous visitors can call only the enquiry form, shared-link, subcontractor portal, key-guarded email dispatcher and enquiry alert functions, and no other application function');
 select test.assert((select count(*) = 0 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'private' and has_function_privilege('authenticated', p.oid, 'execute')
     and p.proname not in ('current_org', 'current_role', 'is_owner', 'can_manage_contract', 'can_access_contract',

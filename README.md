@@ -57,7 +57,7 @@ an owner or expressly authorised contracts manager.
 ## Launch checklist
 - Replace curated illustrative photography with authorised original commercial project images.
 - Confirm the correct trading company legal name, Companies House registration details, registered office, contact email and phone. Do not publish an unleased or unverified trading premises address.
-- Tender form now uses a Supabase-backed server-side enquiry reservation, private document uploads and completion acknowledgement. Verify the hosted configuration and run a full end-to-end test with a harmless test enquiry before launch. The website does not currently demonstrate automatic email alerts for new submissions; monitor the admin tender inbox until notifications are verified.
+- Tender form now uses a Supabase-backed server-side enquiry reservation, private document uploads and completion acknowledgement. Every confirmed enquiry is emailed to info@tilespec.uk, with logged retries and no duplicates; see [enquiry-notifications.md](docs/operations/enquiry-notifications.md) for the sending domain and settings. Monitor the admin tender inbox until a test enquiry's alert has been seen to arrive.
 - Add verified project case studies, insurance and accreditation information only once checked.
 - Connect repository to Vercel and set the custom domain after review.
 
