@@ -73,17 +73,17 @@ export function renderEnquiryNotification(e: EnquiryDetails, baseUrl: string): R
   const documents = files.length
     ? `${files.length} document${files.length === 1 ? "" : "s"} (${size(files.reduce((sum, f) => sum + (Number(f.size) || 0), 0))}), stored privately`
     : "None attached";
-  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f4f7f8;font-family:Arial,Helvetica,sans-serif;color:#0f2a3a">
-<div style="max-width:640px;margin:auto;background:#fff;border:1px solid #d7e2e5;border-radius:10px;padding:24px">
+  const html = `<!doctype html><html><body style="margin:0;padding:12px;background:#f4f7f8;font-family:Arial,Helvetica,sans-serif;color:#0f2a3a">
+<div style="max-width:640px;margin:auto;background:#fff;border:1px solid #d7e2e5;border-radius:10px;padding:16px;box-sizing:border-box;overflow-wrap:anywhere">
 <p style="margin:0 0 4px;color:#326e67;font-size:12px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase">TileSPEC website</p>
-<h1 style="margin:0 0 16px;font-size:22px">New ${tender ? "tender" : "general"} enquiry ${esc(e.reference)}</h1>
-<table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">${rows.map(([label, value, href]) =>
-  `<tr><th scope="row" style="text-align:left;vertical-align:top;padding:6px 12px 6px 0;color:#536b77;font-weight:normal;white-space:nowrap">${esc(label)}</th><td style="padding:6px 0">${href ? `<a href="${esc(href)}" style="color:#326e67">${esc(value)}</a>` : esc(value)}</td></tr>`).join("")}
-<tr><th scope="row" style="text-align:left;vertical-align:top;padding:6px 12px 6px 0;color:#536b77;font-weight:normal;white-space:nowrap">Documents</th><td style="padding:6px 0">${esc(documents)}${files.length ? `<ul style="margin:6px 0 0;padding-left:18px">${files.map(f => `<li>${esc(f.name)} (${esc(size(Number(f.size) || 0))})</li>`).join("")}</ul>` : ""}</td></tr>
+<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;overflow-wrap:anywhere">New ${tender ? "tender" : "general"} enquiry<br><span style="font-size:18px">${esc(e.reference)}</span></h1>
+<table role="presentation" style="width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;font-size:14px">${rows.map(([label, value, href]) =>
+  `<tr><th scope="row" style="text-align:left;vertical-align:top;padding:6px 12px 6px 0;color:#536b77;font-weight:normal;width:30%;overflow-wrap:anywhere">${esc(label)}</th><td style="padding:6px 0;overflow-wrap:anywhere;word-break:break-word">${href ? `<a href="${esc(href)}" style="color:#326e67">${esc(value)}</a>` : esc(value)}</td></tr>`).join("")}
+<tr><th scope="row" style="text-align:left;vertical-align:top;padding:6px 12px 6px 0;color:#536b77;font-weight:normal;width:30%;overflow-wrap:anywhere">Documents</th><td style="padding:6px 0;overflow-wrap:anywhere;word-break:break-word">${esc(documents)}${files.length ? `<ul style="margin:6px 0 0;padding-left:18px;overflow-wrap:anywhere;word-break:break-word">${files.map(f => `<li style="overflow-wrap:anywhere;word-break:break-word">${esc(f.name)} (${esc(size(Number(f.size) || 0))})</li>`).join("")}</ul>` : ""}</td></tr>
 </table>
 <h2 style="margin:20px 0 8px;font-size:16px">Message</h2>
-<p style="margin:0;white-space:pre-wrap">${e.message ? esc(e.message) : "No message."}</p>
-<p style="margin:24px 0 0"><a href="${esc(link)}" style="display:inline-block;padding:10px 16px;background:#326e67;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold">Open in the tender inbox</a></p>
+<p style="margin:0;white-space:pre-wrap;overflow-wrap:anywhere">${e.message ? esc(e.message) : "No message."}</p>
+<p style="margin:24px 0 0"><a href="${esc(link)}" style="display:inline-block;max-width:100%;box-sizing:border-box;padding:10px 16px;overflow-wrap:anywhere;background:#326e67;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold">Open in the tender inbox</a></p>
 <p style="margin:16px 0 0;color:#536b77;font-size:12px">Sign in to open the documents: they are never attached or linked from this email. Reply to this email to answer ${esc(e.name)} directly. Sent automatically by the TileSPEC website once the enquiry and all its documents were received.</p>
 </div></body></html>`;
   const text = [
