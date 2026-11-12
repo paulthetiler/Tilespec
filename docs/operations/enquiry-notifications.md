@@ -28,7 +28,7 @@ within 24 hours is not delivered twice.
 
 **What the email contains:** reference, enquiry type, customer name, company, email (and Reply-To set to the
 customer, so replying answers them directly), project, tender return date, received time, message, document
-names and sizes, and a button to `https://tilespec.uk/admin/tenders?ref=TS-XXXXXXXX`. That link requires
+names and sizes, and a button to `https://www.tilespec.uk/admin/tenders?ref=TS-XXXXXXXX`. That link requires
 sign-in as the owner or a contracts manager; the reference in it grants nothing. Documents are never attached or
 linked: they stay in the private `tilespec-tenders` bucket and open only from the signed-in inbox through
 five-minute links. The email never contains the visitor's token, a storage path or any key.
@@ -40,7 +40,7 @@ five-minute links. The email never contains the visitor's token, a storage path 
 | `RESEND_API_KEY` | Yes | Yes (mark Sensitive) | The email service key. Create it in Resend with "Sending access" for the verified domain only. |
 | `NOTIFICATIONS_FROM` | Yes | No | Sender on the verified domain, e.g. `TileSPEC Website <enquiries@notify.tilespec.uk>`. |
 | `ENQUIRY_NOTIFICATIONS_TO` | No | No | Override the recipient (default `info@tilespec.uk`). |
-| `NOTIFICATIONS_BASE_URL` | No | No | Link base; defaults to the production domain Vercel provides. Set `https://tilespec.uk` to be explicit. |
+| `NOTIFICATIONS_BASE_URL` | No | No | Link base; defaults to the production domain Vercel provides. Set to `https://www.tilespec.uk` (tilespec.uk redirects there). |
 | `CRON_SECRET` | For retries | Yes | Long random value; Vercel sends it to the schedule. |
 | `ENQUIRY_NOTIFICATIONS_KEY` | For retries | Yes | Created once by the owner in **Tender enquiries → Email alerts for new enquiries → Create the retry key**. |
 
