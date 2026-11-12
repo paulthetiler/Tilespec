@@ -51,6 +51,9 @@ site diary, and everything appears in the job's history.
 - **Morning summary:** after 07:00, covering stops, conversations waiting, yesterday on site, today's plan, the
   next 14 days, and money for recipients with money access.
 
+Website enquiries have their own alert to info@tilespec.uk, which works without the command centre: see
+[enquiry-notifications.md](enquiry-notifications.md).
+
 The content is assembled by the database for each recipient. Emails are queued in an outbox with one key per event
 and recipient, so the same event is never emailed twice, and urgent alerts are capped per hour. Each message is
 re-checked when sent and suppressed if the recipient has lost access. Failures retry with back-off, and every
