@@ -834,3 +834,16 @@ main#top .ts-home-service-link:focus-visible{outline:2px solid #86bfb6;outline-o
     margin-top:clamp(26px,4svh,48px);
   }
 }
+
+/* Desktop hero: vertically centre the left-aligned copy within the existing photograph.
+   Do not alter the hero height, image crop, or horizontal positioning. */
+@media (min-width:761px){
+  .hero-content{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    justify-content:center;
+    padding-top:40px;
+    padding-bottom:40px;
+  }
+}
