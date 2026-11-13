@@ -33,7 +33,7 @@ export async function runPreMigration({ browser, origin, sql, signIn, pass, cont
     await owner.goto(`${origin}/admin`);
     await owner.getByRole('heading', { name: 'Today', exact: true }).waitFor();
     assert.doesNotMatch(await owner.locator('body').innerText(), unhealthy);
-    for (const panel of ['Immediate attention', 'Live jobs', 'Yesterday on site', 'Planning', 'Administration']) {
+    for (const panel of ['Needs you', 'Live jobs', 'Yesterday on site', 'Planning', 'Administration']) {
       assert.equal(await owner.getByRole('region', { name: panel, exact: false }).count() > 0, true, `${panel} shows before the update`);
     }
     const pages = new Set([...await linksOn(owner), '/admin/inbox', '/admin/search?q=E2E', '/admin/planner', '/admin/materials', '/admin/finance',
