@@ -363,8 +363,10 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
       if (href.startsWith('/admin/documents/')) continue;
       assert.equal((await office.request.get(`${origin}${href.split('#')[0]}`)).status(), 200, `activity link ${href} opens a healthy saved record`);
     }
-    // The opt-in in this run covers office and owner only; the shared page follows the same boundary.
-    assert.equal((await supervisor.request.get(`${origin}${site}/activity`)).status(), 404, 'a role that is not opted in does not get the new page');
+    // Job activity is no longer behind a flag: it is the one shared story, linked from the supervisor's Today.
+    // The boundary that matters is the site itself.
+    assert.equal((await supervisor.request.get(`${origin}${site}/activity`)).status(), 200, 'the supervisor on this site reads the same story');
+    assert.equal((await other.request.get(`${origin}${site}/activity`)).status(), 404, 'another organisation cannot open it');
     pass('Phase 3 I2: Job Activity tells the saved story newest first, names who acknowledged and when, and every line opens a healthy record');
 
     await other.goto(`${origin}/admin`);
