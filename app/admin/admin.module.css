@@ -52,27 +52,27 @@
 
 .shell { width: min(1240px, calc(100% - 32px)); margin-inline: auto; min-width: 0; }
 .header { background: #fff; border-bottom: 1px solid var(--admin-line); }
-.header .shell { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; padding-block: 18px; }
+.header .shell { display: flex; align-items: center; justify-content: space-between; gap: 10px 24px; padding-block: 8px; }
+.logo { display: block; width: 132px; height: auto; }
 .brand { display: inline-flex; align-items: center; gap: 11px; min-height: 44px; flex-shrink: 0; }
 .brand svg { flex-shrink: 0; }
 .brand strong { display: block; font-family: "Barlow Condensed", Arial, sans-serif; font-size: 37px; line-height: .95; font-weight: 800; letter-spacing: -.03em; }
 .brand strong span { color: #4c8582; }
 .brandMeta { display: block; margin-top: 7px; font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-.identity { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; width: 100%; }
-.identity > div { min-width: 0; }
+.identity { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+.identity > div { min-width: 0; text-align: right; }
+.identity strong, .identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.identity button { min-height: 44px; padding: 6px 12px; }
 .identity strong { display: block; font-size: 13px; }
 .identity span { display: block; font-size: 12px; color: var(--admin-muted); }
 .identity form { flex-shrink: 0; }
-.nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-block: 12px; border-bottom: 1px solid var(--admin-line); }
-.nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 15px; border-radius: 6px; font-size: 14px; font-weight: 700; }
-.nav a:hover { background: #e4eeec; color: #215c54; }
-.nav a { border: 1px solid #d7e2e5; border-radius: 999px; background: #fff; white-space: nowrap; }
-.nav a:focus-visible { outline-offset: 2px; }
-.main { padding-top: 26px; padding-bottom: 80px; }
-.pageHeader { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 26px; }
+.main { padding-top: 16px; padding-bottom: 80px; }
+/* Room for the bottom navigation bar on a phone or tablet. */
+.withTabs { padding-bottom: 96px; }
+.pageHeader { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 18px; margin-bottom: 18px; }
 .pageHeader > div { min-width: 0; flex: 1 1 220px; }
 .eyebrow { color: var(--admin-teal); font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; margin-bottom: 9px; }
-.title { font-family: "Barlow Condensed", Arial, sans-serif; font-size: clamp(36px, 7vw, 52px); line-height: 1; font-weight: 800; letter-spacing: -.02em; margin-bottom: 12px; }
+.title { font-family: "Barlow Condensed", Arial, sans-serif; font-size: clamp(30px, 6vw, 46px); line-height: 1.05; font-weight: 800; letter-spacing: -.02em; margin-bottom: 8px; }
 .description { max-width: 780px; color: var(--admin-muted); line-height: 1.7; margin-bottom: 0; }
 .button,
 .secondaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; max-width: 100%; border: 1px solid var(--admin-ink); border-radius: 6px; padding: 10px 17px; font-size: 14px; font-weight: 700; text-align: center; }
@@ -159,9 +159,11 @@
 
 @media (min-width: 640px) {
   .shell { width: min(1240px, calc(100% - 48px)); }
-  .identity { width: auto; max-width: 65%; }
-  .identity > div { text-align: right; }
-  .main { padding-top: 36px; }
+  .header .shell { padding-block: 14px; }
+  .logo { width: 210px; }
+  .identity { max-width: 65%; }
+  .main { padding-top: 28px; }
+  .pageHeader { margin-bottom: 24px; }
   .formGrid,
   .detailGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panel { padding: 26px; }
@@ -176,7 +178,6 @@
   .shell { width: calc(100% - 24px); }
   .panel { padding: 16px; }
   .metrics { grid-template-columns: minmax(0, 1fr); }
-  .nav a { padding-inline: 11px; }
 }
 
 /* Supervisor V2 office screens: large touch targets, one primary action each. */
@@ -310,32 +311,15 @@ details[open] > summary .treeToggle::before { content: "▾"; }
 .plainFieldset > .actions .bigButton { width: 100%; }
 
 /* Keep office administration available without burying the working-day view on phones. */
-.mobileNav { display: none; }
 @media (max-width: 639px) {
-  .desktopNav { display: none; }
-  .mobileNav { display: flex; align-items: flex-start; gap: 10px; padding-block: 10px; border-bottom: 1px solid var(--admin-line); }
-  .mobileSiteLink, .mobileMenu > summary {
-    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-    min-height: 48px; padding: 9px 14px; border: 1px solid #b7c9cf;
-    border-radius: 8px; background: #fff; color: var(--admin-ink);
-    font-size: 14px; font-weight: 700;
-  }
-  .mobileMenu { flex: 1 1 auto; min-width: 0; }
-  .mobileMenu > summary { width: 100%; list-style: none; cursor: pointer; }
-  .mobileMenu > summary::-webkit-details-marker { display: none; }
-  .mobileMenu[open] > summary { background: #eaf1f0; }
-  .mobileMenuLinks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; margin-top: 8px; padding: 7px;
-    border: 1px solid var(--admin-line); border-radius: 10px; background: #fff; }
-  .mobileMenuLinks a { display: flex; align-items: center; min-height: 48px; padding: 9px 12px;
-    border-radius: 6px; font-size: 14px; font-weight: 700; }
-  .mobileMenuLinks a:hover { background: #eaf1f0; }
-  .header .shell { padding-block: 12px; }
   .brand strong { font-size: 30px; }
   .brandMeta { font-size: 8px; }
   .identity { gap: 8px; }
-  .identity .secondaryButton { min-height: 44px; padding: 8px 12px; }
-  .main { padding-top: 20px; }
+  .identity .secondaryButton { min-height: 44px; padding: 6px 10px; font-size: 13px; }
+  .identity strong { font-size: 12px; }
 }
+/* A narrow phone: the name is enough; the role is on the account and in the menu. */
+@media (max-width: 400px) { .identity span { display: none; } .logo { width: 116px; } }
 
 /* Choice controls must never inherit the full-width text-field layout. */
 .admin input[type="radio"] {

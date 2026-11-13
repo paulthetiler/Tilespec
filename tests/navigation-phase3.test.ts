@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { currentDestination, destinationsFor, everythingElse, MAX_DESTINATIONS } from "../lib/operations/role-nav";
 import { canReadFinancial } from "../lib/operations/permissions";
@@ -29,7 +29,7 @@ test("Money stays separate and never enters non-financial role navigation", () =
 test("Everything else preserves original office features and useful paperwork routes", () => {
   for (const role of ["owner", "contracts_manager"] as const) {
     const links = everythingElse(role, false).map(item => item.href);
-    for (const href of ["/admin", "/admin/contracts", "/admin/workforce", "/admin/supervisor", "/admin/snags", "/admin/holds", "/admin/alerts", "/admin/quality", "/admin/tenders", "/admin/paperwork", "/admin/messages"]) {
+    for (const href of ["/admin", "/admin/contracts", "/admin/workforce", "/admin/supervisor", "/admin/snags", "/admin/holds", "/admin/quality", "/admin/tenders", "/admin/paperwork", "/admin/messages"]) {
       assert.ok(links.includes(href), `${role}: ${href}`);
       assert.ok(existsSync(resolve(__dirname, "..", "app", href.slice(1), "page.tsx")), `existing real route: ${href}`);
     }
@@ -60,11 +60,15 @@ test("office tabs identify the actual destination without labelling every second
 
 test("the grouped office menu reaches every administration area, including the sections the audit found hidden", () => {
   const owner = everythingElse("owner", true).map(item => item.href);
-  for (const href of ["/admin/inbox", "/admin/search", "/admin/planner", "/admin/materials", "/admin/finance", "/admin/customers", "/admin/quotes",
+  for (const href of ["/admin/inbox", "/admin/planner", "/admin/materials", "/admin/finance", "/admin/customers", "/admin/quotes",
     "/admin/startup-expenses", "/admin/documents", "/admin/accounts/settings", "/admin/notifications", "/admin/subcontractors", "/admin/gang-invoices", "/admin/invoices"]) {
     assert.ok(owner.includes(href), href);
     assert.ok(existsSync(resolve(__dirname, "..", "app", href.slice(1), "page.tsx")), `existing real route: ${href}`);
   }
   const manager = everythingElse("contracts_manager", false).map(item => item.href);
   assert.ok(!manager.includes("/admin/notifications") && !manager.includes("/admin/team"), "owner-only settings stay with the owner");
+  // Search is the box at the top of the menu, on every page; site alerts open from Stops and holds.
+  assert.match(readFileSync(resolve(__dirname, "..", "components/admin/office-nav.tsx"), "utf8"), /action="\/admin\/search"/);
+  assert.match(readFileSync(resolve(__dirname, "..", "components/admin/role-tabs.tsx"), "utf8"), /<SearchBox id="menu-search"/);
+  assert.match(readFileSync(resolve(__dirname, "..", "app/admin/holds/page.tsx"), "utf8"), /\/admin\/alerts/);
 });

@@ -14,7 +14,6 @@ import { DailyForm } from "@/components/site/daily-form";
 import { OfficeMessageForm } from "@/components/site/office-message-form";
 import { acknowledgeOfficeItemAction, sendOfficeItemAction } from "../../../daily-actions";
 import { requireSite } from "../../../site-access";
-import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import styles from "../../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +33,7 @@ export default async function OfficeMessages({ params, searchParams }: { params:
   checkDatabase(members.error);
   // The office already reads the member list, so it can see who acknowledged and when.
   const nameOf = new Map(((members.data ?? []) as { user_id: string; display_name: string }[]).map(row => [row.user_id, row.display_name]));
-  const shared = flagEnabled("nextActions", member.role) || flagEnabled("roleShell", member.role);
+  const shared = true;
   // Reviews, changes and withdrawals need their reviewed migration; until then the page works as before.
   const followUp = !!daily?.followUp;
   const unreviewed = office && followUp ? daily!.handovers.filter(record => !daily!.reviews.some(review => review.handover_id === record.id)) : [];
