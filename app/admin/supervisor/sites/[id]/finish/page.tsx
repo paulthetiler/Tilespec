@@ -10,6 +10,7 @@ import { DailyForm } from "@/components/site/daily-form";
 import { HandoverQuestions } from "@/components/site/handover-questions";
 import { recordHandoverAction } from "../../../daily-actions";
 import { requireSite } from "../../../site-access";
+import { SiteDaySteps } from "@/components/site/day-steps";
 import styles from "../../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function FinishToday({ params }: { params: Promise<{ id: st
   const open = periods.filter(period => period.open);
   const saved = daily?.handovers.filter(row => row.actor_id === member.user_id && row.work_date === day) || [];
   return <>
+    {member.role === "supervisor" && <SiteDaySteps supabase={supabase} contractId={id} userId={member.user_id} current="finish" />}
     <h2 className={styles.title}>Finish today</h2><p>{dayLabel(day, "long")} · A short handover for the office.</p>
     <section className={styles.panel} aria-label="Today’s recorded work"><h3>Already recorded</h3>
       <p>{site.summary.presentNow} people on site now · {open.length} work periods still open.</p>
@@ -39,7 +41,7 @@ export default async function FinishToday({ params }: { params: Promise<{ id: st
           {daily.conversations && <Link href={`${base}/messages?about=handover:${row.id}#ask`}>Ask the office about this handover</Link>}</div>;
       })}<p>Use another handover only to add new information. Earlier handovers stay in the history.</p></section>}
       <section className={styles.panel}><h3>{saved.length ? "Add a handover update" : "How did today go?"}</h3>
-        <DailyForm action={recordHandoverAction} label="FINISH TODAY" nextHref={base}>
+        <DailyForm action={recordHandoverAction} label="FINISH TODAY" nextHref={`${base}/next?after=finish`} nextLabel="See what is left today">
           <input type="hidden" name="contract_id" value={id} /><input type="hidden" name="day" value={day} /><input type="hidden" name="request_key" value={randomUUID()} />
           <HandoverQuestions />
           <p className={styles.small}>Record what you used today on <Link href={`/admin/supervisor/sites/${id}/materials`}>Materials used</Link>.</p>

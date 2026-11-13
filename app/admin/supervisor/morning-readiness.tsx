@@ -130,10 +130,11 @@ export default function MorningReadiness({ contractReference, contractId, dashbo
     {attendanceError && <p role="alert">Morning checks saved, but the workforce register needs attention: {attendanceError} <button type="button" onClick={() => void syncAttendance(saved.id)}>Retry attendance update</button></p>}
     {photoError && <p role="alert">Morning checks saved, but a photo was not uploaded: {photoError} <button type="button" disabled={photosPending} onClick={() => void uploadIssuePhotos(saved.id)}>Retry photos</button></p>}
     {!photosPending && !photoError && photoChecks.some(item => photoChoice[item] === "yes") && <p>Selected site photos uploaded.</p>}
-    <h3>Morning checks finished</h3><p>Return to the site dashboard to carry on with your day. No need to repeat the people check.</p>
-    <Link href={dashboardHref} style={primary}>Back to site dashboard</Link>
+    <h3>Morning checks finished</h3><p>Carry on with your day. No need to repeat the people check.</p>
+    <Link href={`${dashboardHref}/next?after=checks`} style={primary}>Next step →</Link>
+    <p style={{ margin: "10px 0 0" }}><Link href={dashboardHref} style={{ ...button, display: "inline-flex", alignItems: "center" }}>Back to site dashboard</Link></p>
     {saved.issuesCount > 0 && <p>For a serious safety or quality concern, make the affected activity safe, contact the office and <Link href={`/admin/holds/new?contract=${contractId}&morning=${saved.id}`}>record a work restriction</Link> if required.</p>}
-    <p><Link href={`${dashboardHref}/checks?inspection=${saved.id}#morning-${saved.id}`}>View saved answers</Link> · <Link href={dashboardHref}>Back to today</Link></p>
+    <p><Link href={`${dashboardHref}/checks?inspection=${saved.id}#morning-${saved.id}`}>View saved answers</Link></p>
   </section>;
 
   return <section style={{ background: "#fff", border: "1px solid #d7e2e5", borderRadius: 12, padding: 18, margin: "20px 0" }} aria-labelledby="morning-checks-heading">

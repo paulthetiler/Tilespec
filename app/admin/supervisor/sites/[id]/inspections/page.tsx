@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import { requireSite } from "../../../site-access";
+import { SiteDaySteps } from "@/components/site/day-steps";
 import { createInspectionTemplateAction, recordLocationInspectionAction, configureInspectionRequirementAction } from "../../../inspection-actions";
 import { OperationsForm } from "@/components/operations/operations-form";
 import { WorkmanshipForm } from "@/components/operations/workmanship-form";
@@ -68,6 +69,7 @@ export default async function LocationInspections({ params, searchParams }: {
   checkDatabase(links.error);
   const base = `/admin/supervisor/sites/${id}/inspections`;
   return <>
+    {member.role === "supervisor" && <SiteDaySteps supabase={supabase} contractId={id} userId={member.user_id} current="inspect" />}
     <h2>Check workmanship</h2>
     <p>Choose where you are checking, then record what you find.</p>
     <form className={styles.form} method="get"><label>Location<select name="location" defaultValue={location?.id || ""} required>
