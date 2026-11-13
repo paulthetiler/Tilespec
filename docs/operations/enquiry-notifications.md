@@ -38,32 +38,37 @@ five-minute links. The email never contains the visitor's token, a storage path 
 | Variable | Required | Secret | Purpose |
 |---|---|---|---|
 | `RESEND_API_KEY` | Yes | Yes (mark Sensitive) | The email service key. Create it in Resend with "Sending access" for the verified domain only. |
-| `NOTIFICATIONS_FROM` | Yes | No | Sender on the verified domain, e.g. `TileSPEC Website <enquiries@notify.tilespec.uk>`. |
+| `NOTIFICATIONS_FROM` | Yes | No | Sender on the domain verified in Resend. Production: `TileSPEC Website <enquiries@tilespec.uk>`. |
 | `ENQUIRY_NOTIFICATIONS_TO` | No | No | Override the recipient (default `info@tilespec.uk`). |
 | `NOTIFICATIONS_BASE_URL` | No | No | Link base; defaults to the production domain Vercel provides. Set to `https://www.tilespec.uk` (tilespec.uk redirects there). |
 | `CRON_SECRET` | For retries | Yes | Long random value; Vercel sends it to the schedule. |
-| `ENQUIRY_NOTIFICATIONS_KEY` | For retries | Yes | Created once by the owner in **Tender enquiries → Email alerts for new enquiries → Create the retry key**. |
+| `ENQUIRY_NOTIFICATIONS_KEY` | For retries | Yes | The retry key. Replace it in **Tender enquiries → Email alerts for new enquiries → Create a new retry key**, then paste the new key here. |
 
 Redeploy after changing variables. Without `RESEND_API_KEY` and `NOTIFICATIONS_FROM`, alerts are queued but not
 sent; once both are set, the schedule (or **Send the email alert now**) sends the backlog.
 
 ## Sending domain (does not touch Microsoft 365)
 
-tilespec.uk's mail is hosted by Microsoft 365 (MX `tilespec-uk.mail.protection.outlook.com`, SPF
-`include:secureserver.net -all`, DMARC `p=quarantine`, DNS at GoDaddy). To leave that untouched, verify a
-**subdomain** with Resend, for example `notify.tilespec.uk` (region EU, Ireland). Resend then asks for records on
-that subdomain only — typically:
+tilespec.uk's mailboxes are hosted by Microsoft 365 (MX `tilespec-uk.mail.protection.outlook.com`, SPF
+`include:secureserver.net -all`, DMARC `p=quarantine`, DNS at GoDaddy). Resend sends the alerts and never receives
+mail, so it needs only two extra records. Production uses the domain `tilespec.uk` in Resend (region Ireland), with
+these records at GoDaddy:
 
 | Type | Name (GoDaddy "Host") | Value |
 |---|---|---|
-| TXT | `resend._domainkey.notify` | the DKIM key Resend shows |
-| MX | `send.notify` | `feedback-smtp.eu-west-1.amazonses.com`, priority 10 |
-| TXT | `send.notify` | `v=spf1 include:amazonses.com ~all` |
+| TXT | `resend._domainkey` | the DKIM key Resend shows |
+| CNAME | `send` | `send.forge.rmta.net` (Resend's sending service; it carries the bounce address and its SPF) |
 
-Copy the exact values from the Resend dashboard. **Do not** edit the root `@` MX, the root SPF TXT, `autodiscover`,
-`selector1/selector2._domainkey` or `_dmarc`. Mail from `enquiries@notify.tilespec.uk` passes DMARC through its own
-DKIM signature. If the first alert lands in Junk in Outlook, mark it "Not junk" (or add the sender to Safe
-senders); no change to mailbox hosting is needed.
+Copy the exact values from the Resend dashboard, then open the domain there and press **Verify DNS Records**: the
+status stays "Not Started" until you do, then moves through "Pending" to "Verified". Until it is verified Resend
+refuses every message ("domain is not verified"); the alerts are logged and retried, and send once it is.
+
+**Do not** edit the root `@` MX, the root SPF TXT, `autodiscover`, `selector1/selector2._domainkey` or `_dmarc`:
+those belong to Microsoft 365. Mail from `enquiries@tilespec.uk` passes DMARC through Resend's own DKIM signature.
+The sender address needs no mailbox, because replies go to the customer (Reply-To). The sender in
+`NOTIFICATIONS_FROM` must be on the exact domain verified in Resend: a subdomain such as `notify.tilespec.uk` is a
+separate domain there and is refused unless it is added and verified as well. If an alert lands in Junk in
+Outlook, mark it "Not junk" (or add the sender to Safe senders); no change to mailbox hosting is needed.
 
 ## Verifying
 
