@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireActor, type Member } from "@/lib/auth";
 import { contractsFor } from "@/lib/operations/data";
+import { isDemoRecord } from "@/lib/operations/demo";
 import { buildQueue, compute, configFromEnv, flagEnabled, siteSummaryCopy } from "@/lib/operations/next-actions";
 import { loadSiteSnapshot } from "@/lib/operations/next-actions/snapshot-data";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -48,6 +49,7 @@ export default async function SupervisorHub({ searchParams }: { searchParams: Pr
         const summary = summaries[index];
         return <Link key={contract.id} className={dailyStyles.siteChoice} href={`/admin/supervisor/sites/${contract.id}`}>
           <strong>{contract.name}</strong><span>{[contract.reference, contract.address].filter(Boolean).join(" · ")}</span>
+          {isDemoRecord(contract) && <span className={dailyStyles.siteStopped}>Demo record: not a real site</span>}
           {summary && <span className={dailyStyles.siteNext}>{summary.line}</span>}
           {summary?.stopped && <span className={dailyStyles.siteStopped}>{summary.stopped}</span>}
           <span>Open today →</span>

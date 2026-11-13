@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageContracts, canReadFinancial, requireActor } from "@/lib/auth";
@@ -25,7 +24,8 @@ import styles from "../../admin.module.css";
 type ContractAllocation = { user_id: string; valid_from: string; valid_until: string | null };
 type PackageAllocation = { user_id: string; work_package_id: string };
 
-function ContractReadout({ contract }: { contract: Contract }) {
+/** `recordedOnly`: list only what has been recorded (for gangs: the office's gaps are not theirs to fill). */
+function ContractReadout({ contract, recordedOnly = false }: { contract: Contract; recordedOnly?: boolean }) {
   const fields: [string, string | null][] = [
     ["Client", contract.client], ["Principal contractor", contract.principal_contractor],
     ["Site address", contract.address], ["Site contact", contract.site_contact],
@@ -36,7 +36,8 @@ function ContractReadout({ contract }: { contract: Contract }) {
     ["Working hours", contract.working_hours], ["Access restrictions", contract.access_restrictions],
     ["Insurance requirements", contract.insurance_requirements], ["Defects liability", contract.defects_liability],
   ];
-  return <dl className={styles.detailGrid}>{fields.map(([label, value]) => <div className={styles.detailItem} key={label}><dt>{label}</dt><dd>{value || "Not recorded"}</dd></div>)}</dl>;
+  const shown = recordedOnly ? fields.filter(([, value]) => value && value !== "Not recorded") : fields;
+  return <dl className={styles.detailGrid}>{shown.map(([label, value]) => <div className={styles.detailItem} key={label}><dt>{label}</dt><dd>{value || "Not recorded"}</dd></div>)}</dl>;
 }
 
 export default async function ContractPage({ params }: { params: Promise<{ id: string }> }) {
@@ -90,7 +91,8 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
     <div className={styles.pageHeader}>
       <div><p className={styles.eyebrow}>{contract.reference}</p><h1 className={styles.title}>{contract.name}</h1><p className={styles.description}>{contract.client} · {contract.address}</p></div>
       <div className={styles.inline}>
-        <Link href="/admin/contracts" className={styles.secondaryButton}>Contract register</Link>\n        <a href="#documents" className={styles.button}>Documents</a>
+        <Link href="/admin/contracts" className={styles.secondaryButton}>All jobs</Link>
+        <a href="#documents" className={styles.button}>Documents</a>
         {!installer && <Link href={`/admin/contracts/${id}/locations`} className={styles.secondaryButton}>Locations</Link>}
         {!installer && <Link href={`/admin/contracts/${id}/actual`} className={styles.secondaryButton}>Planned vs actual</Link>}
         {!installer && <Link href={`/admin/contracts/${id}/plan`} className={styles.button}>{manage ? "Plan work" : "Work plan"}</Link>}
@@ -98,8 +100,9 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
     </div>
     {manage && <SiteSetup contractId={id} locationCount={activeLocations.length} activeTeamCount={teamCount?.count ?? 0} plannedThisWeek={planCount?.count ?? 0} />}
     {!installer && <nav className={styles.inline} aria-label="This job">
-      <span className={styles.small}>This job:</span>\n      <a href="#documents">Documents</a>
-      {(flagEnabled("nextActions", member.role) || flagEnabled("roleShell", member.role)) && <Link href={`/admin/supervisor/sites/${id}/activity`}>Job activity</Link>}
+      <span className={styles.small}>This job:</span>
+      <a href="#documents">Documents</a>
+      <Link href={`/admin/supervisor/sites/${id}/activity`}>Job activity</Link>
       <Link href={`/admin/supervisor/sites/${id}/commercial?kind=variations`}>{variations ? "Variations" : "Variations (not available yet)"}</Link>
       <Link href={`/admin/supervisor/sites/${id}/commercial?kind=dayworks`}>{dayworks ? "Dayworks" : "Dayworks (not built yet)"}</Link>
       <Link href={`/admin/supervisor/sites/${id}/materials`}>Materials used</Link>
@@ -107,9 +110,18 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       {financial && <Link href={`/admin/contracts/${id}/accounts`}>Accounts and invoicing</Link>}
     </nav>}
     {!installerRole && <JobStagePanel contract={contract as unknown as Parameters<typeof JobStagePanel>[0]["contract"]} customers={customers} today={londonDate()} manage={manage} />}
-    <section className={styles.warning} aria-label="Contract release status"><span className={styles.warningBadge}>Draft · unreleased</span><h2>Installation is not authorised</h2><ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul><p className={styles.small}>No inspection, approval or signature has been recorded by this setup workflow. Quality gates must be implemented and completed before release.</p></section>
+    {!installer && (() => {
+      // The first warning is always the same reminder that release is per location; the rest are set-up gaps.
+      const todo = warnings.slice(1);
+      return <section className={todo.length ? styles.warning : styles.panel} aria-label="Job set-up">
+        <h2>{todo.length ? "Still to set up" : "Set-up details recorded"}</h2>
+        {todo.length > 0 && <ul>{todo.map(warning => <li key={warning}>{warning}</li>)}</ul>}
+        <p className={styles.small}>Work is released area by area, never for the whole job at once: each location and activity can go ahead
+          once its required inspections have passed and no stop or hold applies.{!installer && <> <Link href={`/admin/quality?contract_id=${id}`}>See what is released</Link>.</>}</p>
+      </section>;
+    })()}
 
-    <section className={styles.panel} id="contract-information"><h2>Contract information</h2><ContractReadout contract={contract} />
+    <section className={styles.panel} id="contract-information"><h2>{installer ? "Job details" : "Contract information"}</h2><ContractReadout contract={contract} recordedOnly={installer} />
       {manage && <details className={styles.details}><summary>Edit operational contract details</summary><OperationsForm key={`contract-${contract.version}`} action={updateContractAction} submitLabel="Save contract details"><input type="hidden" name="contract_id" value={id} /><input type="hidden" name="version" value={contract.version} /><input type="hidden" name="request_key" value={randomUUID()} /><ContractFields contract={contract} /></OperationsForm></details>}
     </section>
 
