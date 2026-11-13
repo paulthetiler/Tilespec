@@ -9,6 +9,7 @@ import { DailyForm } from "@/components/site/daily-form";
 import { SitePhotoUploader } from "@/components/site/site-photos";
 import { recordProgressAction, requestMaterialAction, updateMaterialAction, voidProgressAction } from "@/app/admin/command-centre-actions";
 import { requireSite } from "../../../site-access";
+import { SiteDaySteps } from "@/components/site/day-steps";
 import styles from "../../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,7 @@ export default async function SiteDiary({ params }: { params: Promise<{ id: stri
   for (const e of (progress.data ?? []) as Row[]) if (!e.voided_at && e.work_package_id) done.set(String(e.work_package_id), (done.get(String(e.work_package_id)) ?? 0) + Number(e.quantity ?? 0));
   const siteBase = `/admin/supervisor/sites/${id}`;
   return <>
+    {member.role === "supervisor" && <SiteDaySteps supabase={supabase} contractId={id} userId={member.user_id} current="progress" />}
     <div className={styles.pageHeader}><div><p className={styles.eyebrow}>{contract.reference} · {contract.name}</p><h1 className={styles.title}>Site diary</h1>
       <p className={styles.description}>Record what was done, add photographs and ask for materials. The office sees it first thing tomorrow.</p></div>
       <Link className={styles.secondaryButton} href={siteBase}>Back to today</Link></div>

@@ -78,7 +78,7 @@ try {
   // Explicit test-only opt-in; neither the parent process nor app defaults change.
   server = spawn(process.execPath, [join(repository, 'node_modules/next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], {
     cwd: temporary, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, FEATURE_NEXT_ACTIONS: 'supervisor', FEATURE_ROLE_SHELL: 'on', NEXT_TELEMETRY_DISABLED: '1' },
+    env: { ...process.env, FEATURE_NEXT_ACTIONS: 'supervisor', NEXT_TELEMETRY_DISABLED: '1' },
   });
   for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => { log = (log + bytes.toString()).slice(-16000); });
   const origin = `http://127.0.0.1:${port}`;
@@ -102,13 +102,13 @@ try {
     await visit(page, origin + base);
     assert.equal(await href(page, 'Start morning checks'), `${base}/checks`);
     assert.equal(await href(page, 'Report an issue'), `${base}/report`);
-    assert.deepEqual(await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link').allTextContents(), ['Today', 'People', 'Inspect', 'Docs']);
+    assert.deepEqual(await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link').allTextContents(), ['Today', 'People', 'Inspect', 'Drawings']);
     assert.equal(await page.getByRole('navigation', { name: 'Main', exact: true }).getByRole('link', { name: 'Today', exact: true }).getAttribute('aria-current'), 'page');
     assert.equal(await page.getByText('Everything else', { exact: true }).count(), 0, 'a supervisor has no second menu');
     assert.equal(await page.getByRole('link', { name: /Money|Estimator/ }).count(), 0);
     assert.equal(await href(page, 'Change site'), '/admin/supervisor');
     const more = page.getByRole('region', { name: 'More', exact: true });
-    assert.deepEqual(await more.locator('strong').allTextContents(), ['Verify gang progress', 'Office messages', 'Finish today', 'Materials used', 'Job activity', 'Variations', 'Dayworks'], 'More does not repeat the tab bar');
+    assert.deepEqual(await more.locator('strong').allTextContents(), ['Verify gang progress', 'Outstanding snags', 'Office messages', 'Finish today', 'Materials used', 'Job activity', 'Variations', 'Dayworks'], 'More does not repeat the tab bar, and snags are one tap from Today');
     assert.equal(await more.getByRole('link', { name: /^Verify gang progress/ }).getAttribute('href'), `${base}/progress`, 'gang invoice checks are one tap from Today');
     assert.equal(await more.getByRole('link', { name: /^Job activity/ }).getAttribute('href'), `${base}/activity`);
     for (const kind of ['Variations', 'Dayworks']) {
@@ -155,7 +155,9 @@ try {
       await visit(page, origin + '/admin/fixture-navigation');
       const nav = page.getByRole('navigation', { name: 'Main', exact: true });
       assert.ok(await nav.getByRole('link').count() <= 4);
-      await page.getByText(['owner', 'contracts_manager'].includes(role) ? 'Menu and search' : 'Everything else', { exact: true }).click();
+      // The office opens its complete menu from the Menu tab; a gang has no second menu.
+      if (['owner', 'contracts_manager'].includes(role)) await nav.getByRole('button', { name: 'Menu', exact: true }).click();
+      else assert.equal(await nav.getByRole('button').count(), 0);
       const money = await page.getByRole('link', { name: /^(Money|Estimator)$/ }).count();
       assert.equal(money > 0, role === 'owner', `${role} financial navigation`);
       assert.deepEqual(await measure(page), [], `${role} navigation at ${viewport.width}px`);

@@ -5,6 +5,7 @@ import { londonClock, londonDate } from "@/lib/operations/planning";
 import MorningReadiness from "../../../morning-readiness";
 import MorningIssuePhotos from "../../../morning-issue-photos";
 import { requireSite } from "../../../site-access";
+import { SiteDaySteps } from "@/components/site/day-steps";
 import styles from "../../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export default async function MorningChecks({ params, searchParams }: { params: 
   const savedChecks = selected.data && !pageChecks.some(record => record.id === selectedId) ? [selected.data as MorningRecord, ...pageChecks] : pageChecks;
   const hasMore = (history.data || []).length > 20;
   return <>
+    {member.role === "supervisor" && <SiteDaySteps supabase={supabase} contractId={id} userId={member.user_id} current="checks" />}
     {status.lastCheck && <div className={styles.success} role="status">
       <h1>Morning checks complete</h1>
       <p>Morning checks were recorded at {londonClock(status.lastCheck.created_at)} today{status.lastCheck.issues_count ? ` with ${status.lastCheck.issues_count} issue${status.lastCheck.issues_count === 1 ? "" : "s"}` : ""}.</p>

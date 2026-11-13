@@ -21,12 +21,13 @@ export default async function SnagRegister({searchParams}:{searchParams:Promise<
  const defaultValue=(key:string)=>typeof filters[key]==="string"?String(filters[key]):"";
  const pageLink=(p:number)=>{const query=new URLSearchParams();for(const [key,value] of Object.entries(filters))query.set(key,String(value));query.set("page",String(p));return `/admin/snags?${query}`;};
  const selectedContract=contracts.find(c=>c.id===filters.contract_id);
- return <><ConnectionStatus/><h1 className={styles.title}>Snag register</h1>
-  <p>{selectedContract?`${selectedContract.reference} · ${selectedContract.name}`:"Authorised sites"}. Saved findings, responsibility decisions and every repair attempt stay in the history.</p>
+ return <><ConnectionStatus/><h1 className={styles.title}>{staff?"Snags":"Your fixes"}</h1>
+  <p>{staff?<>{selectedContract?`${selectedContract.reference} · ${selectedContract.name}`:"Every site you can see"}. Saved findings, responsibility decisions and every repair attempt stay in the history.</>
+   :"Work you have been asked to put right. Open each one, fix it and send photos; someone else then checks the repair."}</p>
   {staff&&<div className={styles.rowActions}><Link className={styles.bigButton} href={`/admin/snags/new${filters.contract_id?`?contract=${filters.contract_id}`:""}`}>Raise snag</Link></div>}
   {register.counts.critical>0&&<div className={css.critical} role="status"><strong>{register.counts.critical} critical defect{register.counts.critical===1?"":"s"} require immediate office review.</strong><p>Escalation does not create a formal stop-work hold or authorise release.</p></div>}
-  <section aria-label="Snag counts" className={styles.metrics}>{Object.entries(register.counts).map(([key,count])=><div className={styles.metric} key={key}><span className={styles.metricLabel}>{({open:"Open snags",critical:"Critical",awaiting_rectification:"Awaiting rectification",awaiting_reinspection:"Awaiting reinspection",disputed:"Disputed responsibility",overdue:"Overdue",closed:"Closed"} as Record<string,string>)[key]}</span><strong className={styles.metricValue}>{count}</strong></div>)}</section>
-  <details className={styles.details} open><summary>Find and filter snags</summary><form method="get" className={styles.form}>
+  <section aria-label="Snag counts" className={styles.metrics}>{Object.entries(register.counts).filter(([key])=>staff||["open","overdue","awaiting_rectification"].includes(key)).map(([key,count])=><div className={styles.metric} key={key}><span className={styles.metricLabel}>{({open:"Open snags",critical:"Critical",awaiting_rectification:"Awaiting rectification",awaiting_reinspection:"Awaiting reinspection",disputed:"Disputed responsibility",overdue:"Overdue",closed:"Closed"} as Record<string,string>)[key]}</span><strong className={styles.metricValue}>{count}</strong></div>)}</section>
+  <details className={styles.details} open={staff}><summary>Find and filter snags</summary><form method="get" className={styles.form}>
    <div className={css.filters}>
     <label>Site<select name="contract_id" defaultValue={defaultValue("contract_id")}><option value="">All authorised sites</option>{contracts.map(c=><option key={c.id} value={c.id}>{c.reference} · {c.name}</option>)}</select></label>
     <label>Location<select name="location_id" defaultValue={defaultValue("location_id")}><option value="">All locations</option>{orderLocations(locations).map(l=><option key={l.id} value={l.id}>{locationPath(index,l.id)}</option>)}</select></label>

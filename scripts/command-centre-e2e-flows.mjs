@@ -60,7 +60,7 @@ export async function runCommandCentre({ browser, origin, sql, signIn, screensho
   assert.equal(await metrics.getByRole('link').count(), 6, 'six summary figures');
   assert.ok(await cara.locator('[data-metric="in"]').count() === 1 && await cara.locator('[data-metric="out"]').count() === 1, 'the owner sees money in and out');
   await cara.getByRole('navigation', { name: 'Office menu', exact: true }).waitFor();
-  for (const label of ['Inbox', 'Planner', 'Materials', 'Debtors and cash flow', 'Customers', 'Quotations', 'Startup expenses', 'Documents and compliance', 'Business settings', 'Email notifications'])
+  for (const label of ['Inbox', 'Planner', 'Materials', 'Money overview', 'Customers', 'Quotations', 'Startup expenses', 'Company documents (RAMS, COSHH)', 'Business settings', 'Email notifications'])
     await cara.getByRole('navigation', { name: 'Office menu', exact: true }).getByRole('link', { name: label, exact: true }).waitFor();
   const job = cara.locator('[data-job="APT-B"]');
   await job.waitFor();

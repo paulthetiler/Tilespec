@@ -201,8 +201,8 @@ test("real site and issue-report routes reject inaccessible sites and installers
     assert.equal((await site(contractId)).contract, null, "installers are not given supervisor site screens");
     assert.equal(await report({ params: Promise.resolve({ id: contractId }) }), null);
     globals.officeActor = { supabase: f.client, member: actor };
-    process.env.FEATURE_NEXT_ACTIONS = "";
-    await assert.rejects(report({ params: Promise.resolve({ id: contractId }) }), /NEXT_NOT_FOUND/, "disabled issue report is a 404");
+    process.env.FEATURE_NEXT_ACTIONS = "off";
+    await assert.rejects(report({ params: Promise.resolve({ id: contractId }) }), /NEXT_NOT_FOUND/, "with the emergency switch off, the issue report is a 404");
     process.env.FEATURE_NEXT_ACTIONS = "supervisor";
     const html = renderToStaticMarkup(await report({ params: Promise.resolve({ id: contractId }) }));
     assert.match(html, new RegExp(`/admin/snags/new\\?contract=${contractId}`));

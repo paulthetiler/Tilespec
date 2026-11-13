@@ -6,21 +6,34 @@ import type { NextActionConfig } from "@/lib/operations/next-actions/config";
 import { dayLabel } from "@/lib/operations/planning";
 import { money, plural, programmeLabels, stageLabels, type Metric } from "@/lib/operations/command-centre";
 import type { CommandCentreData } from "@/lib/operations/command-centre-data";
-import { AdminToday } from "./admin-today";
+import { AdminToday, StoppedWork } from "./admin-today";
+import { PhoneCollapse } from "./phone-collapse";
+import { isDemoRecord } from "@/lib/operations/demo";
 import styles from "./command-centre.module.css";
 
 type Props = { snapshot: NextActionSnapshot; viewer: Viewer; member: Member; config?: NextActionConfig; data: CommandCentreData; queueCount: number; stops: { safety: number; quality: number } };
 
+const greeting = () => {
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "numeric", hourCycle: "h23" }).format(new Date()));
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+};
 const shortDay = (iso: string) => new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
 const tone = (t: Metric["tone"]) => (t === "alert" ? styles.alert : t === "warning" ? styles.warning : t === "ok" ? styles.ok : "");
 
-function Panel({ id, title, action, children, description }: { id: string; title: string; action?: ReactNode; children: ReactNode; description?: string }) {
+function Panel({ id, title, action, children, description, fold }: { id: string; title: string; action?: ReactNode; children: ReactNode; description?: string;
+  /** Fold to one line on a phone, with this summary of what is inside. */
+  fold?: string }) {
+  // The heading always stays a real heading, outside the fold toggle: a toggle's content is read out as one button label.
+  const head = <div className={styles.panelHead}>
+    <div><h2 id={`${id}-heading`}>{title}</h2>{description && <p className={styles.muted}>{description}</p>}</div>
+    {action}
+  </div>;
   return <section className={styles.panel} aria-labelledby={`${id}-heading`} id={id}>
-    <div className={styles.panelHead}>
-      <div><h2 id={`${id}-heading`}>{title}</h2>{description && <p className={styles.muted}>{description}</p>}</div>
-      {action}
-    </div>
-    {children}
+    {head}
+    {fold ? <PhoneCollapse className={styles.fold} summaryClassName={styles.foldHead}
+      summary={<><span className={styles.foldSummary}>{fold}</span><span className={styles.foldShow}>Show ▾</span><span className={styles.foldHide}>Hide ▴</span></>}>
+      <div className={styles.foldBody}>{children}</div>
+    </PhoneCollapse> : children}
   </section>;
 }
 
@@ -79,9 +92,8 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
   return <div className={styles.centre} data-command-centre={owner ? "owner" : "office"}>
     <header className={styles.header}>
       <div>
-        <p className={styles.eyebrow}>Command centre</p>
         <h1>Today</h1>
-        <p className={styles.muted}>Good morning, {firstName}. {dayLabel(data.today, "long")} · {plural(data.jobs.length, "live job")}</p>
+        <p className={styles.muted}>{greeting()}, {firstName}. {dayLabel(data.today, "long")} · {plural(data.jobs.length, "live job")}</p>
       </div>
       <div className={styles.headerTools}>
         <form action="/admin/search" method="get" role="search" className={styles.search}>
@@ -94,6 +106,9 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
       </div>
     </header>
 
+    {/* 1. Stopped work, always first and never folded: it stays in force whatever else is happening. */}
+    <StoppedWork snapshot={snapshot} />
+
     <nav className={styles.metrics} aria-label="Summary">
       {metrics.map(metric => <Link key={metric.key} href={metric.href} className={`${styles.metric} ${tone(metric.tone)}`} data-metric={metric.key}>
         <span className={styles.metricLabel}>{metric.label}</span>
@@ -102,7 +117,8 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
       </Link>)}
     </nav>
 
-    <Panel id="attention" title="Immediate attention" description="Every decision and action across the company, most urgent first. Each opens its record."
+    {/* 2. Decisions and problems that need someone in the office, most urgent first. */}
+    <Panel id="attention" title="Needs you" description="Decisions and actions across every job, most urgent first. Then what is waiting on someone else."
       action={<Link className={styles.link} href="/admin/inbox">Open the inbox →</Link>}>
       <ul className={styles.attentionStrip}>
         {data.inbox.threads > 0 && <li><Link href="/admin/inbox#questions"><strong>{data.inbox.threads}</strong> supervisor {data.inbox.threads === 1 ? "question or decision" : "questions and decisions"} waiting for an answer</Link></li>}
@@ -118,7 +134,8 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
       <AdminToday snapshot={snapshot} viewer={viewer} member={member} config={config} embedded />
     </Panel>
 
-    <Panel id="live-jobs" title={`Live jobs (${data.jobs.length})`} description="Every active project: stage, programme, people, progress, money and open items."
+    {/* 3. Today on site. */}
+    <Panel id="live-jobs" title={`Live jobs (${data.jobs.length})`} description="Every active job: who is on site today, progress, programme and open items."
       action={<Link className={styles.link} href="/admin/contracts">All jobs →</Link>}>
       {data.jobs.length === 0 ? <p className={styles.empty}>No jobs are live. Jobs that are won appear here once they start, or move a job to Mobilising or Live from its page.</p>
       : <div className={styles.jobs} role="table" aria-label="Live jobs">
@@ -128,7 +145,8 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
         </div>
         {data.jobs.map(job => <Link key={job.id} href={`/admin/contracts/${job.id}`} className={styles.job} role="row" data-job={job.reference}>
           <span role="cell" className={styles.jobName}><strong>{job.reference} · {job.name}</strong><small>{job.client || "Customer not set"}</small>
-            <span className={`${styles.chip} ${job.stage === "on_hold" ? styles.warning : ""}`}>{stageLabels[job.stage]}{job.stageConfirmed ? "" : " (from dates)"}</span></span>
+            <span className={`${styles.chip} ${job.stage === "on_hold" ? styles.warning : ""}`}>{stageLabels[job.stage]}{job.stageConfirmed ? "" : " (from dates)"}</span>
+            {isDemoRecord(job) && <span className={`${styles.chip} ${styles.warning}`}>Demo record</span>}</span>
           <span role="cell"><small>Supervisor</small>{job.supervisors.join(", ") || <em className={styles.missing}>None assigned</em>}
             {job.managers.length > 0 && <><small>Manager</small>{job.managers.join(", ")}</>}</span>
           <span role="cell"><small>Planned</small>{job.gangsPlannedToday.join(", ") || "Nobody planned"}<small>Confirmed on site</small>{plural(job.peopleOnSiteToday, "person", "people")}</span>
@@ -151,7 +169,8 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
       </div>}
     </Panel>
 
-    <Panel id="yesterday" title={`Yesterday on site · ${shortDay(data.yesterday)}`} description="Supervisor reports, attendance, progress, photographs, inspections, snags and materials, job by job.">
+    <Panel id="yesterday" title={`Yesterday on site · ${shortDay(data.yesterday)}`} description="Supervisor reports, attendance, progress, photographs, inspections, snags and materials, job by job."
+      fold={data.yesterdayJobs.length ? `${plural(data.yesterdayJobs.length, "job")} reported · ${plural(data.yesterdayJobs.filter(job => job.handovers.some(h => h.problems)).length, "report")} with problems` : "Nothing recorded"}>
       {data.yesterdayJobs.length === 0 ? <p className={styles.empty}>Nothing was recorded on site yesterday.</p>
       : <div className={styles.yesterday}>{data.yesterdayJobs.map(job => {
         const quiet = !job.handovers.length && !job.people && !job.progress.length && !job.photoCount && !job.inspections && !job.snags.length;
@@ -184,8 +203,46 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
       })}</div>}
     </Panel>
 
+
+    {/* 4. Coming up. */}
+    <Panel id="planning" title="Planning: next 14 days" description="Who is where, jobs starting, gaps, materials and deadlines." action={<Link className={styles.link} href="/admin/planner">Open the planner →</Link>}
+      fold={[plural(data.planning.starts.length, "job start"), data.planning.unplannedJobs.length ? `${plural(data.planning.unplannedJobs.length, "job")} with nobody planned` : "",
+        data.planning.doubleBooked ? `${plural(data.planning.doubleBooked, "double booking")}` : "", plural(data.planning.deadlines.length, "deadline")].filter(Boolean).join(" · ")}>
+      <div className={styles.planGrid}>
+        <div className={styles.card}>
+          <h3>Job starts</h3>
+          {data.planning.starts.length === 0 ? <p className={styles.muted}>No jobs start in the next 14 days.</p>
+          : <ul className={styles.list}>{data.planning.starts.map(s => <li key={s.id}><Link href={`/admin/contracts/${s.id}`}><strong>{shortDay(s.on)}</strong> {s.label}</Link>
+            {s.ready ? <span className={`${styles.chip} ${styles.ok}`}>Set up</span> : <small className={styles.warningText}>Still to do: {s.missing.join("; ")}</small>}</li>)}</ul>}
+        </div>
+        <div className={styles.card}>
+          <h3>Staffing</h3>
+          <ul className={styles.list}>
+            {data.planning.unplannedJobs.map(job => <li key={job.id}><Link href={`/admin/contracts/${job.id}/plan`} className={styles.warningText}>No gang planned: {job.label}</Link></li>)}
+            {data.planning.doubleBooked > 0 && <li><Link href="/admin/planner" className={styles.alertText}>{plural(data.planning.doubleBooked, "gang-day")} double-booked</Link></li>}
+            {data.planning.idle.slice(0, 5).map(i => <li key={i.team}><Link href="/admin/planner">{i.team}: {plural(i.days, "working day")} without work</Link></li>)}
+            {!data.planning.unplannedJobs.length && !data.planning.doubleBooked && !data.planning.idle.length && <li className={styles.muted}>Every live job and gang is planned.</li>}
+          </ul>
+        </div>
+        <div className={styles.card}>
+          <h3>Materials</h3>
+          {data.planning.materials === null ? <p className={styles.muted}>Materials tracking is installed with the latest database update.</p>
+          : data.planning.materials.length === 0 ? <p className={styles.muted}>Nothing requested or on order.</p>
+          : <ul className={styles.list}>{data.planning.materials.slice(0, 6).map(item => <li key={item.id}><Link href="/admin/materials">{item.quantity} {item.unit} {item.item} · {item.job}</Link>
+            <small className={item.status === "requested" && item.needed_by && item.needed_by <= data.today ? styles.alertText : ""}>{item.status === "ordered" ? "Ordered" : "Not ordered"}{item.needed_by ? `, needed ${shortDay(item.needed_by)}` : ""}</small></li>)}</ul>}
+        </div>
+        <div className={styles.card}>
+          <h3>Deadlines</h3>
+          {data.planning.deadlines.length === 0 ? <p className={styles.muted}>No deadlines in the next 14 days.</p>
+          : <ul className={styles.list}>{data.planning.deadlines.slice(0, 8).map((d, i) => <li key={i}><Link href={d.href}><strong>{shortDay(d.on)}</strong> {d.what}{d.job ? ` · ${d.job}` : ""}</Link></li>)}</ul>}
+        </div>
+      </div>
+    </Panel>
+
+    {/* 5. Money and reporting. */}
     {m && <Panel id="money" title="Financial control" description="From the recorded applications, invoices, receipts, gang claims and job costs. Only people with money access see this."
-      action={<Link className={styles.link} href="/admin/finance">Debtors and cash flow →</Link>}>
+      action={<Link className={styles.link} href="/admin/finance">Money overview →</Link>}
+      fold={`${money(m.ageing.total)} owed by customers · ${money(m.ageing.overdue)} overdue · ${money(m.gang.dueWeek.amount)} gang payments due this week`}>
       <div className={styles.moneyGrid}>
         <div className={styles.card}>
           <h3>Customers owe</h3>
@@ -234,39 +291,7 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
       </>}
     </Panel>}
 
-    <Panel id="planning" title="Planning: next 14 days" description="Who is where, jobs starting, gaps, materials and deadlines." action={<Link className={styles.link} href="/admin/planner">Open the planner →</Link>}>
-      <div className={styles.planGrid}>
-        <div className={styles.card}>
-          <h3>Job starts</h3>
-          {data.planning.starts.length === 0 ? <p className={styles.muted}>No jobs start in the next 14 days.</p>
-          : <ul className={styles.list}>{data.planning.starts.map(s => <li key={s.id}><Link href={`/admin/contracts/${s.id}`}><strong>{shortDay(s.on)}</strong> {s.label}</Link>
-            {s.ready ? <span className={`${styles.chip} ${styles.ok}`}>Set up</span> : <small className={styles.warningText}>Still to do: {s.missing.join("; ")}</small>}</li>)}</ul>}
-        </div>
-        <div className={styles.card}>
-          <h3>Staffing</h3>
-          <ul className={styles.list}>
-            {data.planning.unplannedJobs.map(job => <li key={job.id}><Link href={`/admin/contracts/${job.id}/plan`} className={styles.warningText}>No gang planned: {job.label}</Link></li>)}
-            {data.planning.doubleBooked > 0 && <li><Link href="/admin/planner" className={styles.alertText}>{plural(data.planning.doubleBooked, "gang-day")} double-booked</Link></li>}
-            {data.planning.idle.slice(0, 5).map(i => <li key={i.team}><Link href="/admin/planner">{i.team}: {plural(i.days, "working day")} without work</Link></li>)}
-            {!data.planning.unplannedJobs.length && !data.planning.doubleBooked && !data.planning.idle.length && <li className={styles.muted}>Every live job and gang is planned.</li>}
-          </ul>
-        </div>
-        <div className={styles.card}>
-          <h3>Materials</h3>
-          {data.planning.materials === null ? <p className={styles.muted}>Materials tracking is installed with the latest database update.</p>
-          : data.planning.materials.length === 0 ? <p className={styles.muted}>Nothing requested or on order.</p>
-          : <ul className={styles.list}>{data.planning.materials.slice(0, 6).map(item => <li key={item.id}><Link href="/admin/materials">{item.quantity} {item.unit} {item.item} · {item.job}</Link>
-            <small className={item.status === "requested" && item.needed_by && item.needed_by <= data.today ? styles.alertText : ""}>{item.status === "ordered" ? "Ordered" : "Not ordered"}{item.needed_by ? `, needed ${shortDay(item.needed_by)}` : ""}</small></li>)}</ul>}
-        </div>
-        <div className={styles.card}>
-          <h3>Deadlines</h3>
-          {data.planning.deadlines.length === 0 ? <p className={styles.muted}>No deadlines in the next 14 days.</p>
-          : <ul className={styles.list}>{data.planning.deadlines.slice(0, 8).map((d, i) => <li key={i}><Link href={d.href}><strong>{shortDay(d.on)}</strong> {d.what}{d.job ? ` · ${d.job}` : ""}</Link></li>)}</ul>}
-        </div>
-      </div>
-    </Panel>
-
-    <Panel id="administration" title="Administration" description="Customers, subcontractors, compliance, sales and settings.">
+    <Panel id="administration" title="Administration" description="Customers, subcontractors, compliance, sales and settings." fold="Customers, gangs, insurance, tenders, settings">
       <div className={styles.adminGrid}>
         <Link className={styles.adminLink} href="/admin/customers"><strong>Customers</strong><span>{data.admin.customers === null ? "Customer list" : plural(data.admin.customers, "customer")}</span></Link>
         <Link className={styles.adminLink} href={data.financial ? "/admin/subcontractors" : "/admin/workforce"}><strong>{data.financial ? "Subcontractor onboarding" : "Gangs and workforce"}</strong>
@@ -274,7 +299,7 @@ export function CommandCentre({ snapshot, viewer, member, config, data, queueCou
         <Link className={styles.adminLink} href="/admin/workforce"><strong>Insurance and people</strong><span>{plural(data.admin.insurance.length, "certificate")} expiring or expired</span></Link>
         <Link className={styles.adminLink} href="/admin/tenders"><strong>Tenders</strong><span>{data.admin.tenders === null ? "Enquiries" : `${data.admin.tenders} open`}</span></Link>
         {data.financial && <Link className={styles.adminLink} href="/admin/quotes"><strong>Quotations</strong><span>{data.admin.quotes === null ? "Quotations" : `${data.admin.quotes} awaiting a decision`}</span></Link>}
-        {data.financial && <Link className={styles.adminLink} href="/admin/documents"><strong>Documents and compliance</strong><span>RAMS, COSHH, health and safety, terms</span></Link>}
+        {data.financial && <Link className={styles.adminLink} href="/admin/documents"><strong>Company documents</strong><span>RAMS, COSHH, health and safety, terms</span></Link>}
         {data.financial && <Link className={styles.adminLink} href="/admin/startup-expenses"><strong>Startup expenses</strong><span>{data.admin.startup ? `${money(data.admin.startup.amount)} still to reimburse` : "Company setup costs"}</span></Link>}
         {data.financial && <Link className={styles.adminLink} href="/admin/accounts/settings"><strong>Business settings</strong><span>Company, bank and invoice details</span></Link>}
         {owner && <Link className={styles.adminLink} href="/admin/notifications"><strong>Email notifications</strong>

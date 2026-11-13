@@ -9,15 +9,18 @@ second rules engine, task list, invoicing engine or messaging system.
 | Section | What it shows | Source |
 |---|---|---|
 | Header | Greeting, global search, **+ New** quick actions | – |
+| Work that is stopped | Every active safety stop and quality hold, safety first, with its exact scope. Always first and never folded | `work_holds` |
 | Six figures | Needs you · Inbox · On site today · Overdue from customers · Gang payments this week · Compliance. Without money access, the two money figures become Live jobs and Claims to check | Engine queue, inbox counts, plans and actuals, `debtor_ledger`, gang invoice commercials, insurance and onboarding |
-| Immediate attention | Supervisor questions and decisions, reports to review, unacknowledged instructions, claims to verify or approve, overdue customer money, overdue gang payments, expired or expiring insurance, then the full action queue (stops, decisions, setup, snags, inspections, dayworks) | The shared Next Action engine (`lib/operations/next-actions`) plus direct reads |
+| Needs you | Supervisor questions and decisions, reports to review, unacknowledged instructions, claims to verify or approve, overdue customer money, overdue gang payments, expired or expiring insurance, then the full action queue (stops, decisions, setup, snags, inspections, dayworks) | The shared Next Action engine (`lib/operations/next-actions`) plus direct reads |
 | Live jobs | Every job in Mobilising, Live, On hold, Practical completion or Defects: stage, supervisor and manager, gangs planned and confirmed today, progress against package quantities, programme status, margin (money access only), open items | `contracts`, assignments, plans, actuals, `site_progress_entries`, `contract_financial_positions` |
 | Yesterday on site | Per job: end-of-day reports (problems only when real), attendance, progress quantities, photographs, inspections, new snags, materials requested, messages waiting | Handovers, actuals, progress, photos, inspections, issues, materials |
 | Financial control (money access only) | Customer debt ageing, subcontractor claims and payments, retention, CIS this month, extras to price or sign, quotations, eight-week cash flow, profit by job | `debtor_ledger`, `cash_flow_lines`, gang invoice commercials, dayworks, quotes, financial positions |
 | Planning | Job starts and what is still to set up, staffing gaps (unplanned jobs, double bookings, idle gangs), materials, deadlines | Plans, setup actions, materials, tenders, insurance |
 | Administration | Customers, onboarding, insurance, tenders, quotations, documents, startup expenses, business settings, notifications, user access | – |
 
-Every row opens its record. The owner sees all office work. When an active contracts manager is assigned to a job,
+Every row opens its record. On a phone, Yesterday, Planning, Financial control and Administration fold to a one-line
+summary; on a desk they are open. Navigation is described in [navigation-and-workflow.md](navigation-and-workflow.md).
+The owner sees all office work. When an active contracts manager is assigned to a job,
 the owner sees that job's office work as waiting on them by name; otherwise it is the owner's to do.
 
 ## Pages

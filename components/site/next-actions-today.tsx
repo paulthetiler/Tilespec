@@ -7,8 +7,9 @@ import { qualityOverviewFor } from "@/lib/operations/quality-data";
 import { holdScope, holdTypes } from "@/lib/operations/holds";
 import { dayLabel, londonDate } from "@/lib/operations/planning";
 import { checkDatabase } from "@/lib/operations/data";
-import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import { pendingGangChecks } from "@/lib/operations/gang-data";
+import { isDemoRecord } from "@/lib/operations/demo";
+import { DayStepsView, siteDayFactsFor } from "./day-steps";
 import type { Member } from "@/lib/auth";
 import adminStyles from "@/app/admin/admin.module.css";
 import styles from "./next-actions.module.css";
@@ -35,8 +36,6 @@ function Chips({ a, today }: { a: ViewerAction; today: string }) {
 export async function NextActionsToday({ supabase, member, contract, changeSite = false }: Props) {
   const base = `/admin/supervisor/sites/${contract.id}`;
   const config = configFromEnv(process.env);
-  // With the role shell on, People, Inspect and Issues are already in the tab bar.
-  const tabs = flagEnabled("roleShell", member.role);
   const { snapshot, viewer } = await loadSiteSnapshot(supabase, member, contract.id, config.planHorizonDays, { attended: true });
   const actions = compute(snapshot, viewer, config);
   const queue = buildQueue(actions);
@@ -44,11 +43,13 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
   const banner = queue.alerts.filter(a => a.state !== "ready");
   const waiting = queue.waiting.filter(a => !banner.includes(a));
   const today = snapshot.today;
-  const [quality, details, documents, gangChecks] = await Promise.all([
+  const [quality, details, documents, gangChecks, dayFacts] = await Promise.all([
     qualityOverviewFor(supabase, { contract_id: contract.id }),
     supabase.from("contracts").select("client,site_contact,scope,exclusions,tile_specification,installation_system,access_restrictions,working_hours").eq("id", contract.id).maybeSingle(),
     supabase.from("document_revisions").select("id,title,document_reference,revision").eq("contract_id", contract.id).eq("classification", "operational").not("uploaded_at", "is", null),
     pendingGangChecks(supabase, contract.id),
+    // The supervisor's own day (checks, people, progress, inspections, handover): a guide shown above the next action.
+    member.role === "supervisor" ? siteDayFactsFor(supabase, contract.id, member.user_id).catch(() => null) : Promise.resolve(null),
   ]);
   checkDatabase(details.error);
   checkDatabase(documents.error);
@@ -78,11 +79,14 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
       <div>
         <p className={styles.hello}>{firstName}</p>
         <h1 className={styles.title}>{contract.name}</h1>
+        {isDemoRecord(contract) && <p className={styles.sub}><strong>Demo record: not a real site.</strong></p>}
         <p className={styles.sub}>{dayLabel(londonDate(), "long")}</p>
         {changeSite && <Link className={styles.change} href="/admin/supervisor">Change site</Link>}
       </div>
-      <div><Link className={styles.report} href={`${base}/documents`}>Drawings &amp; RAMS</Link> <Link className={styles.report} href={`${base}/report`}>Report an issue</Link></div>
+      <div><Link className={styles.report} href={`${base}/report`}>Report an issue</Link></div>
     </header>
+
+    {dayFacts && <DayStepsView contractId={contract.id} facts={dayFacts} current={null} planned />}
 
     {!!gangChecks && <Link className={gangStyles.verifyStrip} href={`${base}/progress`}>
       <span>Verify gang progress<span className={gangStyles.count} aria-label={`${gangChecks} waiting`}>{gangChecks}</span>
@@ -140,11 +144,7 @@ export async function NextActionsToday({ supabase, member, contract, changeSite 
           <div className={styles.list}>
             <Link className={styles.row} href={`${base}/progress`}><strong>Verify gang progress{!!gangChecks && <span className={gangStyles.count}>{gangChecks}</span>}</strong>
               <span>{gangChecks === null ? "Check gang quantities and quality" : gangChecks ? `${gangChecks} gang ${gangChecks === 1 ? "invoice" : "invoices"} awaiting check` : "Nothing waiting · record measured work"}</span></Link>
-            {!tabs && <>
-              <Link className={styles.row} href={`${base}/workforce`}><strong>Who is on site</strong><span>Arrivals, moves and leaving times</span></Link>
-              <Link className={styles.row} href={`${base}/inspections`}><strong>Check workmanship</strong><span>Choose an area and check work</span></Link>
-              <Link className={styles.row} href={`${base}/snags`}><strong>Outstanding snags</strong><span>Everything open on this site</span></Link>
-            </>}
+            <Link className={styles.row} href={`${base}/snags`}><strong>Outstanding snags</strong><span>Everything open on this site</span></Link>
             {/* Questions and replies need their own reviewed migration; until then there is no way to message the office here. */}
             {snapshot.job_threads && member.role === "supervisor" && <Link className={styles.row} href={`${base}/messages#ask`}><strong>Message the office</strong><span>Ask a question or tell them something about this job</span></Link>}
             <Link className={styles.row} href={`${base}/messages`}><strong>Office messages</strong><span>Instructions and requests</span></Link>

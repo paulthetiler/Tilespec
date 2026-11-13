@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { requireActor } from "@/lib/auth";
-import { checkDatabase } from "@/lib/operations/data";
+import { checkDatabase, contractsFor } from "@/lib/operations/data";
+import { snagRegisterFor } from "@/lib/operations/snags-data";
+import { holdRegisterFor } from "@/lib/operations/holds-data";
+import { isDemoRecord } from "@/lib/operations/demo";
 import { gangNextStep, gangStatusLabel, gangStatusTone, quantityText } from "@/lib/operations/gang-invoices";
 import { calendarDate, money } from "@/components/operations/format";
 import { OperationsForm } from "@/components/operations/operations-form";
@@ -74,7 +77,10 @@ export default async function GangInvoices({ searchParams }: { searchParams: Pro
   if (!["lead_installer", "subcontract_installer"].includes(member.role)) {
     return <div className={styles.empty}><h1 className={styles.title}>Gang invoices</h1><p>This page is for gangs sending their invoices. The office reviews them in <Link href="/admin/gang-invoices">Gang invoices</Link>.</p></div>;
   }
-  const [jobs, invoices] = await Promise.all([supabase.rpc("my_gang_jobs"), supabase.rpc("my_gang_invoices")]);
+  // The gang's whole day on one page: stopped work first, its jobs and drawings, its fixes, then its invoices.
+  // Counts are read under the gang member's own permissions; a register that cannot be read is simply left out.
+  const [jobs, invoices, assigned, fixes, holds] = await Promise.all([supabase.rpc("my_gang_jobs"), supabase.rpc("my_gang_invoices"), contractsFor(supabase),
+    snagRegisterFor(supabase, {}, 0).then(r => r.counts, () => null), holdRegisterFor(supabase, {}, 0).then(r => r.counts, () => null)]);
   checkDatabase(jobs.error); checkDatabase(invoices.error);
   const list = (invoices.data ?? []) as Invoice[];
   const { sent } = await searchParams;
@@ -86,17 +92,35 @@ export default async function GangInvoices({ searchParams }: { searchParams: Pro
       : <details className={styles.panel}><summary><strong>{title} ({rows.length})</strong></summary>{body}</details>;
   };
   const firstName = member.display_name.trim().split(/\s+/)[0] || "there";
+  const stopped = holds ? Number(holds.active_safety ?? 0) + Number(holds.active_quality ?? 0) : 0;
+  const openFixes = fixes ? Number(fixes.open ?? 0) : null;
   return <>
-    <div className={styles.pageHeader}><div><p className={styles.eyebrow}>Hello, {firstName}</p><h1 className={styles.title}>Your invoices</h1>
-      <p className={styles.description}>Send your invoice and the quantity you have done. The supervisor checks the work, then the office approves payment.</p></div></div>
+    <div className={styles.pageHeader}><div><p className={styles.eyebrow}>Hello, {firstName}</p><h1 className={styles.title}>Today</h1>
+      <p className={styles.description}>Your jobs and drawings, the fixes you have been asked to make, and your invoices.</p></div></div>
     {typeof sent === "string" && sent && <p className={styles.success} role="status">Invoice {sent} sent. The site supervisor has been asked to check the work.</p>}
+    {stopped > 0 && <Link className={css.stopStrip} href="/admin/holds">
+      <strong>Work is stopped on your jobs: {Number(holds?.active_safety ?? 0)} safety {Number(holds?.active_safety ?? 0) === 1 ? "stop" : "stops"}, {Number(holds?.active_quality ?? 0)} quality {Number(holds?.active_quality ?? 0) === 1 ? "hold" : "holds"}</strong>
+      <span>Do not work in the stopped areas. See exactly where →</span></Link>}
+    <section aria-labelledby="gang-jobs"><h2 id="gang-jobs" className={css.sectionTitle}>Your jobs<span className={css.count}>{assigned.length}</span></h2>
+      {assigned.length ? <ul className={css.cards}>{assigned.map(job => <li key={job.id}><Link className={css.card} href={`/admin/contracts/${job.id}`}>
+        <strong>{job.reference} · {job.name}</strong>{isDemoRecord(job) && <span className={styles.warningBadge}>Demo record</span>}<span className={styles.muted}>{job.address || "Address not recorded"}</span><span>Your work areas, drawings and documents →</span></Link></li>)}</ul>
+        : <p className={styles.empty}>No work is allocated to you yet. The office will add you to a job.</p>}
+    </section>
+    <section aria-labelledby="gang-fixes"><h2 id="gang-fixes" className={css.sectionTitle}>Fixes{openFixes !== null && <span className={css.count}>{openFixes}</span>}</h2>
+      <Link className={css.card} href="/admin/snags">{openFixes === null ? <strong>Fixes you have been asked to make</strong>
+        : openFixes ? <strong>{openFixes} {openFixes === 1 ? "fix" : "fixes"} to put right</strong> : <strong>No fixes waiting for you</strong>}
+        <span>Open each one, put it right and send photos →</span></Link>
+    </section>
+    <section aria-labelledby="gang-invoices"><h2 id="gang-invoices" className={css.sectionTitle}>Your invoices</h2>
+    <p className={styles.muted}>Send your invoice and the quantity you have done. The supervisor checks the work, then the office approves payment.</p>
     {(jobs.data ?? []).length > 0 ? <Link className={css.bigAction} href="/admin/gang/new">Send an invoice</Link>
-      : <p className={styles.empty}>Your gang is not set up on a job yet. Ask the office to add your gang to the job.</p>}
+      : <p className={styles.empty}>Invoicing is not set up for your gang yet. Ask the office to add your gang and its agreed rates to the job.</p>}
     {list.length === 0 && <p className={styles.muted}>You have not sent any invoices yet.</p>}
     {section("Needs you", needsYou)}
     {section("Being checked", inProgress)}
     {section("Approved and paid", settled)}
     {section("Closed", ["rejected", "cancelled", "superseded"], false)}
-    <p className={styles.muted} style={{ marginTop: 24 }}><Link href="/admin/snags">Fixes assigned to you</Link> · <Link href="/admin/holds">Work restrictions</Link></p>
+    </section>
+    <p className={styles.muted} style={{ marginTop: 24 }}><Link href="/admin/holds">All work restrictions on your jobs</Link></p>
   </>;
 }

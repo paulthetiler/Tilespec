@@ -40,3 +40,9 @@ a.card:hover { border-color: #75a59f; }
   .lineRow > :first-child { grid-column: 1 / -1; }
   .compare { font-size: 14px; }
 }
+/* The gang's Today: stopped work first, then jobs, fixes and invoices. */
+a.card { display: grid; gap: 4px; min-height: 44px; color: var(--admin-ink, #0f2a3a); }
+a.card:hover { border-color: #4f8f88; background: #f8fbfb; }
+a.card > span:last-child { color: #245c55; font-weight: 700; }
+.stopStrip { display: grid; gap: 4px; margin: 0 0 8px; padding: 14px 16px; border: 2px solid #c9776b; border-left-width: 6px; border-radius: 10px; background: #fff5f2; color: #7c251a; }
+.stopStrip span { font-size: 14px; font-weight: 700; }

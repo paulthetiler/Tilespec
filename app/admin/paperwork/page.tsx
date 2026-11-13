@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageContracts, canReadFinancial, requireActor } from "@/lib/auth";
 import { checkDatabase, contractsFor } from "@/lib/operations/data";
-import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import { eventDate } from "@/components/operations/format";
 import styles from "../admin.module.css";
 
@@ -17,7 +16,7 @@ type SavedDocument = {
 
 export default async function PaperworkPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { supabase, member } = await requireActor();
-  if (!canManageContracts(member) || (!flagEnabled("nextActions", member.role) && !flagEnabled("roleShell", member.role))) notFound();
+  if (!canManageContracts(member)) notFound();
   const query = await searchParams;
   const contractId = typeof query.contract_id === "string" ? query.contract_id : "";
   if (contractId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(contractId)) notFound();

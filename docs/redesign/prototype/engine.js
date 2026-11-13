@@ -1430,8 +1430,9 @@ var TSEngine = (() => {
   var queueIds = (q) => [q.next, ...q.then, ...q.info, ...q.exceptions, ...q.waiting].filter((a) => !!a).map((a) => a.id);
 
   // lib/operations/next-actions/flags.ts
-  var ENV_NAME = { nextActions: "FEATURE_NEXT_ACTIONS", roleShell: "FEATURE_ROLE_SHELL" };
+  var ENV_NAME = { nextActions: "FEATURE_NEXT_ACTIONS" };
   var ON = /* @__PURE__ */ new Set(["1", "true", "on", "yes", "all"]);
+  var OFF = /* @__PURE__ */ new Set(["0", "false", "off", "no", "none"]);
   var ROLES = /* @__PURE__ */ new Set(["owner", "contracts_manager", "supervisor", "lead_installer", "subcontract_installer"]);
   function workflowPreviewExposed(env = define_process_env_default) {
     if (env.VERCEL_ENV === "preview") return true;
@@ -1441,8 +1442,8 @@ var TSEngine = (() => {
   function flagEnabled(name, role, env = define_process_env_default) {
     var _a;
     const raw = ((_a = env[ENV_NAME[name]]) != null ? _a : "").trim().toLowerCase();
-    if (!raw) return false;
-    if (ON.has(raw)) return true;
+    if (!raw || ON.has(raw)) return true;
+    if (OFF.has(raw)) return false;
     const listed = raw.split(",").map((x) => x.trim()).filter(Boolean);
     return listed.length > 0 && listed.every((x) => ROLES.has(x)) && listed.includes(role);
   }

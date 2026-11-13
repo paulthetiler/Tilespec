@@ -12,12 +12,12 @@ export default async function SiteDocuments({params}:{params:Promise<{id:string}
  const result=await supabase.from("document_revisions").select("id,title,document_reference,revision,uploaded_at,created_at,mime_type")
   .eq("contract_id",id).eq("classification","operational").not("uploaded_at","is",null)
   .order("revision",{ascending:false}).order("created_at",{ascending:false});
- if(result.error) return <main className={styles.panel}><h1>Site documents</h1><p role="alert">Documents are temporarily unavailable. Contact the office before relying on an old drawing.</p></main>;
+ if(result.error) return <div className={styles.panel}><h1>Site documents</h1><p role="alert">Documents are temporarily unavailable. Contact the office before relying on an old drawing.</p></div>;
  const revisions=(result.data||[]) as Revision[];
  const current=new Map<string,Revision>();
  for(const document of revisions) if(!current.has(document.document_reference)) current.set(document.document_reference,document);
  const latest=[...current.values()];
- return <main style={{maxWidth:900,margin:"0 auto",padding:"16px 12px 90px"}}>
+ return <div style={{maxWidth:900,margin:"0 auto",padding:"16px 12px 90px"}}>
   <p><Link href={`/admin/supervisor/sites/${id}`}>← Back to site</Link></p>
   <h1>Drawings &amp; Documents</h1><p><strong>{contract.name}</strong></p>
   <p>Current job documents uploaded by the office. Open or save a PDF for use on site. Older revisions are kept separately so you can check what changed.</p>
@@ -37,5 +37,5 @@ export default async function SiteDocuments({params}:{params:Promise<{id:string}
    {!revisions.some(doc=>current.get(doc.document_reference)?.id!==doc.id)&&<p>No older revisions.</p>}
   </details>
   <p style={{marginTop:20}}>Missing a drawing or RAMS? Ask the office to add it to this contract. Site documents are shared across authorised supervisors, not stored against an individual tablet.</p>
- </main>;
+ </div>;
 }

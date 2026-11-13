@@ -384,23 +384,22 @@ test("the prototype uses the same engine, not a copy", () => {
 
 // ---- feature flags ------------------------------------------------------------------------------------
 
-test("feature flags are off unless set, and can be staged by role", () => {
-  assert.equal(flagEnabled("nextActions", "supervisor", {}), false);
-  assert.equal(flagEnabled("roleShell", "owner", { FEATURE_ROLE_SHELL: "" }), false);
-  assert.equal(flagEnabled("nextActions", "supervisor", { FEATURE_NEXT_ACTIONS: "1" }), true);
-  assert.equal(flagEnabled("nextActions", "owner", { FEATURE_NEXT_ACTIONS: "ON" }), true);
-  assert.equal(flagEnabled("roleShell", "supervisor", { FEATURE_ROLE_SHELL: "supervisor, lead_installer" }), true);
-  assert.equal(flagEnabled("roleShell", "owner", { FEATURE_ROLE_SHELL: "supervisor,lead_installer" }), false);
-  assert.equal(flagEnabled("roleShell", "owner", { FEATURE_ROLE_SHELL: "supervisr,owner" }), false, "a typo turns it off rather than on");
+test("the rules-engine dashboards are on unless switched off, and can still be limited by role", () => {
   for (const VERCEL_ENV of ["development", "preview", "production"]) {
     for (const role of ["owner", "contracts_manager", "supervisor", "lead_installer", "subcontract_installer"] as const) {
-      for (const flag of ["nextActions", "roleShell"] as const) {
-        assert.equal(flagEnabled(flag, role, { VERCEL_ENV }), false, `${VERCEL_ENV}: ${flag} defaults off for ${role}`);
-      }
+      assert.equal(flagEnabled("nextActions", role, { VERCEL_ENV }), true, `${VERCEL_ENV}: on by default for ${role}`);
+      assert.equal(flagEnabled("nextActions", role, { VERCEL_ENV, FEATURE_NEXT_ACTIONS: "" }), true, "empty is the default");
+      assert.equal(flagEnabled("nextActions", role, { VERCEL_ENV, FEATURE_NEXT_ACTIONS: "off" }), false, "the emergency switch turns it off");
     }
   }
-  assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "preview", FEATURE_NEXT_ACTIONS: "supervisor" }), true, "preview can opt in explicitly");
-  assert.equal(flagEnabled("nextActions", "supervisor", { VERCEL_ENV: "preview", FEATURE_NEXT_ACTIONS: "" }), false, "explicit empty still off");
+  for (const off of ["0", "false", "OFF", "no", "none"]) assert.equal(flagEnabled("nextActions", "owner", { FEATURE_NEXT_ACTIONS: off }), false, off);
+  assert.equal(flagEnabled("nextActions", "supervisor", { FEATURE_NEXT_ACTIONS: "1" }), true);
+  assert.equal(flagEnabled("nextActions", "owner", { FEATURE_NEXT_ACTIONS: "ON" }), true);
+  assert.equal(flagEnabled("nextActions", "supervisor", { FEATURE_NEXT_ACTIONS: "supervisor, owner" }), true);
+  assert.equal(flagEnabled("nextActions", "lead_installer", { FEATURE_NEXT_ACTIONS: "supervisor,owner" }), false, "a role list limits it");
+  assert.equal(flagEnabled("nextActions", "owner", { FEATURE_NEXT_ACTIONS: "supervisr,owner" }), false, "a typo turns it off rather than on");
+  // Production's existing setting keeps working exactly as before.
+  for (const role of ["supervisor", "owner", "contracts_manager"] as const) assert.equal(flagEnabled("nextActions", role, { FEATURE_NEXT_ACTIONS: "supervisor,owner,contracts_manager" }), true);
   assert.equal(workflowPreviewExposed({ VERCEL_ENV: "preview" }), true);
   assert.equal(workflowPreviewExposed({ VERCEL_ENV: "production", VERCEL: "1" }), false, "production never serves the prototype");
   assert.equal(workflowPreviewExposed({ VERCEL: "1", VERCEL_ENV: "development" }), false);
@@ -436,8 +435,8 @@ test("risks are not an owner destination and money stays separate", () => {
   assert.ok(!owner.includes("Risks"));
 });
 
-test("subcontractors get Today, Fixes and Paperwork, and no way to message the supervisor", () => {
-  assert.deepEqual(destinationsFor("subcontract_installer", "/admin").map(d => d.label), ["Today", "Fixes", "Paperwork"]);
+test("subcontractors get Today, Fixes and Jobs, and no way to message the supervisor", () => {
+  assert.deepEqual(destinationsFor("subcontract_installer", "/admin").map(d => d.label), ["Today", "Fixes", "Jobs"]);
   const everything = JSON.stringify([...engine.rules.map(r => r.id), ...everythingElse("lead_installer", false), ...destinationsFor("lead_installer", "/admin")]);
   assert.ok(!/tell the supervisor/i.test(everything));
   for (const f of ["components/admin/role-tabs.tsx", "lib/operations/next-actions/labels.ts", "components/site/next-actions-today.tsx"]) assert.ok(!/tell the supervisor/i.test(source(f)), f);
@@ -459,9 +458,11 @@ test("the supervisor's tabs follow the site they are in, and the current tab is 
   assert.deepEqual(destinationsFor("supervisor", "/admin/supervisor").map(d => d.key), ["today"]);
 });
 
-test("nothing is lost: the original office menu stays reachable under Everything else", () => {
+test("nothing is lost: the original office menu stays reachable from the grouped menu or the page it belongs to", () => {
   const links = everythingElse("owner", true).map(l => l.href);
-  for (const href of ["/admin/contracts", "/admin/workforce", "/admin/snags", "/admin/holds", "/admin/alerts", "/admin/quality", "/admin/tenders", "/admin/team", "/admin/estimator"]) assert.ok(links.includes(href), href);
+  for (const href of ["/admin/contracts", "/admin/workforce", "/admin/snags", "/admin/holds", "/admin/quality", "/admin/tenders", "/admin/team", "/admin/estimator"]) assert.ok(links.includes(href), href);
+  // Site alerts are about stops and holds, so they open from Stops and holds rather than the menu.
+  assert.match(source("app/admin/holds/page.tsx"), /href=\{`\/admin\/alerts/);
 });
 
 test("no dead-end buttons: no claim or margin controls, and no prominent Stop Work on Report an issue", () => {
@@ -556,34 +557,22 @@ test("a supervisor cannot see another contract's actions", () => {
   assert.ok(!dave.some(a => a.job.id === "c3") && !ellie.some(a => a.job.id === "c1"));
 });
 
-test("feature flags work separately, together and off, and a typo stays off", () => {
-  const off = {};
-  const nextOnly = { FEATURE_NEXT_ACTIONS: "supervisor" };
-  const shellOnly = { FEATURE_ROLE_SHELL: "supervisor" };
-  const both = { FEATURE_NEXT_ACTIONS: "supervisor", FEATURE_ROLE_SHELL: "supervisor" };
-  for (const role of ["owner", "contracts_manager", "supervisor", "lead_installer"] as const) {
-    assert.equal(flagEnabled("nextActions", role, off), false, `${role} next off`);
-    assert.equal(flagEnabled("roleShell", role, off), false, `${role} shell off`);
-  }
-  assert.equal(flagEnabled("nextActions", "supervisor", nextOnly), true);
-  assert.equal(flagEnabled("roleShell", "supervisor", nextOnly), false);
-  assert.equal(flagEnabled("nextActions", "supervisor", shellOnly), false);
-  assert.equal(flagEnabled("roleShell", "supervisor", shellOnly), true);
-  assert.equal(flagEnabled("nextActions", "supervisor", both), true);
-  assert.equal(flagEnabled("roleShell", "supervisor", both), true);
-  assert.equal(flagEnabled("nextActions", "owner", both), false, "owner is not in the staged list");
-  assert.equal(flagEnabled("roleShell", "owner", both), false);
-  assert.equal(flagEnabled("nextActions", "supervisor", { FEATURE_NEXT_ACTIONS: "SUPERVISR" }), false);
+test("one navigation for every role, and the dashboards' emergency switch", () => {
   const layout = source("app/admin/layout.tsx");
   const page = source("app/admin/supervisor/sites/[id]/page.tsx");
-  assert.match(layout, /flagEnabled\("roleShell"/);
+  // Navigation is no longer behind a flag: every role gets the same role-aware shell.
+  assert.doesNotMatch(layout, /flagEnabled|FEATURE_ROLE_SHELL|Office menu<|Everything else/);
+  assert.match(layout, /<RoleTabs /);
+  assert.match(layout, /<OfficeSidebar /);
+  assert.equal(flagEnabled("nextActions", "supervisor", { FEATURE_NEXT_ACTIONS: "SUPERVISR" }), false);
   assert.match(page, /flagEnabled\("nextActions"/);
   // The large STOP WORK button was deliberately removed from the supervisor dashboard; issues are
   // reported the ordinary way and active work restrictions are still shown.
   assert.doesNotMatch(page, /STOP WORK/);
   assert.match(page, /Record a work restriction/);
-  assert.match(layout, /Office menu/);
+  assert.match(source("components/admin/office-nav.tsx"), /aria-label="Office menu"/);
 });
+
 
 test("idle copy never says work is up to date while a restriction is still active", () => {
   const restricted = idleCopy({ activeRestrictions: true, waitingOnOthers: true });

@@ -26,7 +26,11 @@ const postgrestBinary = process.env.POSTGREST_BIN || 'postgrest';
 const commandCentreOnly = process.env.E2E_COMMAND_CENTRE_ONLY === '1';
 // Before the database update: the hosted project's shape (no office reviews, no command centre) with the new app.
 const preMigration = process.env.E2E_PRE_MIGRATION === '1';
-const adminTodayOnly = process.env.E2E_ADMIN_TODAY_ONLY === '1' || commandCentreOnly || preMigration;
+// Keep the whole stack running for a person to explore (npm run stack:local). Loads every seed, runs no journey.
+const serveOnly = process.env.E2E_SERVE === '1';
+// Every role's journey with the default settings, exactly as people will use it (npm run test:journeys).
+const journeysOnly = process.env.E2E_JOURNEYS_ONLY === '1';
+const adminTodayOnly = process.env.E2E_ADMIN_TODAY_ONLY === '1' || commandCentreOnly || preMigration || serveOnly || journeysOnly;
 const notYetApplied = name => preMigration && (name.startsWith('20261023090000_') || name >= '20261114');
 // The command centre journey proves email delivery against a local stand-in for the email service: nothing leaves this machine.
 const cronSecret = 'e2e-cron-secret-0123456789abcdef0123456789';
@@ -90,7 +94,7 @@ async function startDatabase() {
   sql(await readFile(join(repository, 'tests/e2e/holds-seed.sql'), 'utf8'));
   sql(await readFile(join(repository, 'tests/e2e/simple-seed.sql'), 'utf8'));
   if (adminTodayOnly) sql(await readFile(join(repository, 'tests/e2e/admin-today-seed.sql'), 'utf8'));
-  if (commandCentreOnly) sql(await readFile(join(repository, 'tests/e2e/command-centre-seed.sql'), 'utf8'));
+  if (commandCentreOnly || serveOnly || journeysOnly) sql(await readFile(join(repository, 'tests/e2e/command-centre-seed.sql'), 'utf8'));
 }
 
 // --- Tokens and the Supabase stand-in ------------------------------------------
@@ -205,17 +209,18 @@ async function startNext(gatewayPort) {
   generatedConfiguration = await Promise.all(['tsconfig.json', 'next-env.d.ts'].map(async name => [name, await readFile(join(repository, name), 'utf8')]));
   await rm(join(repository, '.next/e2e'), { recursive: true, force: true });
   let log = '';
-  const child = spawn(process.execPath, [join(repository, 'node_modules/next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], {
-    cwd: repository, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, TILESPEC_E2E_OUTPUT: '1', NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${gatewayPort}`, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: anonKey,
+  const env = { ...process.env, TILESPEC_E2E_OUTPUT: '1', NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${gatewayPort}`, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: anonKey,
       // Like production, the app holds no service-role key at all.
       NEXT_TELEMETRY_DISABLED: '1', SUPABASE_SERVICE_ROLE_KEY: '',
-      // The existing regression always proves the default admin. Phase 3 is a
-      // separate invocation with an explicit office/owner-only opt-in.
-      FEATURE_NEXT_ACTIONS: adminTodayOnly ? 'owner,contracts_manager' : '',
-      FEATURE_ROLE_SHELL: adminTodayOnly ? 'owner,contracts_manager' : '',
+      // The rules-engine dashboards are the default. The role journeys use the default; the earlier
+      // regression keeps proving the older dashboards behind the emergency switch, and the Phase 3 suites
+      // keep their office/owner-only setting. Navigation is the same everywhere.
+      FEATURE_NEXT_ACTIONS: serveOnly ? (process.env.FEATURE_NEXT_ACTIONS ?? '') : journeysOnly ? '' : adminTodayOnly ? 'owner,contracts_manager' : 'off',
       ...(commandCentreOnly ? { CRON_SECRET: cronSecret, NOTIFICATIONS_DISPATCH_TOKEN: dispatchToken, ENQUIRY_NOTIFICATIONS_KEY: enquiryKey, RESEND_API_KEY: 'e2e-email-key',
-        NOTIFICATIONS_FROM: 'TileSPEC <alerts@e2e.invalid>', NOTIFICATIONS_EMAIL_ENDPOINT: `http://127.0.0.1:${emailPort}/emails`, NOTIFICATIONS_BASE_URL: 'https://tilespec.example' } : {}) } });
+        NOTIFICATIONS_FROM: 'TileSPEC <alerts@e2e.invalid>', NOTIFICATIONS_EMAIL_ENDPOINT: `http://127.0.0.1:${emailPort}/emails`, NOTIFICATIONS_BASE_URL: 'https://tilespec.example' } : {}) };
+  // A production build cannot be used here: it refuses a database address that is not https, by design.
+  const child = spawn(process.execPath, [join(repository, 'node_modules/next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], {
+    cwd: repository, detached: true, stdio: ['ignore', 'pipe', 'pipe'], env });
   for (const stream of [child.stdout, child.stderr]) stream.on('data', bytes => { log = (log + bytes).slice(-8000); });
   children.push({ kill: async () => {
     if (child.exitCode !== null || child.signalCode !== null) return;
@@ -294,6 +299,27 @@ async function compileAuthenticatedRoutes(origin, gatewayPort) {
     const html = await response.text();
     assert.doesNotMatch(html, /Records are temporarily unavailable|Application error/, `authenticated compile warm-up ${path} renders healthy saved records`);
   }
+  return cookie;
+}
+
+// Compile every signed-in page once, a few at a time, so journeys that visit many pages are not
+// waiting on the development server's first compile of each. Errors are left for the journeys to report.
+async function compileEveryAdminPage(origin, cookie) {
+  const pages = [];
+  const walk = (directory, parts) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isDirectory()) walk(join(directory, entry.name), [...parts, entry.name]);
+      else if (entry.name === 'page.tsx') pages.push(parts);
+    }
+  };
+  walk(join(repository, 'app/admin'), ['admin']);
+  const paths = pages.map(parts => parts.map((part, index) => part !== '[id]' ? part
+    : ['contracts', 'sites'].includes(parts[index - 1]) ? contractId : null)).filter(parts => !parts.includes(null) && !parts.some(part => part.startsWith('[')))
+    .map(parts => `/${parts.join('/')}`);
+  for (let index = 0; index < paths.length; index += 6) {
+    await Promise.all(paths.slice(index, index + 6).map(path => fetch(`${origin}${path}`, { headers: { cookie }, redirect: 'manual', signal: AbortSignal.timeout(180000) }).catch(() => null)));
+  }
+  console.log(`Compiled ${paths.length} signed-in pages before the journeys.`);
 }
 
 // The dev server compiles each route the first time it is requested. Visit
@@ -322,12 +348,25 @@ async function main() {
   if (commandCentreOnly) emailPort = await startEmailStub();
   const next = await startNext(gateway.port);
   nextDiagnosticLog = next.log;
-  await compileAuthenticatedRoutes(next.origin, gateway.port);
+  const warmCookie = await compileAuthenticatedRoutes(next.origin, gateway.port);
+  if (journeysOnly) await compileEveryAdminPage(next.origin, warmCookie);
+  if (serveOnly) {
+    console.log(`READY ${next.origin}  (every e2e account signs in with password "${password}"; Ctrl+C stops everything)`);
+    console.log(`SQL: psql -h ${work} -p ${pgPort} -U postgres -d postgres`);
+    await new Promise(resolve => { process.once('SIGINT', resolve); process.once('SIGTERM', resolve); });
+    return;
+  }
   browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined, headless: true });
   await warm(next.origin);
   if (preMigration) {
     const { runPreMigration } = await import('./pre-migration-e2e-flows.mjs');
     await runPreMigration({ browser, origin: next.origin, sql, signIn, pass, contractId });
+    return;
+  }
+  if (journeysOnly) {
+    const { runRoleJourneys } = await import('./role-journeys-e2e-flows.mjs');
+    await runRoleJourneys({ browser, origin: next.origin, sql, signIn, screenshots, pass, contractId,
+      gatewayOrigin: `http://127.0.0.1:${gateway.port}`, tokenFor: email => session(users[email], email).access_token });
     return;
   }
   if (commandCentreOnly) {

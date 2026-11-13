@@ -1,5 +1,10 @@
 # TileSpec Admin: Apple-simple workflow redesign
 
+> **Current state (13 November 2026):** the role navigation and the rules-engine Today screens are now the standard
+> experience for every role. Navigation is no longer behind a flag, and `FEATURE_NEXT_ACTIONS` is on by default,
+> with `off` as an emergency switch. See [navigation-and-workflow.md](../operations/navigation-and-workflow.md).
+> The phase notes below are kept as the design record.
+
 **Status: Phases 1 and 2 are merged into `main` (`9cebbbe`, then `53bc87c`). Phase 3 adds real Office and Owner Today screens on the same shared engine. Application flags stay off by default in every environment. No schema changes or production rollout. See [09-office-owner-today.md](09-office-owner-today.md) for current scope and validation, and [08-review-response.md](08-review-response.md) for the Phase 2 delivery.**
 
 The documents describe the design. The code is in `lib/operations/next-actions/`, `lib/operations/role-nav.ts` and `components/`. The mobile preview in `docs/redesign/prototype/` runs the same engine as the app.

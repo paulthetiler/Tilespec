@@ -91,7 +91,7 @@ try {
   await new Promise(resolve => listener.close(resolve));
   server = spawn(process.execPath, [join(repository, 'node_modules/next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], {
     cwd: temporary, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, FEATURE_NEXT_ACTIONS: 'owner,contracts_manager', FEATURE_ROLE_SHELL: 'owner,contracts_manager', ADMIN_TODAY_UI_TEST_SECRET: secret, NEXT_TELEMETRY_DISABLED: '1' },
+    env: { ...process.env, FEATURE_NEXT_ACTIONS: 'owner,contracts_manager', ADMIN_TODAY_UI_TEST_SECRET: secret, NEXT_TELEMETRY_DISABLED: '1' },
   });
   for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => { log = (log + bytes.toString()).slice(-16000); });
   const origin = `http://127.0.0.1:${port}`;
@@ -168,8 +168,8 @@ try {
       assert.deepEqual(await nav.getByRole('link').allTextContents(), key === 'owner' ? ['Today', 'Inbox', 'Jobs', 'Money'] : ['Today', 'Inbox', 'Jobs', 'People']);
       assert.ok(await nav.getByRole('link').count() <= 4);
       assert.equal(await nav.getByRole('link', { name: 'Today', exact: true }).getAttribute('aria-current'), 'page');
-      await page.getByText('Menu and search', { exact: true }).click();
-      for (const label of ['Jobs', 'Workforce and gangs', 'Site dashboards', 'Snag register', 'Holds and releases', 'Site alerts', 'Paperwork', 'Messages and handovers', 'Quality control', 'Tenders']) await page.getByRole('link', { name: label, exact: true }).last().waitFor({ state: 'visible' });
+      await nav.getByRole('button', { name: 'Menu', exact: true }).click();
+      for (const label of ['Jobs', 'Gangs and workforce', 'Sites (supervisor view)', 'Snags', 'Stops and holds', 'Job documents', 'Instructions and handovers', 'Quality overview', 'Tenders']) await page.getByRole('link', { name: label, exact: true }).last().waitFor({ state: 'visible' });
       assert.equal(await page.getByRole('link', { name: 'User access', exact: true }).count(), key === 'owner' ? 1 : 0);
       const financialLinks = await page.locator('a[href="/admin/money"], a[href="/admin/estimator"]').count();
       assert.equal(financialLinks > 0, key !== 'office', `${key} financial menu permission`);
@@ -199,7 +199,7 @@ try {
         assert.ok(routes.some(route => route.test(path)), `${key} link ${target} must name a real application page`);
       }
       if (screenshots) {
-        await page.getByText('Menu and search', { exact: true }).click();
+        // The complete menu is still open from the check above.
         await page.screenshot({ path: join(screenshots, `admin-today-${key}-${viewport.width}.png`), fullPage: true });
         // Replace the early diagnostic capture after the complete journey, when
         // the existing finite brand animation has finished. Restore initial

@@ -1,17 +1,23 @@
 import type { MemberRole } from "./types";
 
 /*
- * Feature flags for Phase 2. Both are OFF unless set, so merging changes nothing for anyone.
+ * The rules-engine dashboards (Supervisor Today and the office command centre) are the standard experience
+ * for every role. They were introduced behind FEATURE_NEXT_ACTIONS and rolled out role by role. The flag now
+ * stays only as an emergency switch back to the earlier dashboards:
  *
- *   FEATURE_NEXT_ACTIONS   the shared rules engine drives Supervisor, Office and Owner Today
- *   FEATURE_ROLE_SHELL     role-specific navigation (at most four destinations per role)
+ *   unset or empty     on for everyone (the normal state)
+ *   off / 0 / false    the earlier dashboards for everyone
+ *   on / 1 / true      on for everyone
+ *   a comma list       on only for the listed roles, for example "supervisor,owner". A typo in the list
+ *                      turns it off rather than on.
  *
- * A flag can be "off", "on" (everyone) or a comma list of roles for a staged rollout,
- * for example FEATURE_ROLE_SHELL=supervisor,lead_installer
+ * There is no flag for navigation any more: every role has the one role-aware navigation (lib/operations/role-nav.ts).
+ * FEATURE_ROLE_SHELL is ignored.
  */
-export type FlagName = "nextActions" | "roleShell";
-const ENV_NAME: Record<FlagName, string> = { nextActions: "FEATURE_NEXT_ACTIONS", roleShell: "FEATURE_ROLE_SHELL" };
+export type FlagName = "nextActions";
+const ENV_NAME: Record<FlagName, string> = { nextActions: "FEATURE_NEXT_ACTIONS" };
 const ON = new Set(["1", "true", "on", "yes", "all"]);
+const OFF = new Set(["0", "false", "off", "no", "none"]);
 const ROLES = new Set<string>(["owner", "contracts_manager", "supervisor", "lead_installer", "subcontract_installer"]);
 
 /**
@@ -25,11 +31,9 @@ export function workflowPreviewExposed(env: Record<string, string | undefined> =
 }
 
 export function flagEnabled(name: FlagName, role: MemberRole, env: Record<string, string | undefined> = process.env): boolean {
-  // Local, preview and production all require explicit opt-in. The fictional
-  // workflow preview is exposed separately and never enables application flags.
   const raw = (env[ENV_NAME[name]] ?? "").trim().toLowerCase();
-  if (!raw) return false;
-  if (ON.has(raw)) return true;
+  if (!raw || ON.has(raw)) return true;
+  if (OFF.has(raw)) return false;
   const listed = raw.split(",").map(x => x.trim()).filter(Boolean);
   return listed.length > 0 && listed.every(x => ROLES.has(x)) && listed.includes(role);
 }

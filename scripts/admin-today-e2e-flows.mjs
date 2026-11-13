@@ -26,14 +26,15 @@ export async function checkLegacyAdmin({ browser, origin, signIn, pass }) {
       await page.goto(`${origin}/admin`);
       await page.getByRole('heading', { name: heading, exact: true }).waitFor();
       assert.equal(await page.getByRole('heading', { name: 'Today', exact: true }).count(), 0);
-      assert.equal(await page.getByRole('navigation', { name: 'Main', exact: true }).count(), 0);
-      for (const path of ['/admin/paperwork', '/admin/messages', '/admin/money']) {
+      // Navigation is no longer behind a flag: the one role-aware navigation is there either way.
+      await page.getByRole('navigation', { name: 'Main', exact: true }).waitFor();
+      for (const path of ['/admin/paperwork', '/admin/messages']) {
         const response = await page.request.get(`${origin}${path}`);
-        assert.equal(response.status(), 404, `flags OFF keeps ${path} unavailable`);
+        assert.equal(response.status(), 200, `${path} stays reachable from the menu`);
       }
     } finally { await context.close(); }
   }
-  pass('Phase 3 flags OFF: original Office/Owner admin stays available and all new indexes/Money remain unavailable');
+  pass('Dashboards switched off: the earlier Office/Owner overview is still served, inside the same navigation');
 }
 
 export async function runAdminToday({ browser, origin, sql, signIn, screenshots, pass, gatewayOrigin, tokenFor }) {
@@ -362,8 +363,10 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
       if (href.startsWith('/admin/documents/')) continue;
       assert.equal((await office.request.get(`${origin}${href.split('#')[0]}`)).status(), 200, `activity link ${href} opens a healthy saved record`);
     }
-    // The opt-in in this run covers office and owner only; the shared page follows the same boundary.
-    assert.equal((await supervisor.request.get(`${origin}${site}/activity`)).status(), 404, 'a role that is not opted in does not get the new page');
+    // Job activity is no longer behind a flag: it is the one shared story, linked from the supervisor's Today.
+    // The boundary that matters is the site itself.
+    assert.equal((await supervisor.request.get(`${origin}${site}/activity`)).status(), 200, 'the supervisor on this site reads the same story');
+    assert.equal((await other.request.get(`${origin}${site}/activity`)).status(), 404, 'another organisation cannot open it');
     pass('Phase 3 I2: Job Activity tells the saved story newest first, names who acknowledged and when, and every line opens a healthy record');
 
     await other.goto(`${origin}/admin`);
@@ -380,9 +383,10 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
     assert.equal(outOfScope.status(), 404);
     await supervisor.goto(`${origin}/admin`);
     assert.match(new URL(supervisor.url()).pathname, /^\/admin\/supervisor/);
-    assert.equal(await supervisor.getByRole('navigation', { name: 'Main', exact: true }).count(), 0, 'office opt-in does not enable the supervisor shell');
+    assert.equal(await supervisor.getByRole('navigation', { name: 'Office menu', exact: true }).count(), 0, 'a supervisor never gets the office menu');
     await installer.goto(`${origin}/admin`);
-    assert.equal(await installer.getByRole('heading', { name: 'Today', exact: true }).count(), 0, 'office opt-in does not replace installer admin');
+    assert.equal(new URL(installer.url()).pathname, '/admin/gang', 'an installer lands on the gang\'s own Today, not the office one');
+    assert.equal(await installer.getByRole('navigation', { name: 'Office menu', exact: true }).count(), 0);
     pass('Phase 3 J: other organisations see no saved job/hold/message data; supervisors and installers cannot enter new office indexes or inherit its opt-in');
 
     for (const [target, role] of [[office, 'office'], [owner, 'owner']]) for (const width of [320, 390]) {
@@ -395,9 +399,9 @@ export async function runAdminToday({ browser, origin, sql, signIn, screenshots,
         caret: 'initial', style: 'nextjs-portal { display: none !important; }' });
       const mainNav = target.getByRole('navigation', { name: 'Main', exact: true });
       assert.ok(await mainNav.getByRole('link').count() <= 4);
-      await target.getByText('Menu and search', { exact: true }).click();
-      for (const label of ['Workforce and gangs', 'Site dashboards', 'Snag register', 'Holds and releases', 'Site alerts', 'Quality control', 'Tenders']) {
-        await target.getByRole('link', { name: label, exact: true }).first().waitFor();
+      await mainNav.getByRole('button', { name: 'Menu', exact: true }).click();
+      for (const label of ['Gangs and workforce', 'Sites (supervisor view)', 'Snags', 'Stops and holds', 'Quality overview', 'Tenders']) {
+        await target.getByRole('dialog', { name: 'Menu and search', exact: true }).getByRole('link', { name: label, exact: true }).first().waitFor();
       }
       assert.equal(await target.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${role} expanded menu does not overflow at ${width}px`);
       if (screenshots) await target.screenshot({ path: join(screenshots, `phase3-${role}-today-${width}.png`), fullPage: true,

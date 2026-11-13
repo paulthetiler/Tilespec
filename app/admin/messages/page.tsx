@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canManageContracts, requireActor } from "@/lib/auth";
 import { checkDatabase, contractsFor } from "@/lib/operations/data";
-import { flagEnabled } from "@/lib/operations/next-actions/flags";
 import { reviewLine, type OfficeItem, type OfficeReview, type OfficeWithdrawal, type SiteHandover } from "@/lib/operations/daily";
 import { dayLabel, londonClock, londonDate } from "@/lib/operations/planning";
 import { eventDate } from "@/components/operations/format";
@@ -16,7 +15,7 @@ type HandoverRow = Pick<SiteHandover, "id" | "contract_id" | "actor_name" | "wor
 
 export default async function MessagesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { supabase, member } = await requireActor();
-  if (!canManageContracts(member) || (!flagEnabled("nextActions", member.role) && !flagEnabled("roleShell", member.role))) notFound();
+  if (!canManageContracts(member)) notFound();
   const query = await searchParams;
   const contractId = typeof query.contract_id === "string" ? query.contract_id : "";
   if (contractId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(contractId)) notFound();

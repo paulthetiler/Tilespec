@@ -12,6 +12,7 @@ import {
   notOnSiteAction, recordUnplannedAction, setLeadAction, undoNotOnSiteAction, voidPeriodAction,
 } from "../../../site-actions";
 import { requireSite } from "../../../site-access";
+import { SiteDaySteps } from "@/components/site/day-steps";
 import styles from "../../../../admin.module.css";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export default async function TodaysWorkforce({ params }: { params: Promise<{ id
   const staleDays = [...new Set(stale.map(item => item.work_date))];
   const onSite = [...new Set([...site.cards.flatMap(card => card.periods), ...site.unplanned].flatMap(period => period.presentNow))];
   return <>
+    {member.role === "supervisor" && <SiteDaySteps supabase={supabase} contractId={id} userId={member.user_id} current="people" />}
     <div className={styles.pageHeader}><div>
       <p className={styles.eyebrow}>{dayLabel(day, "long")}</p>
       <h2 className={styles.title}>Today&apos;s Workforce</h2>

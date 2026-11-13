@@ -62,6 +62,8 @@ jobs:
               - 'scripts/test-db.sh'
               - 'scripts/test-site-e2e.mjs'
               - 'scripts/*e2e-flows.mjs'
+              - 'components/admin/role-tabs.tsx'
+              - 'lib/operations/role-nav.ts'
               - 'scripts/snags-storage-fixture.mjs'
               - 'middleware.ts'
               - 'next.config.*'
@@ -208,7 +210,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.full == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -245,6 +247,10 @@ jobs:
           SCREENSHOT_DIR: ${{ runner.temp }}/command-centre
       # The new app against the hosted database before the command centre update: nothing that works today breaks.
       - run: npm run test:pre-migration
+      # Every role's journey with the default settings: navigation, the supervisor's day, stops reaching the owner, money boundary.
+      - run: npm run test:journeys
+        env:
+          SCREENSHOT_DIR: ${{ runner.temp }}/role-journeys
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -262,6 +268,12 @@ jobs:
         with:
           name: command-centre
           path: ${{ runner.temp }}/command-centre
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: role-journeys
+          path: ${{ runner.temp }}/role-journeys
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: always()
