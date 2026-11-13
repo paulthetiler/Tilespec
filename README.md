@@ -42,6 +42,12 @@ supervisor site diary and email notifications) is described in [command-centre.m
 Its production rollout, with backup, rehearsal and rollback, is in [command-centre-rollout.md](docs/operations/command-centre-rollout.md).
 `npm run test:command-centre` runs the morning office journey in a real browser.
 
+Every role now has one navigation and a Today built around what needs doing: stopped work first for the office,
+a step-by-step day for supervisors, and jobs, fixes and invoices for gangs. See
+[navigation-and-workflow.md](docs/operations/navigation-and-workflow.md) for the audit, the changes and the
+settings. `npm run test:journeys` follows every role's journey in a real browser, and `npm run stack:local` starts
+the app with a disposable database and seed records for review.
+
 Read the [architecture, permissions and phased plan](docs/operations/architecture.md),
 [staging deployment instructions](docs/operations/deployment.md), and
 [database/bootstrap instructions](supabase/README.md). Copy `.env.example` to a
