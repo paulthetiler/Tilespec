@@ -16,16 +16,26 @@
 .attention a { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; color: #245c55; font-weight: 800; text-decoration: underline; }
 .section[id] { scroll-margin-top: 20px; }
 .secondaryLink, .rowLink { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 10px 14px; border: 1px solid #b7c9cf; border-radius: 8px; background: #fff; color: #245c55; font-weight: 800; text-align: center; max-width: 100%; }
-.rowLink { justify-self: start; }
+.rowLink { justify-self: start; white-space: nowrap; }
 .secondaryLink:hover, .rowLink:hover { background: #edf5f3; border-color: #326e67; }
 .columns, .stack, .section, .list, .shortcuts, .holds { display: grid; gap: 16px; min-width: 0; }
 .section { gap: 10px; }
 .section > h2 { font-size: 16px; color: var(--admin-muted); line-height: 1.4; }
-.hero, .empty, .action, .stop, .money { display: grid; gap: 12px; min-width: 0; padding: 20px; border: 1px solid var(--admin-line); border-radius: 12px; background: #fff; }
+.section { gap: 8px; }
+.list { gap: 8px; }
+.hero, .empty, .money { display: grid; gap: 12px; min-width: 0; padding: 20px; border: 1px solid var(--admin-line); border-radius: 12px; background: #fff; }
+/* A compact row: what, where and when on the left, one button on the right (below on a phone). */
+.action, .stop { display: grid; gap: 8px 16px; min-width: 0; padding: 12px 14px; border: 1px solid var(--admin-line); border-radius: 10px; background: #fff; }
+.actionBody { display: grid; gap: 4px; min-width: 0; }
+.why { color: #2f4a57; font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rowLinks { display: flex; flex-wrap: wrap; gap: 8px; }
+.rowLinkPrimary { border-color: #245c55; background: #326e67; color: #fff; }
+.rowLinkPrimary:hover { background: #245c55; color: #fff; }
+@media (min-width: 640px) { .action, .stop { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } }
 .hero { border: 2px solid var(--admin-teal); }
 .hero.gateHero { border-color: #8d3023; }
 .hero.alertHero { border-color: #b97814; }
-.hero h2 { font-family: "Barlow Condensed", Arial, sans-serif; font-size: clamp(30px, 8vw, 42px); font-weight: 800; line-height: 1.1; }
+.hero h2 { font-family: "Barlow Condensed", Arial, sans-serif; font-size: clamp(26px, 6vw, 34px); font-weight: 800; line-height: 1.1; }
 .hero > p:not(.eyebrow):not(.note):not(.where), .action > p:not(.note):not(.where) { font-size: 16px; }
 .primaryLink { display: flex; align-items: center; justify-content: center; min-height: 60px; padding: 14px 18px; border: 2px solid #245c55; border-radius: 10px; background: #326e67; color: #fff; font-size: 18px; font-weight: 800; text-align: center; }
 .primaryLink:hover { background: #245c55; }
@@ -35,14 +45,20 @@
 .chip { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; padding: 3px 10px; border-radius: 999px; color: #1d4a44; background: #e7f0ee; font-size: 12px; font-weight: 800; }
 .chip.required { color: #7c251a; background: #fbe4df; }
 .chip.alert { color: #6d4708; background: #fdefd2; }
-.action h3 { font-size: 18px; line-height: 1.35; }
+.action h3 { font-size: 16px; line-height: 1.3; }
 .gateRow { border-left: 4px solid #8d3023; }
 .alertRow { border-left: 4px solid #b97814; }
 .blocked { padding: 10px; border-radius: 6px; color: #7c251a; background: #fff0ee; }
 .waiting { color: #375363; font-weight: 700; }
-.stop { padding: 16px; border: 1px solid #e9bbb4; border-left: 4px solid #8d3023; background: #fff5f2; }
-.stop strong { color: #7c251a; font-size: 17px; }
+.stop { border: 1px solid #e9bbb4; border-left: 4px solid #b97814; background: #fffaf3; }
+.stop.safetyStop { border-left-color: #8d3023; background: #fff5f2; }
+.stop strong { color: #7c251a; font-size: 16px; }
+.stop p { font-size: 14px; }
 .stop .note { color: #6f443d; }
+/* Stopped work: always open, safety first, at the top of the command centre. */
+.stopped { padding: 14px; border: 2px solid #c9776b; border-radius: 12px; background: #fff; }
+.stopped > h2 { color: #7c251a; font-size: 18px; }
+.stoppedSummary { color: #6f443d; font-size: 14px; }
 .empty h2, .money h2 { font-size: 23px; line-height: 1.2; }
 .shortcuts { gap: 0; overflow: hidden; border: 1px solid var(--admin-line); border-radius: 10px; background: #fff; }
 .shortcuts > a { display: grid; gap: 4px; align-content: center; min-width: 0; min-height: 72px; padding: 14px 16px; border-top: 1px solid var(--admin-line); }
@@ -51,7 +67,7 @@
 .shortcuts strong { font-size: 16px; }
 .shortcuts span { color: var(--admin-muted); font-size: 13px; }
 .money p { color: var(--admin-muted); font-size: 14px; }
-@media (min-width: 900px) { .columns { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; gap: 24px; } .stack { gap: 24px; } .holds { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 900px) { .columns { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; gap: 24px; } .stack { gap: 24px; } }
 @media (max-width: 600px) {
   .today { gap: 14px; }
   .header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 10px; }
@@ -62,13 +78,28 @@
   .header .count { font-size: 16px; }
   .header .secondaryLink { grid-column: 2; grid-row: 1; min-height: 44px; padding: 8px 10px; font-size: 13px; }
   .hero { gap: 10px; padding: 14px; }
-  .hero h2 { font-size: 30px; }
+  .hero h2 { font-size: 26px; }
   .restrictionAlert > a { padding: 8px 10px; }
 }
-@media (max-width: 360px) { .hero, .empty, .action, .money { padding: 14px; } .hero h2 { font-size: 28px; } .primaryLink { min-height: 56px; font-size: 17px; } .shortcuts > a { padding: 12px; } }
+@media (max-width: 360px) { .hero, .empty, .action, .money { padding: 14px; } .hero h2 { font-size: 24px; } .primaryLink { min-height: 56px; font-size: 17px; } .shortcuts > a { padding: 12px; } }
 .fromSite { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid #e6c991; border-left: 4px solid #b97814; border-radius: 12px; background: #fff9ec; scroll-margin-top: 20px; }
 .fromSite > h2 { font-size: 18px; line-height: 1.3; }
 .fromSite .action { border-color: #ecd8ae; }
 .instruction { padding: 8px 10px; border-radius: 6px; background: #eef6f4; color: #1d4a44; font-size: 15px; }
 
 @media (min-width: 900px) { .capped { max-height: 640px; overflow-y: auto; padding-right: 6px; overscroll-behavior: contain; } }
+.holds { gap: 8px; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The whole row opens the record: the link covers the row, and shows as a chevron on the right. */
+.action { position: relative; }
+.action:has(.rowOpen) { grid-template-columns: minmax(0, 1fr) 32px; align-items: center; }
+.rowOpen { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: #245c55; font-size: 26px; font-weight: 700; }
+.rowOpen::after { content: ""; position: absolute; inset: 0; border-radius: 10px; }
+.rowOpen:hover::after { background: rgba(50, 110, 103, .05); }
+.rowOpen:focus-visible { outline: none; }
+.rowOpen:focus-visible::after { outline: 3px solid #438a82; outline-offset: 2px; }
+/* Inside a compact row the labels are smaller, so the kind and the date fit on one line on a phone. */
+.action .chips { gap: 4px; }
+.action .chip { padding: 2px 8px; font-size: 11px; }
+.action .where { font-size: 13px; }
+.action .waiting { color: #375363; font-weight: 700; }

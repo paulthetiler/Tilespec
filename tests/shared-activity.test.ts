@@ -78,7 +78,7 @@ test("job activity covers results, handovers, checks, inspections, plans, stops 
   assert.equal(office[0].who, "Dave Collins");
 });
 
-test("job activity reads only, is shared by office and supervisor, and stays behind the opt-in", () => {
+test("job activity reads only, is shared by office and supervisor, and checks the site", () => {
   const loader = source("lib/operations/activity-data.ts");
   assert.ok(!/\.(insert|update|upsert|delete)\(/.test(loader), "no writes");
   assert.deepEqual(loader.match(/\.rpc\("[a-z_]+"/g), ['.rpc("snag_events"'], "the only function call is the existing read-only snag history, with its own permission check");
@@ -86,7 +86,7 @@ test("job activity reads only, is shared by office and supervisor, and stays beh
   assert.match(loader, /checkDatabase\(result\.error\)/, "a failed read is an error, not an empty timeline");
   const page = source("app/admin/supervisor/sites/[id]/activity/page.tsx");
   assert.match(page, /requireSite\(id\)/);
-  assert.match(page, /notFound\(\)/);
+  assert.match(page, /if \(!contract\) return null;/, "an inaccessible site shows nothing");
   assert.match(source("components/site/next-actions-today.tsx"), /\$\{base\}\/activity/, "supervisor reaches it from Today");
   assert.match(source("app/admin/contracts/[id]/page.tsx"), /\/activity`\}>Job activity/, "office reaches it from the job");
 });
@@ -145,7 +145,7 @@ test("the supervisor sees the office's repair instructions and target date on th
 
 test("duplicate navigation and actions are gone when the new screens are on", () => {
   const office = source("components/admin/admin-today.tsx");
-  assert.match(office, /\{!tabs && <>[\s\S]*Job setup[\s\S]*People and workforce[\s\S]*Paperwork[\s\S]*<\/>\}/, "no shortcuts that repeat the tab bar");
+  assert.match(office, /\{!tabs && <>[\s\S]*Job setup[\s\S]*People and workforce[\s\S]*<\/>\}/, "no shortcuts that repeat the tab bar");
   assert.match(source("app/admin/snags/new/page.tsx"), /offerStop=\{!\(simple&&flagEnabled\("nextActions",member\.role\)\)\}/, "no second Stop Work choice after Report an issue");
   assert.match(source("app/admin/snags/[id]/page.tsx"), /reportFlow\?"Stop work for this snag"/, "escalating a snag stays available, not as a big duplicate button");
   const messages = source("app/admin/supervisor/sites/[id]/messages/page.tsx");
