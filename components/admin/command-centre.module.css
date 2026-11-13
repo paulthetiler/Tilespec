@@ -33,16 +33,18 @@
 
 .panel { display: grid; gap: 14px; min-width: 0; padding: 14px; border: 1px solid var(--admin-line); border-radius: 12px; background: #fff; }
 @media (min-width: 640px) { .panel { padding: 18px; } }
-/* A panel that folds to one line on a phone (components/admin/phone-collapse.tsx). */
-.fold > summary { list-style: none; min-height: 44px; padding: 0; }
+/* A panel that folds to one line on a phone (components/admin/phone-collapse.tsx). The heading stays outside the
+   toggle; the toggle is one line saying what is inside, with Show or Hide. */
+.fold > summary { list-style: none; }
 .fold > summary::-webkit-details-marker { display: none; }
-.foldHead { cursor: pointer; }
-.foldHead h2::after { content: " ▾"; color: var(--admin-muted); font-size: 16px; }
-.fold:not([open]) .foldHead h2::after { content: " ▸"; }
-.fold:not([open]) .foldHead p:not(.foldSummary) { display: none; }
+.foldHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; min-height: 44px; padding: 6px 12px; border-radius: 8px; background: #f4f8f8; cursor: pointer; }
 .foldSummary { color: var(--admin-ink); font-size: 14px; font-weight: 700; }
+.foldShow, .foldHide { color: var(--admin-teal); font-size: 14px; font-weight: 800; }
+.fold[open] .foldShow, .fold:not([open]) .foldHide { display: none; }
+.fold[open] > .foldHead { background: transparent; padding-inline: 0; }
 .fold[open] .foldSummary { display: none; }
-.foldBody { display: grid; gap: 14px; margin-top: 14px; min-width: 0; }
+@media (min-width: 900px) { .fold[open] > .foldHead { display: none; } }
+.foldBody { display: grid; gap: 14px; min-width: 0; }
 .panelHead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px 16px; }
 .panelHead h2 { font-size: 19px; }
 .panelHead p { margin-top: 4px; font-size: 14px; }

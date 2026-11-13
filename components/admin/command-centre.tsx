@@ -23,12 +23,17 @@ const tone = (t: Metric["tone"]) => (t === "alert" ? styles.alert : t === "warni
 function Panel({ id, title, action, children, description, fold }: { id: string; title: string; action?: ReactNode; children: ReactNode; description?: string;
   /** Fold to one line on a phone, with this summary of what is inside. */
   fold?: string }) {
+  // The heading always stays a real heading, outside the fold toggle: a toggle's content is read out as one button label.
   const head = <div className={styles.panelHead}>
-    <div><h2 id={`${id}-heading`}>{title}</h2>{description && <p className={styles.muted}>{description}</p>}{fold && <p className={styles.foldSummary}>{fold}</p>}</div>
+    <div><h2 id={`${id}-heading`}>{title}</h2>{description && <p className={styles.muted}>{description}</p>}</div>
     {action}
   </div>;
   return <section className={styles.panel} aria-labelledby={`${id}-heading`} id={id}>
-    {fold ? <PhoneCollapse summary={head} summaryClassName={styles.foldHead} className={styles.fold}><div className={styles.foldBody}>{children}</div></PhoneCollapse> : <>{head}{children}</>}
+    {head}
+    {fold ? <PhoneCollapse className={styles.fold} summaryClassName={styles.foldHead}
+      summary={<><span className={styles.foldSummary}>{fold}</span><span className={styles.foldShow}>Show ▾</span><span className={styles.foldHide}>Hide ▴</span></>}>
+      <div className={styles.foldBody}>{children}</div>
+    </PhoneCollapse> : children}
   </section>;
 }
 
