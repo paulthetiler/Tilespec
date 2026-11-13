@@ -85,7 +85,7 @@ export function officeMenu(role: MemberRole, financial: boolean): MenuSection[] 
   if (!isOffice(role)) return [];
   const owner = role === "owner";
   const sections: MenuSection[] = [
-    { title: "Today", links: [{ label: "Today", href: "/admin" }, { label: "Inbox", href: "/admin/inbox" }] },
+    { title: "Your day", links: [{ label: "Today", href: "/admin" }, { label: "Inbox", href: "/admin/inbox" }] },
     { title: "Jobs and sites", links: [
       { label: "Jobs", href: "/admin/contracts" }, { label: "Planner", href: "/admin/planner" },
       { label: "Sites (supervisor view)", href: "/admin/supervisor" }, { label: "Materials", href: "/admin/materials" },

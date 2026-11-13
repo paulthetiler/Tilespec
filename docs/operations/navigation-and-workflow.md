@@ -80,7 +80,7 @@ longer behind a setting, and the original flat menu is gone.
 
 The office menu is grouped by how the work is done, with plain names:
 
-- **Today:** Today, Inbox
+- **Your day:** Today, Inbox
 - **Jobs and sites:** Jobs, Planner, Sites (supervisor view), Materials, Instructions and handovers, Job documents
 - **Quality and safety:** Stops and holds, Snags, Quality overview
 - **People:** Gangs and workforce, Subcontractor onboarding, User access
